@@ -1,16 +1,25 @@
 {
 	"compilerOptions": {
-		"module": "Node16",
-		"target": "ES2022",
-		"lib": [
-			"ES2022"
-		],
-		"sourceMap": true,
-		"rootDir": "src",
-		"strict": true   /* enable all strict type-checking options */
-		/* Additional Checks */
-		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
-		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
-	}
-}
+	  "module": "Node16", // Module system aligned with Node.js
+	  "moduleResolution":"Node16", // Explicitly use Node-style module resolution
+	  "target": "ESNext", // Target modern JavaScript syntax
+	  "lib": ["ESNext"], // Include modern JavaScript standard libraries
+	  "sourceMap": true, // Generate source maps for easier debugging
+	  "outDir": "dist", // Output directory for compiled files
+	  "rootDir": "src", // Specify root directory for input files
+	  "strict": true, // Enable all strict type-checking options
+	  "esModuleInterop": true, // Import compatibility for CommonJS and ES modules
+	  "allowSyntheticDefaultImports": true, // Allow default imports from modules with no default export
+	  "resolveJsonModule": true, // Allow importing JSON files
+	  "skipLibCheck": true, // Skip type checking of declaration files for faster builds
+	  "forceConsistentCasingInFileNames": true, // Enforce consistent file naming
+  
+	  /* Additional Checks */
+	  "noImplicitReturns": true, // Report errors when not all code paths in a function return a value
+	  "noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statements
+	  "noUnusedParameters": true // Report errors for unused parameters
+	},
+	"include": ["src/**/*.ts"], // Include all TypeScript files in the src directory
+	"exclude": ["node_modules", ".vscode"]
+  }
+  

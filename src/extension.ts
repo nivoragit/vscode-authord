@@ -1,8 +1,11 @@
 // src/extension.ts
 import * as vscode from 'vscode';
-import { registerCommands } from './commands/registerCommands';
-import { SidebarProvider } from './views/sidebarView';
-import { TopicProvider } from './views/topicProvider';
+import { registerCommands } from './commands/registerCommands.js';
+import { SidebarProvider } from './views/sidebarView.js';
+import { TopicProvider } from './views/topicProvider.js';
+// import { registerCommands } from './commands/registerCommands';
+// import { SidebarProvider } from './views/sidebarView';
+// import { TopicProvider } from './views/topicProvider';
 
 export function activate(context: vscode.ExtensionContext) {   
     // Register commands

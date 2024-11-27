@@ -1,6 +1,7 @@
 // src/views/topicProvider.ts
 import * as vscode from 'vscode';
-import { TopicItem } from './topicItem';
+// import { TopicItem } from './topicItem';
+import { TopicItem } from './topicItem.js';
 
 export class TopicProvider implements vscode.TreeDataProvider<TopicItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<TopicItem | undefined | void> = new vscode.EventEmitter<TopicItem | undefined | void>();
@@ -41,7 +42,7 @@ export class TopicProvider implements vscode.TreeDataProvider<TopicItem> {
         ];
     }
 
-    private getSubtopics(parent: TopicItem): TopicItem[] {
+    private getSubtopics(_parent: TopicItem): TopicItem[] {
         // Sample data for subtopics
         return [
             new TopicItem('Subtopic 1', vscode.TreeItemCollapsibleState.None),

@@ -23,7 +23,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview): string {
+    private _getHtmlForWebview(_webview: vscode.Webview): string {
         // Create the HTML content
         return `<!DOCTYPE html>
 <html lang="en">
