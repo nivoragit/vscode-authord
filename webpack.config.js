@@ -1,48 +1,68 @@
-//@ts-check
+// @ts-check
 
-'use strict';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const path = require('path');
+/** @typedef {import('webpack').Configuration} WebpackConfig */
 
-//@ts-check
-/** @typedef {import('webpack').Configuration} WebpackConfig **/
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type WebpackConfig */
 const extensionConfig = {
-  target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+  // Ensure the build is compatible with Node.js
+  target: 'node',
 
-  entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
+  // Keep source code readable in development mode
+  mode: 'none',
+
+  // Entry point for the extension
+  entry: './src/extension.ts',
+
+  // Output settings for the compiled bundle
   output: {
-    // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
     path: path.resolve(__dirname, 'dist'),
     filename: 'extension.js',
-    libraryTarget: 'commonjs2'
+    libraryTarget: 'commonjs2', // Required for VS Code extensions
+    clean: true, // Cleans the output directory before every build
   },
+
+  // Exclude `vscode` and other modules from being bundled
   externals: {
-    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
-    // modules added here also need to be added in the .vscodeignore file
+    vscode: 'commonjs vscode',
   },
+
   resolve: {
-    // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
-    extensions: ['.ts', '.js']
+    // Specify which file extensions Webpack should resolve
+    extensions: ['.ts', '.js'],
+    extensionAlias: {
+      '.js': ['.ts', '.js'],
+    },
   },
+
   module: {
+    // Rules to handle TypeScript files
     rules: [
       {
         test: /\.ts$/,
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
-          }
-        ]
-      }
-    ]
+            loader: 'ts-loader', // Compiles TypeScript to JavaScript
+          },
+        ],
+      },
+    ],
   },
+
+  // Generate a source map for easier debugging
   devtool: 'nosources-source-map',
+
   infrastructureLogging: {
-    level: "log", // enables logging required for problem matchers
+    level: 'log', // Enables detailed logging during the build
   },
+
+  stats: 'errors-only', // Show only errors in the console
 };
-module.exports = [ extensionConfig ];
+
+export default [extensionConfig];
