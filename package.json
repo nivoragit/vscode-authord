@@ -10,7 +10,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "type": "module",
+  
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
