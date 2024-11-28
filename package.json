@@ -4,23 +4,32 @@
   "description": "**`vscode-writerjet`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.70.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:myMarkdownFilesView",
+    "onView:myExtensionView",
+    "onLanguage:markdown",
+    "onCommand:myExtension.openMarkdownFile",
+    "onCommand:myExtension.checkConfig",
+    "onCommand:writerjet.readConfig",
+    "onCommand:markdownPreview.open",
+    "onCommand:markdownPreview.show"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
-  "viewsContainers": {
-    "activitybar": [
-      {
-        "id": "myExtensionContainer",
-        "title": "My Extension",
-        "icon": "media/my-icon.jpeg"
-      }
-    ]
-  },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "myExtensionContainer",
+          "title": "My Extension",
+          "icon": "media/my-icon.jpeg"
+        }
+      ]
+    },
     "configuration": {
       "type": "object",
       "title": "Your Extension Settings",
@@ -29,22 +38,40 @@
           "type": "array",
           "default": [],
           "description": "List of topics to display in the Tree View."
+        },
+        "writerjet.autoFocusEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically focus the editor when the preview becomes active."
+        },
+        "writerjet.focusDelay": {
+          "type": "number",
+          "default": 500,
+          "description": "Delay in milliseconds before shifting focus back to the editor."
         }
       }
     },
     "commands": [
       {
+        "command": "myExtension.openMarkdownFile",
+        "title": "Open Markdown File"
+      },
+      {
         "command": "myExtension.checkConfig",
         "title": "Check for Config File"
       },
       {
-        "command": "writerjet.showPreview",
-        "title": "Show Markdown Preview"
-      },
-      {
         "command": "writerjet.readConfig",
         "title": "Read Configuration"
-      } 
+      },
+      {
+        "command": "markdownPreview.open",
+        "title": "Open Markdown Preview"
+      },
+      {
+        "command": "markdownPreview.show",
+        "title": "Show Markdown Preview"
+      }
     ],
     "views": {
       "explorer": [
@@ -54,18 +81,23 @@
         }
       ],
       "myExtensionContainer": [
-    {
-      "id": "myExtensionView",
-      "name": "My View",
-      "contextualTitle": "My Extension",
-      "commands": [
         {
-          "command": "myExtension.checkConfig",
-          "title": "Check Config File"
+          "id": "myMarkdownFilesView",
+          "name": "Markdown Files",
+          "contextualTitle": "Markdown Files"
+        },
+        {
+          "id": "myExtensionView",
+          "name": "My View",
+          "contextualTitle": "My Extension",
+          "commands": [
+            {
+              "command": "myExtension.checkConfig",
+              "title": "Check Config File"
+            }
+          ]
         }
       ]
-    }
-  ]
     }
   },
   "repository": {
@@ -86,14 +118,14 @@
   "devDependencies": {
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
-    "@types/vscode": "^1.95.0",
+    "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.13.0",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.6.3",
+    "typescript": "^5.1.6",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4"
   },
