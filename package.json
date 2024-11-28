@@ -10,9 +10,17 @@
     "Other"
   ],
   "activationEvents": [],
-  
   "main": "./dist/extension.js",
   "contributes": {
+  "viewsContainers": {
+    "activitybar": [
+      {
+        "id": "myExtensionContainer",
+        "title": "My Extension",
+        "icon": "media/my-icon.jpeg"
+      }
+    ]
+  },
     "configuration": {
       "type": "object",
       "title": "Your Extension Settings",
@@ -26,25 +34,17 @@
     },
     "commands": [
       {
+        "command": "myExtension.checkConfig",
+        "title": "Check for Config File"
+      },
+      {
         "command": "writerjet.showPreview",
         "title": "Show Markdown Preview"
       },
       {
         "command": "writerjet.readConfig",
         "title": "Read Configuration"
-      },
-      {
-        "command": "writerjet.sayHello",
-        "title": "Say Hello"
-      },
-      {
-        "command": "writerjet.refreshTopics",
-        "title": "Refresh Topics"
-      },
-      {
-        "command": "writerjet.openTopic",
-        "title": "Open Topic"
-      }
+      } 
     ],
     "views": {
       "explorer": [
@@ -52,16 +52,20 @@
           "id": "writerjet.topicTreeView",
           "name": "Topics"
         }
-      ]
-    },
-    "menus": {
-      "view/item/context": [
+      ],
+      "myExtensionContainer": [
+    {
+      "id": "myExtensionView",
+      "name": "My View",
+      "contextualTitle": "My Extension",
+      "commands": [
         {
-          "command": "writerjet.openTopic",
-          "when": "view == writerjet.topicTreeView && viewItem == topicItem",
-          "group": "navigation"
+          "command": "myExtension.checkConfig",
+          "title": "Check Config File"
         }
       ]
+    }
+  ]
     }
   },
   "repository": {

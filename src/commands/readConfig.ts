@@ -3,12 +3,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Ajv, ErrorObject, JSONSchemaType } from 'ajv';
 
-
-
-
-
-
-
 interface Configuration {
     settingOne: string;
     settingTwo: number;
