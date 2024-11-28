@@ -1,9 +1,8 @@
 {
 	"compilerOptions": {
-	  "module": "CommonJS", // Module system aligned with Node.js
-	  "moduleResolution":"Node", // Explicitly use Node-style module resolution
-	  "target": "ES2019", // Target modern JavaScript syntax
-	  //"lib": ["ESNext"], // Include modern JavaScript standard libraries
+	  "module": "CommonJS", 
+	  "moduleResolution":"Node", 
+	  "target": "ES2019", 	
 	  "sourceMap": true, // Generate source maps for easier debugging
 	  "outDir": "dist", // Output directory for compiled files
 	  "rootDir": "src", // Specify root directory for input files

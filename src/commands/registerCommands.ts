@@ -1,66 +1,71 @@
 // src/commands/registerCommands.ts
 import * as vscode from 'vscode';
-// import { showMarkdownPreview } from '../views/markdownPreview';
-// import { TopicItem } from '../views/topicItem';
-// import { readConfiguration } from './readConfig';
-import { showMarkdownPreview } from '../views/markdownPreview.js';
-import { TopicItem } from '../views/topicItem.js';
-import { readConfiguration } from './readConfig.js';
-// import { TopicItem } from '../views/topicItem';
-// import { TopicProvider } from '../views/topicProvider';
-// import { readConfiguration } from './readConfig';
-// import { showMarkdownPreview } from '../views/markdownPreview';
+import { previewManager } from '../views/previewManager.js';
+import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
 
+import { getConfigExists, setwJetFocus } from '../utils/helperFunctions.js';
 
 export function registerCommands(context: vscode.ExtensionContext) {
-    const helloCommand = vscode.commands.registerCommand('writerjet.sayHello', () => {
-        vscode.window.showInformationMessage('Hello from Your Extension!');
-    });
-    context.subscriptions.push(helloCommand);
+  const treeDataProvider = new WriterJetTreeDataProvider();
+  vscode.window.registerTreeDataProvider('writerjetExtensionView', treeDataProvider);
 
-    const openTopicCommand = vscode.commands.registerCommand('writerjet.openTopic', async (item?: TopicItem) => {
-        if (!item) {
-            // If no item is provided, let the user pick from a list of topics
-            // const config = vscode-writerjet.workspace.getConfiguration('vscode-writerjet');
-            // const topics = config.get<string[]>('topics') || [];
-            const topics = [
-                "Topic 1",
-                "Topic 2",
-                "Topic 3"
-            ];
-            const selectedTopic = await vscode.window.showQuickPick(topics, {
-                placeHolder: 'Select a topic to open'
-            });
-    
-            if (selectedTopic) {
-                vscode.window.showInformationMessage(`Opened: ${selectedTopic}`);
-            } else {
-                vscode.window.showWarningMessage('No topic selected.');
-            }
-            return;
-        }
-    
-        // When invoked with an item, use its label
-        vscode.window.showInformationMessage(`Opened: ${item.label}`);
-    });
-    context.subscriptions.push(openTopicCommand);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('writerjetExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+      if (!getConfigExists()) {
+        return;
+      }
+      setwJetFocus(true);
+      // Shift focus back to the editor
+      const editors = vscode.window.visibleTextEditors.filter(
+        (editor) => editor.viewColumn === vscode.ViewColumn.One
+      );
+      if (editors.length > 0) {
+        await vscode.window.showTextDocument(editors[0].document, vscode.ViewColumn.One, false);
+      }
 
-    const readConfigDisposable = vscode.commands.registerCommand('writerjet.readConfig', readConfiguration);
-    context.subscriptions.push(readConfigDisposable);
+      // Open the markdown file in the first column
+      const document = await vscode.workspace.openTextDocument(resourceUri);
+      await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
 
-    const markdownPreviewCommandDisposable = vscode.commands.registerCommand('writerjet.showPreview', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (editor && editor.document.languageId === 'markdown') {
-          showMarkdownPreview(context, editor.document);
+      // Show the preview
+      previewManager.showPreview(context, document);
+      setwJetFocus(false);
+    })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownPreview.open', async () => {
+      if (!getConfigExists()) {
+        return;
+      }
+      const editor = vscode.window.activeTextEditor;
+      if (editor && editor.document.languageId === 'markdown') {
+        if (previewManager.hasPreviewPanel()) {
+          previewManager.updatePreview(context, editor.document);
         } else {
-          vscode.window.showErrorMessage('Open a Markdown file to preview.');
+          previewManager.showPreview(context, editor.document);
         }
-      });
-    
-      // Add subscriptions
-      context.subscriptions.push(markdownPreviewCommandDisposable);
-
-
-
-    
+      } else {
+        vscode.window.showWarningMessage('Open a Markdown file to preview it.');
+      }
+    })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownPreview.show', async () => {
+      if (!getConfigExists()) {
+        return;
+      }
+      const editor = vscode.window.activeTextEditor;
+      if (editor && editor.document.languageId === 'markdown') {
+        if (previewManager.hasPreviewPanel()) {
+          previewManager.updatePreview(context, editor.document);
+        } else {
+          previewManager.showPreview(context, editor.document);
+        }
+      } else {
+        vscode.window.showWarningMessage('Open a Markdown file to preview it.');
+      }
+    })
+  );
 }
+
+
