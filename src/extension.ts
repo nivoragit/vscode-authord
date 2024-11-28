@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands.js';
 import { SidebarProvider } from './views/sidebarView.js';
-// import { TopicProvider } from './views/topicProvider.js';
 import { previewManager } from './views/previewManager.js';
 import { MarkdownFileProvider } from './views/markdownFileProvider.js';
 
@@ -30,17 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('vs-code-sidebar', sidebarProvider)
   );
 
-  // Register the Topic Tree View
-  // const topicProvider = new TopicProvider();
-  // vscode.window.registerTreeDataProvider('writerjet.topicTreeView', topicProvider);
-
-  // Listen for configuration changes and refresh the Tree View
-  // vscode.workspace.onDidChangeConfiguration((event) => {
-  //   if (event.affectsConfiguration('writerjet.topics')) {
-  //     topicProvider.refresh();
-  //   }
-  // });
-
+ 
   // Shift focus back to editor before a new file opens
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(async () => {

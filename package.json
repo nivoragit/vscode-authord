@@ -10,14 +10,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:myMarkdownFilesView",
-    "onView:myExtensionView",
-    "onLanguage:markdown",
-    "onCommand:myExtension.openMarkdownFile",
-    "onCommand:myExtension.checkConfig",
-    "onCommand:writerjet.readConfig",
-    "onCommand:markdownPreview.open",
-    "onCommand:markdownPreview.show"
+
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -25,8 +18,8 @@
       "activitybar": [
         {
           "id": "myExtensionContainer",
-          "title": "My Extension",
-          "icon": "media/my-icon.jpeg"
+          "title": "WriterJet",
+          "icon": "./src/media/icon.svg"
         }
       ]
     },
@@ -83,13 +76,13 @@
       "myExtensionContainer": [
         {
           "id": "myMarkdownFilesView",
-          "name": "Markdown Files",
-          "contextualTitle": "Markdown Files"
+          "name": "Topics",
+          "contextualTitle": "Topics"
         },
         {
           "id": "myExtensionView",
           "name": "My View",
-          "contextualTitle": "My Extension",
+          "contextualTitle": "Documentations",
           "commands": [
             {
               "command": "myExtension.checkConfig",
