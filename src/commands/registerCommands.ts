@@ -2,15 +2,16 @@
 import * as vscode from 'vscode';
 import { previewManager } from '../views/previewManager.js';
 import { readConfiguration } from './readConfig.js';
-import { MyTreeDataProvider } from '../views/myTreeDataProvider.js';
+import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
+
 import { checkConfigFile } from '../utils/helperFunctions.js';
 
 export function registerCommands(context: vscode.ExtensionContext) {
-  const treeDataProvider = new MyTreeDataProvider();
-  vscode.window.registerTreeDataProvider('myExtensionView', treeDataProvider);
+  const treeDataProvider = new WriterJetTreeDataProvider();
+  vscode.window.registerTreeDataProvider('writerjetExtensionView', treeDataProvider);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('myExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+    vscode.commands.registerCommand('writerjetExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
       // Shift focus back to the editor
       const editors = vscode.window.visibleTextEditors.filter(
         (editor) => editor.viewColumn === vscode.ViewColumn.One
@@ -43,7 +44,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('myExtension.checkConfig', checkConfigFile)
+    vscode.commands.registerCommand('writerjetExtension.checkConfig', checkConfigFile)
   );
 
   const readConfigDisposable = vscode.commands.registerCommand(

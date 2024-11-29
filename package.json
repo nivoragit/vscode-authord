@@ -10,6 +10,10 @@
     "Other"
   ],
   "activationEvents": [
+  "onView:writerJetExtensionView",
+  "onCommand:writerJetExtension.checkConfig",
+  "onLanguage:markdown",
+  "onStartupFinished"
 
   ],
   "main": "./dist/extension.js",
@@ -17,15 +21,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "myExtensionContainer",
+          "id": "writerjetExtensionContainer",
           "title": "WriterJet",
-          "icon": "./src/media/icon.svg"
+          "icon": "./src/media/icon.svg",
+           "when": "writerjet.configExists"
         }
       ]
     },
     "configuration": {
       "type": "object",
-      "title": "Your Extension Settings",
+      "title": "WriterJet Extension Settings",
       "properties": {
         "writerjet.topics": {
           "type": "array",
@@ -46,11 +51,15 @@
     },
     "commands": [
       {
-        "command": "myExtension.openMarkdownFile",
+        "command": "writerjet.createConfig",
+        "title": "Create WriterJet Configuration File"
+      },
+      {
+        "command": "writerjetExtension.openMarkdownFile",
         "title": "Open Markdown File"
       },
       {
-        "command": "myExtension.checkConfig",
+        "command": "writerjetExtension.checkConfig",
         "title": "Check for Config File"
       },
       {
@@ -70,26 +79,21 @@
       "explorer": [
         {
           "id": "writerjet.topicTreeView",
-          "name": "Topics"
+          "name": "Topics",
+           "when": "writerjet.configExists"
         }
       ],
-      "myExtensionContainer": [
+      "writerjetExtensionContainer": [
         {
-          "id": "myMarkdownFilesView",
-          "name": "Topics",
-          "contextualTitle": "Topics"
+          "id": "writerjetExtensionView",
+          "name": "Documentations",
+          "when": "writerjet.configExists"
         },
         {
-          "id": "myExtensionView",
-          "name": "My View",
-          "contextualTitle": "Documentations",
-          "commands": [
-            {
-              "command": "myExtension.checkConfig",
-              "title": "Check Config File"
-            }
-          ]
-        }
+          "id": "writerjetMarkdownFilesView",
+          "name": "Topics",
+          "when": "writerjet.configExists"
+        }        
       ]
     }
   },

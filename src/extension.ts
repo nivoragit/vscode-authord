@@ -3,11 +3,12 @@ import { registerCommands } from './commands/registerCommands.js';
 import { SidebarProvider } from './views/sidebarView.js';
 import { previewManager } from './views/previewManager.js';
 import { MarkdownFileProvider } from './views/markdownFileProvider.js';
+import { checkConfigFile } from './utils/helperFunctions.js';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
   registerCommands(context);
-
+  checkConfigFile();
   // Get the workspace root
   const workspaceRoot = vscode.workspace.workspaceFolders
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -15,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create and register the MarkdownFileProvider
   const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
-  vscode.window.registerTreeDataProvider('myMarkdownFilesView', markdownFileProvider);
+  vscode.window.registerTreeDataProvider('writerjetMarkdownFilesView', markdownFileProvider);
 
   // Refresh the view when the workspace changes
   vscode.workspace.onDidChangeWorkspaceFolders(() => markdownFileProvider.refresh());
@@ -78,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     previewManager.showPreview(context, vscode.window.activeTextEditor.document);
   }
 
-  vscode.window.showInformationMessage('Your Extension is now active!');
+  vscode.window.showInformationMessage('WriterJet Extension is now active!');
 }
 
 export function deactivate() {
