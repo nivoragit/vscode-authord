@@ -9,7 +9,7 @@ export async function checkConfigFile() {
     return;
   }
 
-  const configFilePath = path.join(workspaceFolders[0].uri.fsPath, 'writerside.config.json');
+  const configFilePath = path.join(workspaceFolders[0].uri.fsPath, 'writerjet.config.json');
   const configExists = fs.existsSync(configFilePath);
 
   vscode.commands.executeCommand('setContext', 'writerjet.configExists', configExists);

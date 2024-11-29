@@ -63,10 +63,6 @@
         "title": "Check for Config File"
       },
       {
-        "command": "writerjet.readConfig",
-        "title": "Read Configuration"
-      },
-      {
         "command": "markdownPreview.open",
         "title": "Open Markdown Preview"
       },

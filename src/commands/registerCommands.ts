@@ -1,7 +1,6 @@
 // src/commands/registerCommands.ts
 import * as vscode from 'vscode';
 import { previewManager } from '../views/previewManager.js';
-import { readConfiguration } from './readConfig.js';
 import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
 
 import { checkConfigFile } from '../utils/helperFunctions.js';
@@ -46,13 +45,6 @@ export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('writerjetExtension.checkConfig', checkConfigFile)
   );
-
-  const readConfigDisposable = vscode.commands.registerCommand(
-    'writerjet.readConfig',
-    readConfiguration
-  );
-  context.subscriptions.push(readConfigDisposable);
-
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownPreview.show', () => {
       const editor = vscode.window.activeTextEditor;
