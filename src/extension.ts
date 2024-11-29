@@ -4,6 +4,8 @@ import { SidebarProvider } from './views/sidebarView.js';
 import { previewManager } from './views/previewManager.js';
 import { MarkdownFileProvider } from './views/markdownFileProvider.js';
 import { checkConfigFile } from './utils/helperFunctions.js';
+import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
+// import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
@@ -14,6 +16,22 @@ export function activate(context: vscode.ExtensionContext) {
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
     : undefined;
 
+    // Register the WriterJet Documentation View
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      WriterJetViewProvider.viewType, // ID from package.json
+      new WriterJetViewProvider(context, workspaceRoot)
+    )
+  );
+
+ 
+    // Register the WriterJet View
+  // context.subscriptions.push(
+  //   vscode.window.registerWebviewViewProvider(
+  //     WriterJetViewProvider.viewType,
+  //     new WriterJetViewProvider(context, workspaceRoot)
+  //   )
+  // );
   // Create and register the MarkdownFileProvider
   const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
   vscode.window.registerTreeDataProvider('writerjetMarkdownFilesView', markdownFileProvider);

@@ -81,9 +81,16 @@
       ],
       "writerjetExtensionContainer": [
         {
+          "type": "webview",
+          "id": "writerjetDocumentationView",
+          "name": "Empty Project",
+          "when": "!writerjet.configExists"
+        },
+        {
           "id": "writerjetExtensionView",
           "name": "Documentations",
           "when": "writerjet.configExists"
+          
         },
         {
           "id": "writerjetMarkdownFilesView",
