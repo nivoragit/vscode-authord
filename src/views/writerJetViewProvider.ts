@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { setConfigExists } from '../utils/helperFunctions';
 
 export class WriterJetViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'writerjetDocumentationView'; // Match the ID from package.json
@@ -22,7 +23,7 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
         this.updateContent(); // Refresh the view after creating the file
-        vscode.commands.executeCommand('setContext', 'writerjet.configExists', true);
+        
       }
     });
   }
@@ -40,6 +41,7 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
     } else {
       vscode.window.showWarningMessage('WriterJet configuration file already exists.');
     }
+    
   }
 
   private updateContent() {
@@ -61,11 +63,14 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
 
   private checkConfigFile(): boolean {
     if (!this.workspaceRoot) {
+      setConfigExists(false);
       return false;
     }
 
     const configFilePath = path.join(this.workspaceRoot, 'writerjet.config.json');
-    return fs.existsSync(configFilePath);
+    const configExists = fs.existsSync(configFilePath);
+    setConfigExists(configExists);
+    return configExists;
   }
 
   private getMissingConfigHtml(): string {

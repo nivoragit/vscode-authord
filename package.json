@@ -59,10 +59,6 @@
         "title": "Open Markdown File"
       },
       {
-        "command": "writerjetExtension.checkConfig",
-        "title": "Check for Config File"
-      },
-      {
         "command": "markdownPreview.open",
         "title": "Open Markdown Preview"
       },
@@ -72,13 +68,6 @@
       }
     ],
     "views": {
-      "explorer": [
-        {
-          "id": "writerjet.topicTreeView",
-          "name": "Topics",
-           "when": "writerjet.configExists"
-        }
-      ],
       "writerjetExtensionContainer": [
         {
           "type": "webview",

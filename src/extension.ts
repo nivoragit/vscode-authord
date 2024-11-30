@@ -3,14 +3,14 @@ import { registerCommands } from './commands/registerCommands.js';
 import { SidebarProvider } from './views/sidebarView.js';
 import { previewManager } from './views/previewManager.js';
 import { MarkdownFileProvider } from './views/markdownFileProvider.js';
-import { checkConfigFile } from './utils/helperFunctions.js';
 import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
-// import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
+import { getConfigExists } from './utils/helperFunctions.js';
+
+
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
   registerCommands(context);
-  checkConfigFile();
   // Get the workspace root
   const workspaceRoot = vscode.workspace.workspaceFolders
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -24,14 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
- 
-    // Register the WriterJet View
-  // context.subscriptions.push(
-  //   vscode.window.registerWebviewViewProvider(
-  //     WriterJetViewProvider.viewType,
-  //     new WriterJetViewProvider(context, workspaceRoot)
-  //   )
-  // );
+
   // Create and register the MarkdownFileProvider
   const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
   vscode.window.registerTreeDataProvider('writerjetMarkdownFilesView', markdownFileProvider);
@@ -66,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the active editor
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && editor.document.languageId === 'markdown') {
+      if (getConfigExists() && editor && editor.document.languageId === 'markdown') {
         if (previewManager.hasPreviewPanel()) {
           previewManager.updatePreview(context, editor.document);
         } else {
@@ -79,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the document content
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
-      if (
+      if (getConfigExists() &&
         vscode.window.activeTextEditor &&
         event.document === vscode.window.activeTextEditor.document &&
         event.document.languageId === 'markdown'
@@ -90,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // If a markdown file is already open, show the preview
-  if (
+  if (getConfigExists() &&
     vscode.window.activeTextEditor &&
     vscode.window.activeTextEditor.document.languageId === 'markdown'
   ) {

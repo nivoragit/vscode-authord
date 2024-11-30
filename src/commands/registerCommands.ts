@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { previewManager } from '../views/previewManager.js';
 import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
 
-import { checkConfigFile } from '../utils/helperFunctions.js';
+import { getConfigExists } from '../utils/helperFunctions.js';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   const treeDataProvider = new WriterJetTreeDataProvider();
@@ -11,6 +11,9 @@ export function registerCommands(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('writerjetExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+      if (!getConfigExists()) {
+        return;
+      }
       // Shift focus back to the editor
       const editors = vscode.window.visibleTextEditors.filter(
         (editor) => editor.viewColumn === vscode.ViewColumn.One
@@ -28,7 +31,10 @@ export function registerCommands(context: vscode.ExtensionContext) {
     })
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand('markdownPreview.open', () => {
+    vscode.commands.registerCommand('markdownPreview.open', async () => {
+      if (!getConfigExists()) {
+        return;
+      }
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'markdown') {
         if (previewManager.hasPreviewPanel()) {
@@ -41,12 +47,11 @@ export function registerCommands(context: vscode.ExtensionContext) {
       }
     })
   );
-
   context.subscriptions.push(
-    vscode.commands.registerCommand('writerjetExtension.checkConfig', checkConfigFile)
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownPreview.show', () => {
+    vscode.commands.registerCommand('markdownPreview.show', async () => {
+      if (!getConfigExists()) {
+        return;
+      }
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'markdown') {
         if (previewManager.hasPreviewPanel()) {
@@ -60,3 +65,5 @@ export function registerCommands(context: vscode.ExtensionContext) {
     })
   );
 }
+
+
