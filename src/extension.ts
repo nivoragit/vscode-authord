@@ -59,10 +59,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the active editor
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (getwJetFocus() && editor && editor.document.languageId === 'markdown') {
+      if (editor && editor.document.languageId === 'markdown') {
         if (previewManager.hasPreviewPanel()) {
           previewManager.updatePreview(context, editor.document);
-        } else {
+        } else if (getwJetFocus()){
           previewManager.showPreview(context, editor.document);
         }
       }
@@ -72,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the document content
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
-      if (getwJetFocus() &&
+      if (
         vscode.window.activeTextEditor &&
         event.document === vscode.window.activeTextEditor.document &&
         event.document.languageId === 'markdown'
