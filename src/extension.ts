@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { registerCommands } from './commands/registerCommands.js';
-import { SidebarProvider } from './views/sidebarView.js';
-import { previewManager } from './views/previewManager.js';
-import { MarkdownFileProvider } from './views/markdownFileProvider.js';
-import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
-import { getConfigExists, getwJetFocus } from './utils/helperFunctions.js';
+import { registerCommands } from './commands/registerCommands';
+import { SidebarProvider } from './views/sidebarView';
+import { previewManager } from './views/previewManager';
+import { MarkdownFileProvider } from './views/markdownFileProvider';
+import { WriterJetViewProvider } from './views/writerJetViewProvider';
+import { getConfigExists, getwJetFocus } from './utils/helperFunctions';
 
 
 
@@ -83,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // If a markdown file is already open, show the preview
-  if (getwJetFocus() &&
+  if (
     vscode.window.activeTextEditor &&
     vscode.window.activeTextEditor.document.languageId === 'markdown'
   ) {

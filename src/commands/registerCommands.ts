@@ -1,9 +1,9 @@
 // src/commands/registerCommands.ts
 import * as vscode from 'vscode';
-import { previewManager } from '../views/previewManager.js';
-import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
+import { previewManager } from '../views/previewManager';
+import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider';
 
-import { getConfigExists, setwJetFocus } from '../utils/helperFunctions.js';
+import { getConfigExists, setwJetFocus } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   const treeDataProvider = new WriterJetTreeDataProvider();
