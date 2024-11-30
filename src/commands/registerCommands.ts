@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { previewManager } from '../views/previewManager.js';
 import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider.js';
 
-import { getConfigExists } from '../utils/helperFunctions.js';
+import { getConfigExists, setwJetFocus } from '../utils/helperFunctions.js';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   const treeDataProvider = new WriterJetTreeDataProvider();
@@ -14,6 +14,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
       if (!getConfigExists()) {
         return;
       }
+      setwJetFocus(true);
       // Shift focus back to the editor
       const editors = vscode.window.visibleTextEditors.filter(
         (editor) => editor.viewColumn === vscode.ViewColumn.One
@@ -28,6 +29,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
 
       // Show the preview
       previewManager.showPreview(context, document);
+      setwJetFocus(false);
     })
   );
   context.subscriptions.push(

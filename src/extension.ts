@@ -4,7 +4,7 @@ import { SidebarProvider } from './views/sidebarView.js';
 import { previewManager } from './views/previewManager.js';
 import { MarkdownFileProvider } from './views/markdownFileProvider.js';
 import { WriterJetViewProvider } from './views/writerJetViewProvider.js';
-import { getConfigExists } from './utils/helperFunctions.js';
+import { getConfigExists, getwJetFocus } from './utils/helperFunctions.js';
 
 
 
@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the active editor
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (getConfigExists() && editor && editor.document.languageId === 'markdown') {
+      if (getwJetFocus() && editor && editor.document.languageId === 'markdown') {
         if (previewManager.hasPreviewPanel()) {
           previewManager.updatePreview(context, editor.document);
         } else {
@@ -72,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for changes in the document content
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
-      if (getConfigExists() &&
+      if (getwJetFocus() &&
         vscode.window.activeTextEditor &&
         event.document === vscode.window.activeTextEditor.document &&
         event.document.languageId === 'markdown'
@@ -83,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // If a markdown file is already open, show the preview
-  if (getConfigExists() &&
+  if (getwJetFocus() &&
     vscode.window.activeTextEditor &&
     vscode.window.activeTextEditor.document.languageId === 'markdown'
   ) {

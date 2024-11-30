@@ -4,6 +4,7 @@ import * as path from 'path';
 
 // Initial state
 let configExists = false;
+let wJetFocus = false;
 // Getter function
 export function getConfigExists(): boolean {
   return configExists;
@@ -13,17 +14,12 @@ export function setConfigExists(value: boolean): void {
   configExists = value;
   vscode.commands.executeCommand('setContext', 'writerjet.configExists', value);
 }
-
-// export async function checkConfigFile() {
-//   const workspaceFolders = vscode.workspace.workspaceFolders;
-//   if (!workspaceFolders) {
-//     vscode.window.showErrorMessage('No workspace folder is open.');
-//     return;
-//   }
-
-//   // const configFilePath = path.join(workspaceFolders[0].uri.fsPath, 'writerjet.config.json');
-//   // const configExists = fs.existsSync(configFilePath);
-
-//   // vscode.commands.executeCommand('setContext', 'writerjet.configExists', configExists);
+// Getter function
+export function getwJetFocus(): boolean {
+  return wJetFocus;
+}
+// Setter function
+export function setwJetFocus(value: boolean): void {
+  wJetFocus = value;
   
-// }
+}
