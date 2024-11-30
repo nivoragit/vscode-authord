@@ -1,132 +1,246 @@
 {
 
   "name": "vscode-writerjet",
+
   "displayName": "vscode-writerjet",
+
   "description": "**`vscode-writerjet`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
+
   "version": "0.0.1",
+
   "engines": {
+
     "vscode": "^1.70.0"
+
   },
+
   "categories": [
+
     "Other"
+
   ],
+
   "activationEvents": [
+
     "onView:writerJetExtensionView",
+
     "onCommand:writerJetExtension.checkConfig",
+
     "onLanguage:markdown",
+
     "onStartupFinished"
+
   ],
+
   "main": "./dist/extension.js",
+
   "contributes": {
+
+    "markdown.markdownItPlugins": true,
+
     "viewsContainers": {
+
       "activitybar": [
+
         {
+
           "id": "writerjetExtensionContainer",
+
           "title": "WriterJet",
+
           "icon": "./src/media/icon.svg",
+
           "when": "writerjet.configExists"
+
         }
+
       ]
+
     },
+
     "configuration": {
+
       "type": "object",
+
       "title": "WriterJet Extension Settings",
+
       "properties": {
+
         "writerjet.topics": {
+
           "type": "array",
+
           "default": [],
+
           "description": "List of topics to display in the Tree View."
+
         },
+
         "writerjet.autoFocusEditor": {
+
           "type": "boolean",
+
           "default": true,
+
           "description": "Automatically focus the editor when the preview becomes active."
+
         },
+
         "writerjet.focusDelay": {
+
           "type": "number",
+
           "default": 500,
+
           "description": "Delay in milliseconds before shifting focus back to the editor."
+
         }
+
       }
+
     },
+
     "commands": [
+
       {
+
         "command": "writerjet.createConfig",
+
         "title": "Create WriterJet Configuration File"
+
       },
+
       {
+
         "command": "writerjetExtension.openMarkdownFile",
+
         "title": "Open Markdown File"
+
       },
+
       {
+
         "command": "markdownPreview.open",
+
         "title": "Open Markdown Preview"
+
       },
+
       {
+
         "command": "markdownPreview.show",
+
         "title": "Show Markdown Preview"
+
       }
+
     ],
+
     "views": {
+
       "writerjetExtensionContainer": [
+
         {
+
           "type": "webview",
+
           "id": "writerjetDocumentationView",
+
           "name": "Empty Project",
+
           "when": "!writerjet.configExists"
+
         },
+
         {
+
           "id": "writerjetExtensionView",
+
           "name": "Documentations",
+
           "when": "writerjet.configExists"
+
         },
+
         {
+
           "id": "writerjetMarkdownFilesView",
+
           "name": "Topics",
+
           "when": "writerjet.configExists"
+
         }
+
       ]
+
     }
+
   },
+
   "repository": {
+
     "type": "git",
+
     "url": "https://github.com/nivoragit/writerjet-writerjet.git"
+
   },
+
   "scripts": {
+
     "vscode:prepublish": "npm run package",
+
     "compile": "webpack",
+
     "watch": "webpack --watch",
+
     "package": "webpack --mode production --devtool hidden-source-map",
+
     "compile-tests": "tsc -p . --outDir out",
+
     "watch-tests": "tsc -p . -w --outDir out",
+
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
+
     "lint": "eslint src",
+
     "test": "vscode-test"
+
   },
+
   "devDependencies": {
-    "@types/mocha": "^10.0.9",
+
+    "@types/markdown-it": "^12.2.3",
+
     "@types/node": "^20.17.9",
+
     "@types/vscode": "^1.70.0",
+
     "@typescript-eslint/eslint-plugin": "^8.10.0",
+
     "@typescript-eslint/parser": "^8.7.0",
+
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
+
     "esbuild-loader": "^4.2.2",
+
     "eslint": "^9.13.0",
-    "ts-loader": "^9.5.1",
+
     "typescript": "^5.7.2",
+
     "webpack": "^5.96.1",
+
     "webpack-cli": "^5.1.4"
+
   },
+
   "dependencies": {
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
-    "remark": "^14.0.3",
-    "remark-gfm": "^3.0.0",
-    "remark-html": "^15.0.2",
-    "remark-html-katex": "^1.0.0",
-    "remark-math": "^5.0.0",
-    "unified": "^10.0.0",
-    "unist-util-visit": "^4.0.0"
+
+    "markdown-it": "^12.3.2",
+
+    "markdown-it-katex": "^2.0.3"
+
   }
+
 }
+

@@ -1,33 +1,33 @@
-import { remark } from 'remark';
-import remarkHtml from 'remark-html';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import remarkHtmlKatex from 'remark-html-katex';
-import { Plugin } from 'unified';
-import { visit } from 'unist-util-visit';
-import { Node } from 'unist';
-
-
-const customPlugin: Plugin = () => {
-    return (tree) => {
-      visit(tree, 'text', (node: Node & { value: string }) => {
-        if (typeof node.value === 'string') {
-          // Replace @@text@@ with <span class="highlight">text</span>
-          node.value = node.value.replace(/@@(.*?)@@/g, '<span class="highlight">$1</span>');
-        }
-      });
-    };
-  };
-  
+import MarkdownIt from 'markdown-it';
+import type Token from 'markdown-it/lib/token';
 
 export async function processMarkdown(content: string): Promise<string> {
-  const processor = remark()
-    .use(remarkGfm)
-    .use(remarkMath)
-    .use(customPlugin)
-    .use(remarkHtmlKatex)
-    .use(remarkHtml);
+  // Initialize markdown-it with desired plugins
+  const md = new MarkdownIt()
+    
+    .use(customPlugin);
 
-  const file = await processor.process(content);
-  return String(file);
+  // Render the Markdown content
+  return md.render(content);
 }
+
+
+// Custom plugin to replace @@text@@ with <span class="highlight">text</span>
+function customPlugin(md: MarkdownIt): void {
+  md.core.ruler.push('custom_highlight', (state) => {
+    state.tokens.forEach((blockToken) => {
+      if (blockToken.type === 'inline' && blockToken.children) {
+        blockToken.children.forEach((token: Token) => {
+          if (token.type === 'text') {
+            token.content = token.content.replace(
+              /@@(.*?)@@/g,
+              (_, match) => `<h1> <b><i>madushika</i></b></h1>${match}</span>`
+            );
+          }
+        });
+      }
+    });
+  });
+}
+
+

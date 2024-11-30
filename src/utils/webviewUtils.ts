@@ -6,7 +6,6 @@ export function getWebviewContent(body: string, panel: vscode.WebviewPanel, cont
 
   const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'script.js');
   const scriptUri = panel.webview.asWebviewUri(scriptPath);
-
   return `<!DOCTYPE html>
   <html lang="en">
   <head>
@@ -17,12 +16,14 @@ export function getWebviewContent(body: string, panel: vscode.WebviewPanel, cont
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; style-src ${panel.webview.cspSource} 'unsafe-inline'; script-src ${panel.webview.cspSource};"
     />
+    
     <link href="${stylesUri}" rel="stylesheet" />
     <script src="${scriptUri}"></script>
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; }
       .highlight { background-color: yellow; }
     </style>
+
   </head>
   <body>
     ${body}
