@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { processMarkdown } from '../utils/remarkProcessor.js';
-import { getWebviewContent } from '../utils/webviewUtils.js';
+import { processMarkdown } from '../utils/remarkProcessor';
+import { getWebviewContent } from '../utils/webviewUtils';
 
 export function showMarkdownPreview(
   context: vscode.ExtensionContext,

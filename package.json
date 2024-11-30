@@ -1,4 +1,5 @@
 {
+
   "name": "vscode-writerjet",
   "displayName": "vscode-writerjet",
   "description": "**`vscode-writerjet`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
@@ -10,11 +11,10 @@
     "Other"
   ],
   "activationEvents": [
-  "onView:writerJetExtensionView",
-  "onCommand:writerJetExtension.checkConfig",
-  "onLanguage:markdown",
-  "onStartupFinished"
-
+    "onView:writerJetExtensionView",
+    "onCommand:writerJetExtension.checkConfig",
+    "onLanguage:markdown",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -24,7 +24,7 @@
           "id": "writerjetExtensionContainer",
           "title": "WriterJet",
           "icon": "./src/media/icon.svg",
-           "when": "writerjet.configExists"
+          "when": "writerjet.configExists"
         }
       ]
     },
@@ -79,13 +79,12 @@
           "id": "writerjetExtensionView",
           "name": "Documentations",
           "when": "writerjet.configExists"
-          
         },
         {
           "id": "writerjetMarkdownFilesView",
           "name": "Topics",
           "when": "writerjet.configExists"
-        }        
+        }
       ]
     }
   },
@@ -106,15 +105,16 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",
-    "@types/node": "20.x",
+    "@types/node": "^20.17.9",
     "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "esbuild-loader": "^4.2.2",
     "eslint": "^9.13.0",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.1.6",
+    "typescript": "^5.7.2",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4"
   },
