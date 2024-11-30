@@ -3,7 +3,7 @@ import { registerCommands } from './commands/registerCommands';
 import { SidebarProvider } from './views/sidebarView';
 import { MarkdownFileProvider } from './views/markdownFileProvider';
 import { WriterJetViewProvider } from './views/writerJetViewProvider';
-import { getwJetFocus } from './utils/helperFunctions';
+import { focusExistingPreview, getwJetFocus, showPreviewInColumnTwo } from './utils/helperFunctions';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
@@ -38,23 +38,24 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('vs-code-sidebar', sidebarProvider)
   );
 
-  // Listen for changes in the active editor
-  context.subscriptions.push(
+   // Listen for when the active editor changes
+   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       if (editor && editor.document.languageId === 'markdown') {
-        // Open or update the preview in column two
-        await showPreviewInColumnTwo();
+        // Focus the existing preview if it's open
+        await focusExistingPreview();
       }
     })
   );
 
+
   // If a markdown file is already open, show the preview
-  if (
-    vscode.window.activeTextEditor &&
-    vscode.window.activeTextEditor.document.languageId === 'markdown'
-  ) {
-    showPreviewInColumnTwo();
-  }
+  // if (
+  //   vscode.window.activeTextEditor &&
+  //   vscode.window.activeTextEditor.document.languageId === 'markdown'
+  // ) {
+  //   showPreviewInColumnTwo();
+  // }
 
   vscode.window.showInformationMessage('WriterJet Extension is now active!');
 
@@ -73,38 +74,3 @@ export function deactivate() {
   // Clean up resources if necessary
 }
 
-// Helper function to show the preview in column two
-async function showPreviewInColumnTwo() {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) =>
-      editor.document.uri.scheme === 'markdown-preview' &&
-      editor.viewColumn === vscode.ViewColumn.Two
-  );
-
-  if (previewEditors.length === 0 && getwJetFocus()) {
-    // Show the built-in markdown preview to the side (column two)
-    await vscode.commands.executeCommand('markdown.showPreviewToSide');
-  } else {
-    // Update the existing preview
-    await vscode.commands.executeCommand('markdown.updatePreview');
-  }
-
-  // Ensure that only one preview is open
-  await closeExtraPreviews();
-}
-
-// Helper function to close any extra preview panes
-async function closeExtraPreviews() {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) => editor.document.uri.scheme === 'markdown-preview'
-  );
-
-  if (previewEditors.length > 1) {
-    // Close all preview editors except the one in column two
-    for (const editor of previewEditors) {
-      if (editor.viewColumn !== vscode.ViewColumn.Two) {
-        await vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor);
-      }
-    }
-  }
-}
