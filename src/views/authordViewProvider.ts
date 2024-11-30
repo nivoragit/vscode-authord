@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { setConfigExists } from '../utils/helperFunctions';
 
-export class WriterJetViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'writerjetDocumentationView'; // Match the ID from package.json
+export class AuthordViewProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'authordDocumentationView'; // Match the ID from package.json
   private _view?: vscode.WebviewView;
 
   constructor(private context: vscode.ExtensionContext, private workspaceRoot: string | undefined) {}
@@ -34,12 +34,12 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const configFilePath = path.join(this.workspaceRoot, 'writerjet.config.json');
+    const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     if (!fs.existsSync(configFilePath)) {
       fs.writeFileSync(configFilePath, JSON.stringify({ settingOne: '', settingTwo: 0 }, null, 2));
-      vscode.window.showInformationMessage('WriterJet configuration file created successfully!');
+      vscode.window.showInformationMessage('Authord configuration file created successfully!');
     } else {
-      vscode.window.showWarningMessage('WriterJet configuration file already exists.');
+      vscode.window.showWarningMessage('Authord configuration file already exists.');
     }
     
   }
@@ -67,7 +67,7 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
       return false;
     }
 
-    const configFilePath = path.join(this.workspaceRoot, 'writerjet.config.json');
+    const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     const configExists = fs.existsSync(configFilePath);
     setConfigExists(configExists);
     return configExists;
@@ -80,7 +80,7 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WriterJet</title>
+        <title>Authord</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -133,7 +133,7 @@ export class WriterJetViewProvider implements vscode.WebviewViewProvider {
         </style>
       </head>
       <body>
-        <h2>WriterJet configuration file is missing</h2>
+        <h2>Authord configuration file is missing</h2>
         <p>Would you like to create it?</p>
         <button onclick="createConfig()">Create Configuration File</button>
         <script>
@@ -154,7 +154,7 @@ private getNormalViewHtml(): string {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WriterJet</title>
+        <title>Authord</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -190,8 +190,8 @@ private getNormalViewHtml(): string {
         </style>
       </head>
       <body>
-        <h2>WriterJet Configuration</h2>
-        <p>Your WriterJet configuration file is set up and ready to use.</p>
+        <h2>Authord Configuration</h2>
+        <p>Your Authord configuration file is set up and ready to use.</p>
       </body>
       </html>
     `;

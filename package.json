@@ -1,10 +1,10 @@
 {
 
-  "name": "vscode-writerjet",
+  "name": "vscode-authord",
 
-  "displayName": "vscode-writerjet",
+  "displayName": "vscode-authord",
 
-  "description": "**`vscode-writerjet`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
+  "description": "**`vscode-authord`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
 
   "version": "0.0.1",
 
@@ -22,9 +22,9 @@
 
   "activationEvents": [
 
-    "onView:writerJetExtensionView",
+    "onView:authordExtensionView",
 
-    "onCommand:writerJetExtension.checkConfig",
+    "onCommand:authordExtension.checkConfig",
 
     "onLanguage:markdown",
 
@@ -44,13 +44,13 @@
 
         {
 
-          "id": "writerjetExtensionContainer",
+          "id": "authordExtensionContainer",
 
-          "title": "WriterJet",
+          "title": "Authord",
 
           "icon": "./src/media/icon.svg",
 
-          "when": "writerjet.configExists"
+          "when": "authord.configExists"
 
         }
 
@@ -62,11 +62,11 @@
 
       "type": "object",
 
-      "title": "WriterJet Extension Settings",
+      "title": "Authord Extension Settings",
 
       "properties": {
 
-        "writerjet.topics": {
+        "authord.topics": {
 
           "type": "array",
 
@@ -76,7 +76,7 @@
 
         },
 
-        "writerjet.autoFocusEditor": {
+        "authord.autoFocusEditor": {
 
           "type": "boolean",
 
@@ -86,7 +86,7 @@
 
         },
 
-        "writerjet.focusDelay": {
+        "authord.focusDelay": {
 
           "type": "number",
 
@@ -104,15 +104,15 @@
 
       {
 
-        "command": "writerjet.createConfig",
+        "command": "authord.createConfig",
 
-        "title": "Create WriterJet Configuration File"
+        "title": "Create Authord Configuration File"
 
       },
 
       {
 
-        "command": "writerjetExtension.openMarkdownFile",
+        "command": "authordExtension.openMarkdownFile",
 
         "title": "Open Markdown File"
 
@@ -138,37 +138,37 @@
 
     "views": {
 
-      "writerjetExtensionContainer": [
+      "authordExtensionContainer": [
 
         {
 
           "type": "webview",
 
-          "id": "writerjetDocumentationView",
+          "id": "authordDocumentationView",
 
           "name": "Empty Project",
 
-          "when": "!writerjet.configExists"
+          "when": "!authord.configExists"
 
         },
 
         {
 
-          "id": "writerjetExtensionView",
+          "id": "authordExtensionView",
 
           "name": "Documentations",
 
-          "when": "writerjet.configExists"
+          "when": "authord.configExists"
 
         },
 
         {
 
-          "id": "writerjetMarkdownFilesView",
+          "id": "authordMarkdownFilesView",
 
           "name": "Topics",
 
-          "when": "writerjet.configExists"
+          "when": "authord.configExists"
 
         }
 
@@ -182,7 +182,7 @@
 
     "type": "git",
 
-    "url": "https://github.com/nivoragit/writerjet-writerjet.git"
+    "url": "https://github.com/nivoragit/authord-authord.git"
 
   },
 
@@ -210,8 +210,6 @@
 
   "devDependencies": {
 
-    "@types/markdown-it": "^12.2.3",
-
     "@types/node": "^20.17.9",
 
     "@types/vscode": "^1.70.0",
@@ -236,9 +234,7 @@
 
   "dependencies": {
 
-    "markdown-it": "^12.3.2",
-
-    "markdown-it-katex": "^2.0.3"
+    "markdown-it-plantuml": "^1.4.1"
 
   }
 

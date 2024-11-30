@@ -12,7 +12,7 @@ export function getConfigExists(): boolean {
 // Setter function
 export function setConfigExists(value: boolean): void {
   configExists = value;
-  vscode.commands.executeCommand('setContext', 'writerjet.configExists', value);
+  vscode.commands.executeCommand('setContext', 'authord.configExists', value);
 }
 // Getter function
 export function getwJetFocus(): boolean {

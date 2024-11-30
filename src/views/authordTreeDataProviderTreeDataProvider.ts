@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export class WriterJetTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+export class AuthordTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
     getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
       return element;
     }

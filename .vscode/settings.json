@@ -1,4 +1,4 @@
-// Place writerjet settings in this file to overwrite default and user settings.
+// Place authord settings in this file to overwrite default and user settings.
 {
 	"files.exclude": {
 		"out": false, // set this to true to hide the "out" folder with the compiled JS files
@@ -10,5 +10,5 @@
 	},
 	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
 	"typescript.tsc.autoDetect": "off",
-	"writerjet.topics": ["Topic 1", "Topic 2"]
+	"authord.topics": ["Topic 1", "Topic 2"]
 }

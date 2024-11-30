@@ -29,11 +29,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WriterJet Extension Sidebar</title>
+    <title>Authord Extension Sidebar</title>
 </head>
 <body>
-    <h1>Welcome to WriterJet Extension!</h1>
-    <p>This is writerjet sidebar content.</p>
+    <h1>Welcome to Authord Extension!</h1>
+    <p>This is authord sidebar content.</p>
 </body>
 </html>`;
     }
