@@ -1,29 +1,26 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { SidebarProvider } from './views/sidebarView';
-import { previewManager } from './views/previewManager';
 import { MarkdownFileProvider } from './views/markdownFileProvider';
 import { WriterJetViewProvider } from './views/writerJetViewProvider';
-import { getConfigExists, getwJetFocus } from './utils/helperFunctions';
-
-
+import { focusExistingPreview, getwJetFocus, showPreviewInColumnTwo } from './utils/helperFunctions';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
   registerCommands(context);
+
   // Get the workspace root
   const workspaceRoot = vscode.workspace.workspaceFolders
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
     : undefined;
 
-    // Register the WriterJet Documentation View
+  // Register the WriterJet Documentation View
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       WriterJetViewProvider.viewType, // ID from package.json
       new WriterJetViewProvider(context, workspaceRoot)
     )
   );
-
 
   // Create and register the MarkdownFileProvider
   const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
@@ -41,58 +38,39 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('vs-code-sidebar', sidebarProvider)
   );
 
- 
-  // Shift focus back to editor before a new file opens
-  context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(async () => {
-      const editor = vscode.window.visibleTextEditors.find(
-        (ed) => ed.viewColumn === vscode.ViewColumn.One
-      );
-
-      if (editor) {
-        // Shift focus to the editor in the first column
-        await vscode.window.showTextDocument(editor.document, vscode.ViewColumn.One, false);
-      }
-    })
-  );
-
-  // Listen for changes in the active editor
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
+   // Listen for when the active editor changes
+   context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       if (editor && editor.document.languageId === 'markdown') {
-        if (previewManager.hasPreviewPanel()) {
-          previewManager.updatePreview(context, editor.document);
-        } else if (getwJetFocus()){
-          previewManager.showPreview(context, editor.document);
-        }
+        // Focus the existing preview if it's open
+        await focusExistingPreview();
       }
     })
   );
 
-  // Listen for changes in the document content
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeTextDocument((event) => {
-      if (
-        vscode.window.activeTextEditor &&
-        event.document === vscode.window.activeTextEditor.document &&
-        event.document.languageId === 'markdown'
-      ) {
-        previewManager.updatePreview(context, event.document);
-      }
-    })
-  );
 
   // If a markdown file is already open, show the preview
-  if (
-    vscode.window.activeTextEditor &&
-    vscode.window.activeTextEditor.document.languageId === 'markdown'
-  ) {
-    previewManager.showPreview(context, vscode.window.activeTextEditor.document);
-  }
+  // if (
+  //   vscode.window.activeTextEditor &&
+  //   vscode.window.activeTextEditor.document.languageId === 'markdown'
+  // ) {
+  //   showPreviewInColumnTwo();
+  // }
 
   vscode.window.showInformationMessage('WriterJet Extension is now active!');
+
+  // Return the extendMarkdownIt function
+  return {
+    extendMarkdownIt(md: any) {
+      // Apply your custom markdown-it plugins or rules here
+      // For example, adding emoji support:
+      const emoji = require('markdown-it-katex');
+      return md.use(emoji);
+    },
+  };
 }
 
 export function deactivate() {
   // Clean up resources if necessary
 }
+

@@ -1,9 +1,6 @@
-// src/commands/registerCommands.ts
 import * as vscode from 'vscode';
-import { previewManager } from '../views/previewManager';
 import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider';
-
-import { getConfigExists, setwJetFocus } from '../utils/helperFunctions';
+import {getwJetFocus, getConfigExists, setwJetFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   const treeDataProvider = new WriterJetTreeDataProvider();
@@ -15,23 +12,18 @@ export function registerCommands(context: vscode.ExtensionContext) {
         return;
       }
       setwJetFocus(true);
-      // Shift focus back to the editor
-      const editors = vscode.window.visibleTextEditors.filter(
-        (editor) => editor.viewColumn === vscode.ViewColumn.One
-      );
-      if (editors.length > 0) {
-        await vscode.window.showTextDocument(editors[0].document, vscode.ViewColumn.One, false);
-      }
 
       // Open the markdown file in the first column
       const document = await vscode.workspace.openTextDocument(resourceUri);
       await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
 
-      // Show the preview
-      previewManager.showPreview(context, document);
+      // Focus the existing preview or open it if it doesn't exist
+      await focusOrShowPreview();
+
       setwJetFocus(false);
     })
   );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownPreview.open', async () => {
       if (!getConfigExists()) {
@@ -39,33 +31,12 @@ export function registerCommands(context: vscode.ExtensionContext) {
       }
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'markdown') {
-        if (previewManager.hasPreviewPanel()) {
-          previewManager.updatePreview(context, editor.document);
-        } else {
-          previewManager.showPreview(context, editor.document);
-        }
-      } else {
-        vscode.window.showWarningMessage('Open a Markdown file to preview it.');
-      }
-    })
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('markdownPreview.show', async () => {
-      if (!getConfigExists()) {
-        return;
-      }
-      const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.languageId === 'markdown') {
-        if (previewManager.hasPreviewPanel()) {
-          previewManager.updatePreview(context, editor.document);
-        } else {
-          previewManager.showPreview(context, editor.document);
-        }
+        // Show or update the preview in column two
+        await showPreviewInColumnTwo();
       } else {
         vscode.window.showWarningMessage('Open a Markdown file to preview it.');
       }
     })
   );
 }
-
 
