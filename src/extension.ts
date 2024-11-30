@@ -64,8 +64,9 @@ export function activate(context: vscode.ExtensionContext) {
     extendMarkdownIt(md: any) {
       // Apply your custom markdown-it plugins or rules here
       // For example, adding emoji support:
-      const emoji = require('markdown-it-katex');
-      return md.use(emoji);
+      // const emoji = require('markdown-it-plantuml');
+      return md.use(require('markdown-it-plantuml'));
+      // return md;
     },
   };
 }
