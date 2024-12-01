@@ -3,8 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { setConfigExists } from '../utils/helperFunctions';
 
+// todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'authordDocumentationView'; // Match the ID from package.json
+  public static readonly viewType = 'authordDocumentationView';
   private _view?: vscode.WebviewView;
 
   constructor(private context: vscode.ExtensionContext, private workspaceRoot: string | undefined) {}
@@ -36,7 +37,82 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
 
     const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     if (!fs.existsSync(configFilePath)) {
-      fs.writeFileSync(configFilePath, JSON.stringify({ settingOne: '', settingTwo: 0 }, null, 2));
+      fs.writeFileSync(configFilePath,JSON.stringify(
+        {
+          "schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "Authord Settings",
+          "type": "object",
+          "topics": {
+            "dir":"topics"
+          },
+          "images": {
+            "dir": "images",
+            "version": "1.0",
+            "web-path": "images"
+          },
+          "instances": [
+            {
+              "id": "doc1",
+              "name": "Documentation 1",
+              "start-page": "intro.md",
+              "toc-elements": [
+                {
+                  "id": "intro",
+                  "topic": "intro.md",
+                  "toc-title": "Introduction",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "chapter1",
+                  "topic": "chapter1.md",
+                  "toc-title": "Chapter 1",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "chapter2",
+                  "topic": "chapter2.md",
+                  "toc-title": "Chapter 2",
+                  "sort-children": "none",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "doc2",
+              "name": "Documentation 2",
+              "start-page": "overview.md",
+              "toc-elements": [
+                {
+                  "id": "overview",
+                  "topic": "overview.md",
+                  "toc-title": "Overview",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "getting-started",
+                  "topic": "getting-started.md",
+                  "toc-title": "Getting Started",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "advanced-topics",
+                  "topic": "advanced-topics.md",
+                  "toc-title": "Advanced Topics",
+                  "sort-children": "none",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+        ,
+        null,
+        2
+      ));
       vscode.window.showInformationMessage('Authord configuration file created successfully!');
     } else {
       vscode.window.showWarningMessage('Authord configuration file already exists.');

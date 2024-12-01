@@ -1,17 +1,18 @@
 import * as vscode from 'vscode';
 import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
-import {getConfigExists, setwJetFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
+import { configExist, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
+  
   const treeDataProvider = new AuthordTreeDataProvider();
-  vscode.window.registerTreeDataProvider('authordExtensionView', treeDataProvider);
+  vscode.window.registerTreeDataProvider('documentationsView', treeDataProvider);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-      if (!getConfigExists()) {
+      if (!configExist()) {
         return;
       }
-      setwJetFocus(true);
+      setAuthorFocus(true);
 
       // Open the markdown file in the first column
       const document = await vscode.workspace.openTextDocument(resourceUri);
@@ -20,13 +21,13 @@ export function registerCommands(context: vscode.ExtensionContext) {
       // Focus the existing preview or open it if it doesn't exist
       await focusOrShowPreview();
 
-      setwJetFocus(false);
+      setAuthorFocus(false);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownPreview.open', async () => {
-      if (!getConfigExists()) {
+      if (!configExist()) {
         return;
       }
       const editor = vscode.window.activeTextEditor;
