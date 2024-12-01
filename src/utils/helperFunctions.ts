@@ -6,6 +6,10 @@ import { Topic, TocElement, TocTreeItem, Config } from './types';
 // Initial state
 let _configExist = false;
 let _authorFocus = false;
+
+const configExistsEmitter = new vscode.EventEmitter<void>();
+export const onConfigExists = configExistsEmitter.event;
+
 // Getter function
 export function configExist(): boolean {
   return _configExist;
@@ -14,6 +18,9 @@ export function configExist(): boolean {
 export function setConfigExists(value: boolean): void {
   _configExist = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
+  if (value){
+    configExistsEmitter.fire();
+  }
 }
 // Getter function
 export function authorFocus(): boolean {

@@ -37,7 +37,24 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
 
     const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     if (!fs.existsSync(configFilePath)) {
-      fs.writeFileSync(configFilePath, JSON.stringify({ settingOne: '', settingTwo: 0 }, null, 2));
+      fs.writeFileSync(configFilePath,JSON.stringify(
+        {
+          "topics-dir": "topics",
+          "images": {
+            "dir": "images",
+            "version": "1.0",
+            "web-path": "/assets/images/"
+          },
+          "instance": {
+            "id": "default-instance",
+            "name": "Default Documentation",
+            "start-page": "index.md",
+            "toc-elements": []
+          }
+        },
+        null,
+        2
+      ));
       vscode.window.showInformationMessage('Authord configuration file created successfully!');
     } else {
       vscode.window.showWarningMessage('Authord configuration file already exists.');

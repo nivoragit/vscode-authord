@@ -3,19 +3,7 @@ import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDat
 import {configExist, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview, linkTopicsToToc, parseTocElements, sortTocElements } from '../utils/helperFunctions';
 
 
-export function registerCommands(context: vscode.ExtensionContext, deps: any) {
-  let { tocTree, topicsProvider, documentationProvider, refreshConfiguration, refreshTopics, instance, topics } = deps;
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('authordDocsExtension.selectInstance', (_instanceId) => {
-      // For now, only one instance is available
-      tocTree = parseTocElements(instance['toc-elements']); // 'tocTree' can now be reassigned
-      linkTopicsToToc(tocTree, topics); // 'instance' and 'topics' are now defined
-      sortTocElements(tocTree);
-      topicsProvider.refresh(tocTree);
-    })
-  );
-
+export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('authordDocsExtension.openTopic', (filePath) => {
       vscode.workspace.openTextDocument(filePath).then(doc => {
