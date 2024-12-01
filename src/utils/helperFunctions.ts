@@ -3,24 +3,24 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Initial state
-let configExists = false;
-let wJetFocus = false;
+let _configExist = false;
+let _authorFocus = false;
 // Getter function
-export function getConfigExists(): boolean {
-  return configExists;
+export function configExist(): boolean {
+  return _configExist;
 }
 // Setter function
 export function setConfigExists(value: boolean): void {
-  configExists = value;
+  _configExist = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
 }
 // Getter function
-export function getwJetFocus(): boolean {
-  return wJetFocus;
+export function authorFocus(): boolean {
+  return _authorFocus;
 }
 // Setter function
-export function setwJetFocus(value: boolean): void {
-  wJetFocus = value;
+export function setAuthorFocus(value: boolean): void {
+  _authorFocus = value;
   
 }
 
@@ -32,7 +32,7 @@ export async function showPreviewInColumnTwo() {
       editor.viewColumn === vscode.ViewColumn.Two
   );
 
-  if (previewEditors.length === 0 && getwJetFocus()) {
+  if (previewEditors.length === 0 && authorFocus()) {
     // Show the built-in markdown preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   } else {
