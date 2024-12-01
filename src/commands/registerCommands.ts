@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
-import { WriterJetTreeDataProvider } from '../views/writerJetTreeDataProviderTreeDataProvider';
-import {getwJetFocus, getConfigExists, setwJetFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
+import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
+import {getConfigExists, setwJetFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
-  const treeDataProvider = new WriterJetTreeDataProvider();
-  vscode.window.registerTreeDataProvider('writerjetExtensionView', treeDataProvider);
+  const treeDataProvider = new AuthordTreeDataProvider();
+  vscode.window.registerTreeDataProvider('authordExtensionView', treeDataProvider);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('writerjetExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+    vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
       if (!getConfigExists()) {
         return;
       }

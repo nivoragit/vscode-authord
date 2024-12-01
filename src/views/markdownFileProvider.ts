@@ -38,7 +38,7 @@ class MarkdownFileItem extends vscode.TreeItem {
   constructor(public readonly label: string, public readonly resourceUri: vscode.Uri) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.command = {
-      command: 'writerjetExtension.openMarkdownFile',
+      command: 'authordExtension.openMarkdownFile',
       title: 'Open Markdown File',
       arguments: [this.resourceUri],
     };

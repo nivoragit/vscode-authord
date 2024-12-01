@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { SidebarProvider } from './views/sidebarView';
 import { MarkdownFileProvider } from './views/markdownFileProvider';
-import { WriterJetViewProvider } from './views/writerJetViewProvider';
-import { focusExistingPreview, getwJetFocus, showPreviewInColumnTwo } from './utils/helperFunctions';
+import { AuthordViewProvider } from './views/authordViewProvider';
+import { focusExistingPreview} from './utils/helperFunctions';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register commands
@@ -14,17 +14,17 @@ export function activate(context: vscode.ExtensionContext) {
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
     : undefined;
 
-  // Register the WriterJet Documentation View
+  // Register the Authord Documentation View
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      WriterJetViewProvider.viewType, // ID from package.json
-      new WriterJetViewProvider(context, workspaceRoot)
+      AuthordViewProvider.viewType, // ID from package.json
+      new AuthordViewProvider(context, workspaceRoot)
     )
   );
 
   // Create and register the MarkdownFileProvider
   const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
-  vscode.window.registerTreeDataProvider('writerjetMarkdownFilesView', markdownFileProvider);
+  vscode.window.registerTreeDataProvider('authordMarkdownFilesView', markdownFileProvider);
 
   // Refresh the view when the workspace changes
   vscode.workspace.onDidChangeWorkspaceFolders(() => markdownFileProvider.refresh());
@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
   //   showPreviewInColumnTwo();
   // }
 
-  vscode.window.showInformationMessage('WriterJet Extension is now active!');
+  vscode.window.showInformationMessage('Authord Extension is now active!');
 
   // Return the extendMarkdownIt function
   return {
