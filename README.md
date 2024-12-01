@@ -1,35 +1,29 @@
-## Topic Tree View
+# Authord Docs Extension
 
-The extension provides a **Topics** Tree View in the Explorer pane.
+This VS Code extension reads an `authord.json` configuration file and displays documentations and topics in the Activity Bar.
 
-- **Viewing Topics**: Expand the **Topics** section to view authord topics.
-- **Interacting with Topics**: Right-click on a topic to see available actions.
-- **Refreshing Topics**: Use the **Refresh Topics** command to reload the list.
+## Features
 
-## Configuration
+- **Documentations Tree View**: Lists documentation instances defined in `authord.json`.
+- **Topics Tree View**: Displays topics corresponding to the selected documentation instance.
+- **Dynamic Updates**: Reflects changes in the topics directory and configuration file in real-time.
+- **Open Topics**: Click on a topic to open its Markdown file in the editor.
 
-You can configure the topics displayed by editing the extension settings:
+## Requirements
 
-```json
-"authord.topics": ["Topic 1", "Topic 2"]
-```
+- An `authord.json` file at the root of your workspace.
+- A topics directory containing Markdown files, as specified in `authord.json`.
 
----
+## Extension Settings
 
-### **Next Steps**
+This extension does not contribute any settings.
 
-- **Dynamic Data Loading**: Integrate with authord configuration files to display real topics and subtopics.
-- **Error Handling**: Add try-catch blocks when parsing configurations to handle exceptions.
-- **User Interaction**: Implement more commands and context menu actions for tree items.
-- **UI Enhancements**: Customize the Tree View with icons, tooltips, and descriptions.
+## Known Issues
 
----
+- Currently supports only one instance in `authord.json`. Future updates may include support for multiple instances.
 
-### **Need Further Assistance?**
+## Release Notes
 
-Feel free to ask if you need help with:
+### 1.0.0
 
-- Parsing configuration files
-- Adding advanced features to the Tree View
-- Implementing event listeners for file changes
-- Any other aspect of authord extension development
+- Initial release of Authord Docs Extension.

@@ -22,13 +22,13 @@
 
   "activationEvents": [
 
-    "onView:authordExtensionView",
-
     "onCommand:authordExtension.checkConfig",
 
     "onLanguage:markdown",
 
-    "onStartupFinished"
+    "onStartupFinished",
+    "workspaceContains:authord.json"
+    
 
   ],
 
@@ -101,20 +101,39 @@
     },
 
     "commands": [
+      {
+        "command": "authordDocsExtension.selectInstance",
+        "title": "Select Documentation Instance",
+        "when": "authord.configExists"
+      },
+      {
+        "command": "authordDocsExtension.openTopic",
+        "title": "Open Topic",
+        "when": "authord.configExists"
+      },
 
       {
 
-        "command": "authord.createConfig",
+        "command": "authordDocsExtension.createConfig",
 
-        "title": "Create Authord Configuration File"
+        "title": "Create Authord Configuration File",
+        "category": "Authord",
+        "when": "!authord.configExists"
 
+      },
+      {
+        "command": "authordDocsExtension.initialize",
+        "title": "Initialize Authord Extension",
+        "category": "Authord",
+        "when": "authord.configExists"
       },
 
       {
 
         "command": "authordExtension.openMarkdownFile",
 
-        "title": "Open Markdown File"
+        "title": "Open Markdown File",
+        "when": "authord.configExists"
 
       },
 
@@ -122,7 +141,8 @@
 
         "command": "markdownPreview.open",
 
-        "title": "Open Markdown Preview"
+        "title": "Open Markdown Preview",
+        "when": "authord.configExists"
 
       },
 
@@ -130,7 +150,8 @@
 
         "command": "markdownPreview.show",
 
-        "title": "Show Markdown Preview"
+        "title": "Show Markdown Preview",
+        "when": "authord.configExists"
 
       }
 
@@ -154,7 +175,7 @@
 
         {
 
-          "id": "authordExtensionView",
+          "id": "documentationsView",
 
           "name": "Documentations",
 
@@ -164,7 +185,7 @@
 
         {
 
-          "id": "authordMarkdownFilesView",
+          "id": "topicsView",
 
           "name": "Topics",
 

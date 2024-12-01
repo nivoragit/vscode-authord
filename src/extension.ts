@@ -3,16 +3,18 @@ import { registerCommands } from './commands/registerCommands';
 import { SidebarProvider } from './views/sidebarView';
 import { MarkdownFileProvider } from './views/markdownFileProvider';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { focusExistingPreview} from './utils/helperFunctions';
+import { focusExistingPreview, linkTopicsToToc, loadTopics, parseTocElements, sortTocElements} from './utils/helperFunctions';
+import { initializeConfig, loadConfig, refreshConfiguration } from './commands/config';
+import { DocumentationProvider } from './views/documentationProvider';
+import { refreshTopics, initializeTopics } from './views/topics';
+import { TopicsProvider } from './views/topicsProvider';
+import path from 'path';
+import { Config, Topic } from './utils/types';
 
 export function activate(context: vscode.ExtensionContext) {
-  // Register commands
-  registerCommands(context);
-
   // Get the workspace root
-  const workspaceRoot = vscode.workspace.workspaceFolders
-    ? vscode.workspace.workspaceFolders[0].uri.fsPath
-    : undefined;
+  if (!vscode.workspace.workspaceFolders) { return; }
+  const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
   // Register the Authord Documentation View
   context.subscriptions.push(
@@ -21,16 +23,52 @@ export function activate(context: vscode.ExtensionContext) {
       new AuthordViewProvider(context, workspaceRoot)
     )
   );
+  
+  const configPath = path.join(workspaceRoot, 'authord.config.json');
 
-  // Create and register the MarkdownFileProvider
-  const markdownFileProvider = new MarkdownFileProvider(workspaceRoot);
-  vscode.window.registerTreeDataProvider('authordMarkdownFilesView', markdownFileProvider);
+  // Load initial configuration
+  let config: Config = loadConfig(configPath);
+  let topicsDir = config['topics-dir'];
+  let topicsPath = path.join(workspaceRoot, topicsDir);
+  let topics: Topic[] = loadTopics(topicsPath);
+  let instance = config.instance;
+  let tocTree = parseTocElements(instance['toc-elements']);
+  linkTopicsToToc(tocTree, topics);
+  sortTocElements(tocTree);
 
-  // Refresh the view when the workspace changes
-  vscode.workspace.onDidChangeWorkspaceFolders(() => markdownFileProvider.refresh());
-  vscode.workspace.onDidCreateFiles(() => markdownFileProvider.refresh());
-  vscode.workspace.onDidDeleteFiles(() => markdownFileProvider.refresh());
-  vscode.workspace.onDidRenameFiles(() => markdownFileProvider.refresh());
+  // Create and register tree data providers
+  const documentationProvider = new DocumentationProvider(instance);
+  vscode.window.registerTreeDataProvider('documentationsView', documentationProvider);
+
+  let topicsProvider = new TopicsProvider(tocTree);
+  vscode.window.registerTreeDataProvider('topicsView', topicsProvider);
+
+  
+
+  const deps = {
+    tocTree,
+    topicsProvider,
+    documentationProvider,
+    refreshConfiguration,
+    refreshTopics,
+    instance,
+    topics, 
+  };
+  registerCommands(context, deps);
+
+  // Watch for changes in topics directory
+  const topicsWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(topicsPath, '**/*.md'));
+  topicsWatcher.onDidCreate(() => refreshTopics());
+  topicsWatcher.onDidChange(() => refreshTopics());
+  topicsWatcher.onDidDelete(() => refreshTopics());
+
+  // Watch for changes in configuration
+  const configWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceRoot, 'authord.json'));
+  configWatcher.onDidChange(() => refreshConfiguration());
+
+  // Add watchers to context subscriptions
+  context.subscriptions.push(topicsWatcher);
+  context.subscriptions.push(configWatcher);
 
   // Initialize sidebar view
   const sidebarProvider = new SidebarProvider(context.extensionUri);
@@ -48,16 +86,27 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-
-  // If a markdown file is already open, show the preview
-  // if (
-  //   vscode.window.activeTextEditor &&
-  //   vscode.window.activeTextEditor.document.languageId === 'markdown'
-  // ) {
-  //   showPreviewInColumnTwo();
-  // }
-
   vscode.window.showInformationMessage('Authord Extension is now active!');
+  
+  // Define refresh functions with access to variables via closure
+  function refreshTopics() {
+    topics = loadTopics(topicsPath);
+    linkTopicsToToc(tocTree, topics);
+    topicsProvider.refresh(tocTree);
+  }
+
+  function refreshConfiguration() {
+    config = loadConfig(configPath);
+    topicsDir = config['topics-dir'];
+    topicsPath = path.join(workspaceRoot, topicsDir);
+    topics = loadTopics(topicsPath);
+    instance = config.instance;
+    tocTree = parseTocElements(instance['toc-elements']);
+    linkTopicsToToc(tocTree, topics);
+    sortTocElements(tocTree);
+    documentationProvider.refresh(instance);
+    topicsProvider.refresh(tocTree);
+  }
 
   // Return the extendMarkdownIt function
   return {

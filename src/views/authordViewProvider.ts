@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { setConfigExists } from '../utils/helperFunctions';
 
+// todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'authordDocumentationView'; // Match the ID from package.json
   private _view?: vscode.WebviewView;

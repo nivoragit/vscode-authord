@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Topic, TocElement, TocTreeItem, Config } from './types';
 
 // Initial state
 let _configExist = false;
@@ -91,3 +92,57 @@ export async function focusOrShowPreview() {
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   }
 }
+
+
+export function loadTopics(topicsPath: string): Topic[] {
+  try {
+    const markdownFiles = fs.readdirSync(topicsPath).filter(file => file.endsWith('.md'));
+    return markdownFiles.map(file => ({
+      name: path.basename(file),
+      path: path.join(topicsPath, file),
+    }));
+  } catch (error: any) {
+    console.error(`Error loading topics: ${error.message}`);
+    return [];
+  }
+}
+
+export function parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
+  return tocElements.map(element => {
+    const children = element.children ? parseTocElements(element.children) : [];
+    return {
+      id: element.id,
+      title: element['toc-title'],
+      topic: element.topic,
+      sortChildren: element['sort-children'],
+      children,
+    };
+  });
+}
+
+
+export function linkTopicsToToc(tocTree: TocTreeItem[], topics: Topic[]): void {
+  tocTree.forEach(element => {
+    if (element.topic) {
+      const topic = topics.find(t => t.name === element.topic);
+      if (topic) {
+        element.filePath = topic.path;
+      }
+    }
+    if (element.children) {
+      linkTopicsToToc(element.children, topics);
+    }
+  });
+}
+
+export function sortTocElements(tocElements: TocTreeItem[]): void {
+  tocElements.forEach(element => {
+    if (element.sortChildren && element.children) {
+      element.children.sort((a, b) => a.title.localeCompare(b.title) * (element.sortChildren === 'ascending' ? 1 : -1));
+      sortTocElements(element.children);
+    }
+  });
+}
+
+
+
