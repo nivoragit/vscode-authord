@@ -1,0 +1,161 @@
+{
+  "schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authord Settings",
+  "type": "object",
+  "topics": {
+    "dir": "topics"
+  },
+  "images": {
+    "dir": "images",
+    "version": "1.0",
+    "web-path": "images"
+  },
+  "instances": [
+    {
+      "id": "doc1",
+      "name": "Documentation 1",
+      "start-page": "intro.md",
+      "toc-elements": [
+        {
+          "id": "intro",
+          "topic": "intro.md",
+          "toc-title": "Introduction",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "intro-background",
+              "topic": "intro-background.md",
+              "toc-title": "Background",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "intro-goals",
+              "topic": "intro-goals.md",
+              "toc-title": "Goals",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "chapter1",
+          "topic": "chapter1.md",
+          "toc-title": "Chapter 1",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "chapter1-section1",
+              "topic": "chapter1-section1.md",
+              "toc-title": "Section 1",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "chapter1-section2",
+              "topic": "chapter1-section2.md",
+              "toc-title": "Section 2",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "chapter2",
+          "topic": "chapter2.md",
+          "toc-title": "Chapter 2",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "chapter2-overview",
+              "topic": "chapter2-overview.md",
+              "toc-title": "Overview",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "chapter2-details",
+              "topic": "chapter2-details.md",
+              "toc-title": "Details",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "doc2",
+      "name": "Documentation 2",
+      "start-page": "overview.md",
+      "toc-elements": [
+        {
+          "id": "overview",
+          "topic": "overview.md",
+          "toc-title": "Overview",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "overview-purpose",
+              "topic": "overview-purpose.md",
+              "toc-title": "Purpose",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "overview-scope",
+              "topic": "overview-scope.md",
+              "toc-title": "Scope",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "getting-started",
+          "topic": "getting-started.md",
+          "toc-title": "Getting Started",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "getting-started-requirements",
+              "topic": "getting-started-requirements.md",
+              "toc-title": "Requirements",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "getting-started-setup",
+              "topic": "getting-started-setup.md",
+              "toc-title": "Setup",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "advanced-topics",
+          "topic": "advanced-topics.md",
+          "toc-title": "Advanced Topics",
+          "sort-children": "none",
+          "children": [
+            {
+              "id": "advanced-topics-customization",
+              "topic": "advanced-topics-customization.md",
+              "toc-title": "Customization",
+              "sort-children": "none",
+              "children": []
+            },
+            {
+              "id": "advanced-topics-optimization",
+              "topic": "advanced-topics-optimization.md",
+              "toc-title": "Optimization",
+              "sort-children": "none",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
