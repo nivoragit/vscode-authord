@@ -43,8 +43,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     treeItem.children = element.children;
     if (element.filePath) {
       treeItem.command = {
-        // command: 'authordDocsExtension.openTopic',
-        // title: 'Open Topic',
       command: 'authordExtension.openMarkdownFile',
       title: 'Open Markdown File',
       arguments: [element.filePath]

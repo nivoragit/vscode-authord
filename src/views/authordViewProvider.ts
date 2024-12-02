@@ -5,7 +5,7 @@ import { setConfigExists } from '../utils/helperFunctions';
 
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'authordDocumentationView'; // Match the ID from package.json
+  public static readonly viewType = 'authordDocumentationView';
   private _view?: vscode.WebviewView;
 
   constructor(private context: vscode.ExtensionContext, private workspaceRoot: string | undefined) {}

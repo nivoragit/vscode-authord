@@ -1,105 +1,54 @@
 {
-
   "name": "vscode-authord",
-
   "displayName": "vscode-authord",
-
   "description": "**`vscode-authord`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
-
   "version": "0.0.1",
-
   "engines": {
-
     "vscode": "^1.70.0"
-
   },
-
   "categories": [
-
     "Other"
-
   ],
-
   "activationEvents": [
-
-    "onCommand:authordExtension.checkConfig",
-
     "onLanguage:markdown",
-
     "onStartupFinished",
-    "workspaceContains:authord.json"
-    
-
+    "workspaceContains:authord.json",
+    "onCommand:authordExtension.checkConfig"
   ],
-
   "main": "./dist/extension.js",
-
   "contributes": {
-
     "markdown.markdownItPlugins": true,
-
     "viewsContainers": {
-
       "activitybar": [
-
         {
-
           "id": "authordExtensionContainer",
-
           "title": "Authord",
-
           "icon": "./src/media/icon.svg",
-
           "when": "authord.configExists"
-
         }
-
       ]
-
     },
-
     "configuration": {
-
       "type": "object",
-
       "title": "Authord Extension Settings",
-
       "properties": {
-
         "authord.topics": {
-
           "type": "array",
-
           "default": [],
-
-          "description": "List of topics to display in the Tree View."
-
+          "description": "List of topics to display in the Tree View.: just settings appears here when user set"
         },
-
         "authord.autoFocusEditor": {
-
           "type": "boolean",
-
           "default": true,
-
-          "description": "Automatically focus the editor when the preview becomes active."
-
+          "description": "Automatically focus the editor when the preview becomes active.: just settings appears here when user set"
         },
-
         "authord.focusDelay": {
-
           "type": "number",
-
           "default": 500,
-
-          "description": "Delay in milliseconds before shifting focus back to the editor."
-
+          "description": "Delay in milliseconds before shifting focus back to the editor.: just settings appears here when user set"
         }
-
       }
-
     },
-
     "commands": [
       {
         "command": "authordDocsExtension.selectInstance",
@@ -107,19 +56,10 @@
         "when": "authord.configExists"
       },
       {
-        "command": "authordDocsExtension.openTopic",
-        "title": "Open Topic",
-        "when": "authord.configExists"
-      },
-
-      {
-
         "command": "authordDocsExtension.createConfig",
-
         "title": "Create Authord Configuration File",
         "category": "Authord",
         "when": "!authord.configExists"
-
       },
       {
         "command": "authordDocsExtension.initialize",
@@ -127,136 +67,71 @@
         "category": "Authord",
         "when": "authord.configExists"
       },
-
       {
-
         "command": "authordExtension.openMarkdownFile",
-
         "title": "Open Markdown File",
         "when": "authord.configExists"
-
       },
-
       {
-
         "command": "markdownPreview.open",
-
         "title": "Open Markdown Preview",
         "when": "authord.configExists"
-
       },
-
       {
-
         "command": "markdownPreview.show",
-
         "title": "Show Markdown Preview",
         "when": "authord.configExists"
-
       }
-
     ],
-
     "views": {
-
       "authordExtensionContainer": [
         {
-
           "type": "webview",
-
           "id": "authordDocumentationView",
-
           "name": "Empty Project",
-
           "when": "!authord.configExists"
-
         },
-
         {
-
           "id": "documentationsView",
-
           "name": "Documentations",
-
           "when": "authord.configExists"
-
         },
-
         {
-
           "id": "topicsView",
-
           "name": "Topics",
-
           "when": "authord.configExists"
-
         }
-
       ]
-
     }
-
   },
-
   "repository": {
-
     "type": "git",
-
     "url": "https://github.com/nivoragit/authord-authord.git"
-
   },
-
   "scripts": {
-
     "vscode:prepublish": "npm run package",
-
     "compile": "webpack",
-
     "watch": "webpack --watch",
-
     "package": "webpack --mode production --devtool hidden-source-map",
-
     "compile-tests": "tsc -p . --outDir out",
-
     "watch-tests": "tsc -p . -w --outDir out",
-
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-
     "lint": "eslint src",
-
     "test": "vscode-test"
-
   },
-
   "devDependencies": {
-
     "@types/node": "^20.17.9",
-
     "@types/vscode": "^1.70.0",
-
     "@typescript-eslint/eslint-plugin": "^8.10.0",
-
     "@typescript-eslint/parser": "^8.7.0",
-
     "@vscode/test-cli": "^0.0.10",
-
     "esbuild-loader": "^4.2.2",
-
     "eslint": "^9.13.0",
-
     "typescript": "^5.7.2",
-
     "webpack": "^5.96.1",
-
     "webpack-cli": "^5.1.4"
-
   },
-
   "dependencies": {
-
     "markdown-it-plantuml": "^1.4.1"
-
   }
-
 }
-

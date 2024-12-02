@@ -1,18 +1,9 @@
 import * as vscode from 'vscode';
 import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
-import {configExist, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview, linkTopicsToToc, parseTocElements, sortTocElements } from '../utils/helperFunctions';
-
+import { configExist, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
-  context.subscriptions.push(
-    vscode.commands.registerCommand('authordDocsExtension.openTopic', (filePath) => {
-      vscode.workspace.openTextDocument(filePath).then(doc => {
-        vscode.window.showTextDocument(doc);
-      });
-    })
-  );
-
-
+  
   const treeDataProvider = new AuthordTreeDataProvider();
   vscode.window.registerTreeDataProvider('documentationsView', treeDataProvider);
 

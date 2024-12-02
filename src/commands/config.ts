@@ -2,32 +2,42 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { loadTopics, parseTocElements, linkTopicsToToc, sortTocElements } from '../utils/helperFunctions';
-import { Config, Topic } from '../utils/types';
+import { Config, TocTreeItem, Topic } from '../utils/types';
+import { DocumentationProvider } from '../views/documentationProvider';
+import { TopicsProvider } from '../views/topicsProvider';
+
 
 
 export function initializeConfig(workspaceRoot: string) {
-  const configPath = path.join(workspaceRoot, 'authord.json');
-  let config: Config = loadConfig(configPath);
-  let topicsDir = config['topics-dir'];
-  let topicsPath = path.join(workspaceRoot, topicsDir);
-  let topics: Topic[] = loadTopics(topicsPath);
-  let instance = config.instance;
-  let tocTree = parseTocElements(instance['toc-elements']);
-  linkTopicsToToc(tocTree, topics);
-  sortTocElements(tocTree);
+  const configPath = path.join(workspaceRoot, 'authord.config.json');
+  const config: Config = loadConfig(configPath);
+  const topicsDir = config['topics']['dir'];
+  const topicsPath = path.join(workspaceRoot, topicsDir);
+  const topics: Topic[] = loadTopics(topicsPath);
+  const instances = config.instances;
+  const tocTree: TocTreeItem[] = [];
 
-  return { config, topicsDir, topicsPath, instance, tocTree, topics };
+  return {topicsPath, instances, tocTree, topics };
 }
+export function refreshConfiguration(configPath: string, workspaceRoot: string, documentationProvider:DocumentationProvider , topicsProvider:TopicsProvider) {
+    try {
+      const config = loadConfig(configPath);
+      const topicsDir = config['topics']['dir'];
+      const topicsPath = path.join(workspaceRoot, topicsDir);
+      const topics = loadTopics(topicsPath);
+      const instances = config.instances;
+      const tocTree = instances.flatMap(instance => parseTocElements(instance['toc-elements']));
+      linkTopicsToToc(tocTree, topics);
+      sortTocElements(tocTree);
+      documentationProvider.refresh(instances);
+      topicsProvider.refresh(tocTree);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
+      return;
+    }
+    
+  } 
 
-export function refreshConfiguration(
-  workspaceRoot: string,
-  documentationProvider: any,
-  topicsProvider: any
-) {
-  const { config, topicsPath, instance, tocTree, topics } = initializeConfig(workspaceRoot);
-  documentationProvider.refresh(instance);
-  topicsProvider.refresh(tocTree);
-}
 
 export function loadConfig(configPath: string): Config {
   try {
@@ -38,3 +48,6 @@ export function loadConfig(configPath: string): Config {
     throw error;
   }
 }
+
+
+

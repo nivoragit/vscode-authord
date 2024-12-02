@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Topic, TocElement, TocTreeItem, Config } from './types';
+import { Topic, TocElement, TocTreeItem } from './types';
 
 // Initial state
 let _configExist = false;
@@ -97,6 +97,8 @@ export async function focusOrShowPreview() {
   } else {
     // Show the preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
+    await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
+
   }
 }
 
