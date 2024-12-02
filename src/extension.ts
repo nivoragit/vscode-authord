@@ -16,6 +16,23 @@ export function activate(context: vscode.ExtensionContext) {
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
   const configPath = path.join(workspaceRoot, 'authord.config.json');
+
+   // Initialize sidebar view
+   const sidebarProvider = new SidebarProvider(context.extensionUri);
+   context.subscriptions.push(
+     vscode.window.registerWebviewViewProvider('vs-code-sidebar', sidebarProvider)
+   );
+
+  // Listen for when the active editor changes
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+      if (editor && editor.document.languageId === 'markdown') {
+        // Focus the existing preview if it's open
+        await focusExistingPreview();
+      }
+    })
+  );
+
   // Register the Authord Documentation View
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -25,12 +42,13 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   registerCommands(context);
+
   const disposable = onConfigExists(() => {
     initializeExtension(context, workspaceRoot, configPath);
     disposable.dispose(); // Clean up the event listener after initialization
   });
   context.subscriptions.push(disposable);
-  
+  // initializeExtension(context, workspaceRoot, configPath);
   function initializeExtension(context: vscode.ExtensionContext, workspaceRoot: string, configPath: string) {
    
   
@@ -83,22 +101,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(topicsWatcher);
     context.subscriptions.push(configWatcher);
   
-    // Initialize sidebar view
-    const sidebarProvider = new SidebarProvider(context.extensionUri);
-    context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider('vs-code-sidebar', sidebarProvider)
-    );
-  
-    // Listen for when the active editor changes
-    context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-        if (editor && editor.document.languageId === 'markdown') {
-          // Focus the existing preview if it's open
-          await focusExistingPreview();
-        }
-      })
-    );
-  
+   
+    
     vscode.window.showInformationMessage('Authord Extension is now active!');
     
     // Define refresh functions with access to variables via closure

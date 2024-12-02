@@ -160,7 +160,6 @@
     "views": {
 
       "authordExtensionContainer": [
-
         {
 
           "type": "webview",

@@ -39,21 +39,77 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     if (!fs.existsSync(configFilePath)) {
       fs.writeFileSync(configFilePath,JSON.stringify(
         {
+          "schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "Authord Settings",
+          "type": "object",
           "topics": {
             "dir":"topics"
-         },
+          },
           "images": {
             "dir": "images",
             "version": "1.0",
-            "web-path": "/assets/images/"
+            "web-path": "images"
           },
-          "instance": {
-            "id": "default-instance",
-            "name": "Default Documentation",
-            "start-page": "index.md",
-            "toc-elements": []
-          }
-        },
+          "instances": [
+            {
+              "id": "doc1",
+              "name": "Documentation 1",
+              "start-page": "intro.md",
+              "toc-elements": [
+                {
+                  "id": "intro",
+                  "topic": "intro.md",
+                  "toc-title": "Introduction",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "chapter1",
+                  "topic": "chapter1.md",
+                  "toc-title": "Chapter 1",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "chapter2",
+                  "topic": "chapter2.md",
+                  "toc-title": "Chapter 2",
+                  "sort-children": "none",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "doc2",
+              "name": "Documentation 2",
+              "start-page": "overview.md",
+              "toc-elements": [
+                {
+                  "id": "overview",
+                  "topic": "overview.md",
+                  "toc-title": "Overview",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "getting-started",
+                  "topic": "getting-started.md",
+                  "toc-title": "Getting Started",
+                  "sort-children": "none",
+                  "children": []
+                },
+                {
+                  "id": "advanced-topics",
+                  "topic": "advanced-topics.md",
+                  "toc-title": "Advanced Topics",
+                  "sort-children": "none",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+        ,
         null,
         2
       ));
