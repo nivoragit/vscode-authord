@@ -39,7 +39,9 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     if (!fs.existsSync(configFilePath)) {
       fs.writeFileSync(configFilePath,JSON.stringify(
         {
-          "topics-dir": "topics",
+          "topics": {
+            "dir":"topics"
+         },
           "images": {
             "dir": "images",
             "version": "1.0",

@@ -9,7 +9,7 @@ import { DocumentationProvider } from './views/documentationProvider';
 import { refreshTopics, initializeTopics } from './views/topics';
 import { TopicsProvider } from './views/topicsProvider';
 import path from 'path';
-import { Config, Topic } from './utils/types';
+import { Config, TocTreeItem, Topic } from './utils/types';
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
@@ -32,6 +32,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
   
   function initializeExtension(context: vscode.ExtensionContext, workspaceRoot: string, configPath: string) {
+   
+  
+    
     // Load initial configuration
     let config: Config;
     try {
@@ -41,27 +44,27 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
   
-    let topicsDir = config['topics-dir'];
+    let topicsDir = config['topics']['dir'];
     let topicsPath = path.join(workspaceRoot, topicsDir);
     let topics: Topic[] = loadTopics(topicsPath);
-    let instance = config.instance;
-    let tocTree = parseTocElements(instance['toc-elements']);
-    linkTopicsToToc(tocTree, topics);
-    sortTocElements(tocTree);
+    let instances = config.instances;
+    let tocTree: TocTreeItem[] = [];
   
     // Create and register tree data providers
-    const documentationProvider = new DocumentationProvider(instance);
+    const documentationProvider = new DocumentationProvider(instances);
     vscode.window.registerTreeDataProvider('documentationsView', documentationProvider);
   
-    let topicsProvider = new TopicsProvider(tocTree);
+    let topicsProvider = new TopicsProvider();
     vscode.window.registerTreeDataProvider('topicsView', topicsProvider);
   
     context.subscriptions.push(
-      vscode.commands.registerCommand('authordDocsExtension.selectInstance', (_instanceId) => {
+      vscode.commands.registerCommand('authordDocsExtension.selectInstance', (instanceId) => {
         // For now, only one instance is available
-        tocTree = parseTocElements(instance['toc-elements']); // 'tocTree' can now be reassigned
+        tocTree = instances.flatMap(instance => 
+          instance.id === instanceId ? parseTocElements(instance['toc-elements']) : []
+      );
         linkTopicsToToc(tocTree, topics); // 'instance' and 'topics' are now defined
-        sortTocElements(tocTree);
+        // sortTocElements(tocTree);
         topicsProvider.refresh(tocTree);
       })
     );
@@ -112,19 +115,16 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
         return;
       }
-      topicsDir = config['topics-dir'];
+      topicsDir = config['topics']['dir'];
       topicsPath = path.join(workspaceRoot, topicsDir);
       topics = loadTopics(topicsPath);
-      instance = config.instance;
-      tocTree = parseTocElements(instance['toc-elements']);
+      instances = config.instances;
+      tocTree = instances.flatMap(instance => parseTocElements(instance['toc-elements']));
       linkTopicsToToc(tocTree, topics);
       sortTocElements(tocTree);
-      documentationProvider.refresh(instance);
+      documentationProvider.refresh(instances);
       topicsProvider.refresh(tocTree);
     }
-  
-  }
-
   // Return the extendMarkdownIt function
   return {
     extendMarkdownIt(md: any) {
@@ -133,6 +133,10 @@ export function activate(context: vscode.ExtensionContext) {
       return md.use(require('markdown-it-plantuml'));
     },
   };
+  
+  }
+
+  
 }
 
 export function deactivate() {

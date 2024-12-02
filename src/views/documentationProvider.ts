@@ -1,19 +1,18 @@
 import * as vscode from 'vscode';
 import { InstanceConfig } from '../utils/types';
 
-
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<DocumentationItem | undefined | void> = new vscode.EventEmitter<DocumentationItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<DocumentationItem | undefined | void> = this._onDidChangeTreeData.event;
 
-  private instance: InstanceConfig;
+  private instances: InstanceConfig[];
 
-  constructor(instance: InstanceConfig) {
-    this.instance = instance;
+  constructor(instances: InstanceConfig[]) {
+    this.instances = instances;
   }
 
-  refresh(instance: InstanceConfig): void {
-    this.instance = instance;
+  refresh(instances: InstanceConfig[]): void {
+    this.instances = instances;
     this._onDidChangeTreeData.fire();
   }
 
@@ -24,17 +23,20 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   getChildren(element?: DocumentationItem): Thenable<DocumentationItem[]> {
     if (!element) {
       // Root elements (instances)
-      const item = new DocumentationItem(
-        this.instance.name,
-        vscode.TreeItemCollapsibleState.None
-      );
-      item.id = this.instance.id;
-      item.command = {
-        command: 'authordDocsExtension.selectInstance',
-        title: 'Select Instance',
-        arguments: [this.instance.id]
-      };
-      return Promise.resolve([item]);
+      const items = this.instances.map(instance => {
+        const item = new DocumentationItem(
+          instance.name,
+          vscode.TreeItemCollapsibleState.None
+        );
+        item.id = instance.id;
+        item.command = {
+          command: 'authordDocsExtension.selectInstance',
+          title: 'Select Instance',
+          arguments: [instance.id]
+        };
+        return item;
+      });
+      return Promise.resolve(items);
     }
     return Promise.resolve([]);
   }
@@ -48,3 +50,4 @@ export class DocumentationItem extends vscode.TreeItem {
     super(label, collapsibleState);
   }
 }
+

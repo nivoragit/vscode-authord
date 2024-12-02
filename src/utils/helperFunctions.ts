@@ -103,16 +103,30 @@ export async function focusOrShowPreview() {
 
 export function loadTopics(topicsPath: string): Topic[] {
   try {
-    const markdownFiles = fs.readdirSync(topicsPath).filter(file => file.endsWith('.md'));
-    return markdownFiles.map(file => ({
-      name: path.basename(file),
-      path: path.join(topicsPath, file),
-    }));
+    const markdownFiles: Topic[] = [];
+
+    const traverseDirectory = (dirPath: string) => {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          traverseDirectory(fullPath); // Recursively explore subdirectories
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          markdownFiles.push({
+            name: path.basename(entry.name),
+            path: fullPath,
+          });
+        }
+      }
+    };
+    traverseDirectory(topicsPath);
+    return markdownFiles;
   } catch (error: any) {
     console.error(`Error loading topics: ${error.message}`);
     return [];
   }
 }
+
 
 export function parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
   return tocElements.map(element => {

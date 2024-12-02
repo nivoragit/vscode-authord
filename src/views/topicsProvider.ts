@@ -8,8 +8,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
   private tocTree: TocTreeItem[];
 
-  constructor(tocTree: TocTreeItem[]) {
-    this.tocTree = tocTree;
+  constructor() {
+    this.tocTree = [];
   }
 
   refresh(tocTree: TocTreeItem[]): void {

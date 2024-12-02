@@ -1,7 +1,7 @@
 export interface Config {
-    "topics-dir": string;
+    "topics": Topics;
     images: ImagesConfig;
-    instance: InstanceConfig;
+    instances: InstanceConfig[];
   }
   
   export interface ImagesConfig {
@@ -29,7 +29,10 @@ export interface Config {
     name: string;
     path: string;
   }
-  
+  export interface Topics {
+    "dir": string;
+  }
+
   export interface TocTreeItem {
     id: string;
     title: string;
