@@ -23,8 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
       new AuthordViewProvider(context, workspaceRoot)
     )
   );
-  registerCommands(context);
 
+  registerCommands(context);
   const disposable = onConfigExists(() => {
     initializeExtension(context, workspaceRoot, configPath);
     disposable.dispose(); // Clean up the event listener after initialization
@@ -124,18 +124,16 @@ export function activate(context: vscode.ExtensionContext) {
       sortTocElements(tocTree);
       documentationProvider.refresh(instances);
       topicsProvider.refresh(tocTree);
-    }
-  // Return the extendMarkdownIt function
-  return {
-    extendMarkdownIt(md: any) {
-      // Apply your custom markdown-it plugins or rules here
-      // For example, adding PlantUML support:
-      return md.use(require('markdown-it-plantuml'));
-    },
-  };
-  
+    }  
   }
-
+// Return the extendMarkdownIt function
+return {
+  extendMarkdownIt(md: any) {
+    // Apply your custom markdown-it plugins or rules here
+    // For example, adding PlantUML support:
+    return md.use(require('markdown-it-plantuml'));
+  },
+};
   
 }
 
