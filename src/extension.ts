@@ -1,26 +1,41 @@
 import * as vscode from 'vscode';
-import { registerCommands } from './commands/registerCommands';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { focusExistingPreview, linkTopicsToToc, onConfigExists, parseTocElements, sortTocElements} from './utils/helperFunctions';
-import { initializeConfig} from './commands/config';
-import { DocumentationProvider } from './views/documentationProvider';
-import { TopicsProvider } from './views/topicsProvider';
-import { setupWatchers } from './views/topics';
+import { configValid, focusOrShowPreview, onConfigExists, setAuthorFocus, setConfigValid} from './utils/helperFunctions';
+import { InitializeExtension } from './utils/initializeExtension';
+
+export let initializer: InitializeExtension | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
-  // Listen for when the active editor changes
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-      if (editor && editor.document.languageId === 'markdown') {
-        // Focus the existing preview if it's open
-        await focusExistingPreview();
+  initializer = new InitializeExtension(context, workspaceRoot);
+  const disposable = onConfigExists(async () => {
+    try{
+      if(initializer){
+        initializer.initialize();
       }
-    })
-  );
+      disposable.dispose(); // Clean up the event listener after initialization
+      setConfigValid(true);
+
+    }catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
+      setConfigValid(false);
+
+     
+    }
+  });
+
+  // Listen for when the active editor changes
+  // context.subscriptions.push(
+  //   vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+  //     if (editor && editor.document.languageId === 'markdown') {
+  //       // Focus the existing preview if it's open
+  //       await focusExistingPreview();
+  //     }
+  //   })
+  // );
 
   // Register the Authord Documentation View
   context.subscriptions.push(
@@ -30,12 +45,23 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  registerCommands(context);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+      if (!configValid) {
+        return;
+      }
+      setAuthorFocus(true);
 
-  const disposable = onConfigExists(() => {
-    initializeExtension(context, workspaceRoot);
-    disposable.dispose(); // Clean up the event listener after initialization
-  });
+      // Open the markdown file in the first column
+      const document = await vscode.workspace.openTextDocument(resourceUri);
+      await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+
+      // Focus the existing preview or open it if it doesn't exist
+      await focusOrShowPreview();
+      setAuthorFocus(false);
+    })
+  );
+
   context.subscriptions.push(disposable);
   
 // Return the extendMarkdownIt function
@@ -50,39 +76,7 @@ return {
 }
 
 export function deactivate() {
-  // Clean up resources if necessary
-}
-
-function initializeExtension(context: vscode.ExtensionContext, workspaceRoot: string) {
-
-  let {
-        topicsPath,
-        instances,
-        tocTree,
-        topics
-      } = initializeConfig(workspaceRoot);
-
-  // Create and register tree data providers
-  const documentationProvider = new DocumentationProvider(instances);
-  vscode.window.registerTreeDataProvider('documentationsView', documentationProvider);
-
-  let topicsProvider = new TopicsProvider();
-  vscode.window.registerTreeDataProvider('topicsView', topicsProvider);
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('authordDocsExtension.selectInstance', (instanceId) => {
-      // For now, only one instance is available
-      tocTree = instances.flatMap(instance => 
-        instance.id === instanceId ? parseTocElements(instance['toc-elements']) : []
-    );
-      linkTopicsToToc(tocTree, topics); // 'instance' and 'topics' are now defined
-      sortTocElements(tocTree);
-      topicsProvider.refresh(tocTree);
-    })
-  );
-
-  setupWatchers(topicsPath,tocTree,topicsProvider,workspaceRoot,documentationProvider,context);
-  
-  vscode.window.showInformationMessage('Authord Extension is now active!');
-    
+  if (initializer) {
+    initializer.dispose();
+  }
 }

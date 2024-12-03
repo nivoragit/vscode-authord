@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { setConfigExists } from '../utils/helperFunctions';
-
+import { configExistsEmitter, setConfigValid } from '../utils/helperFunctions';
+import {initializer} from '../extension';
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'authordDocumentationView';
@@ -23,8 +23,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
-        this.updateContent(); // Refresh the view after creating the file
-        
+        await this.updateContent(); // Refresh the view after creating the file
       }
     });
   }
@@ -37,13 +36,13 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
 
     const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     if (!fs.existsSync(configFilePath)) {
-      fs.writeFileSync(configFilePath,JSON.stringify(
+      fs.writeFileSync(configFilePath, JSON.stringify(
         {
           "schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Authord Settings",
           "type": "object",
           "topics": {
-            "dir":"topics"
+            "dir": "topics"
           },
           "images": {
             "dir": "images",
@@ -108,8 +107,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
               ]
             }
           ]
-        }
-        ,
+        },
         null,
         2
       ));
@@ -117,15 +115,14 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     } else {
       vscode.window.showWarningMessage('Authord configuration file already exists.');
     }
-    
   }
 
-  private updateContent() {
+  private async updateContent() {
     if (!this._view) {
       return;
     }
 
-    const configExists = this.checkConfigFile();
+    const configExists = await this.checkConfigFile();
     const webview = this._view.webview;
 
     if (!configExists) {
@@ -137,16 +134,19 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private checkConfigFile(): boolean {
+  private checkConfigFile() {
     if (!this.workspaceRoot) {
-      setConfigExists(false);
+      setConfigValid(false);
       return false;
     }
 
     const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     const configExists = fs.existsSync(configFilePath);
-    setConfigExists(configExists);
-    return configExists;
+    if (configExists) {
+      configExistsEmitter.fire();
+      return true;
+    }
+    return false;
   }
 
   private getMissingConfigHtml(): string {
@@ -160,7 +160,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
         <style>
           body {
             font-family: Arial, sans-serif;
-            margin: 0;
+            margin: 0;webviewView.webview.onDidReceiveMessage
             padding: 2rem;
             box-sizing: border-box;
             display: flex;
@@ -223,7 +223,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     `;
   }
 
-private getNormalViewHtml(): string {
+  private getNormalViewHtml(): string {
     return `
       <!DOCTYPE html>
       <html lang="en">
@@ -266,11 +266,10 @@ private getNormalViewHtml(): string {
         </style>
       </head>
       <body>
-        <h2>Authord Configuration</h2>
-        <p>Your Authord configuration file is set up and ready to use.</p>
+        <h2>Authord</h2>
+        <p>Please fix errors to proceed.</p>
       </body>
       </html>
     `;
   }
-
 }
