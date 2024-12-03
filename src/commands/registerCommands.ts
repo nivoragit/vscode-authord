@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
+// import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
 import { configValid, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   
-  const treeDataProvider = new AuthordTreeDataProvider();
-  vscode.window.registerTreeDataProvider('documentationsView', treeDataProvider);
+  // const treeDataProvider = new AuthordTreeDataProvider();
+  // vscode.window.registerTreeDataProvider('documentationsView', treeDataProvider);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
@@ -20,11 +20,11 @@ export function registerCommands(context: vscode.ExtensionContext) {
 
       // Focus the existing preview or open it if it doesn't exist
       await focusOrShowPreview();
-
       setAuthorFocus(false);
     })
   );
 
+// todo open preview for opened editors
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownPreview.open', async () => {
       if (!configValid()) {

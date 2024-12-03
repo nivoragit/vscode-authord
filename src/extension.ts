@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { focusExistingPreview, linkTopicsToToc, onConfigExists, parseTocElements, setConfigValid, sortTocElements} from './utils/helperFunctions';
+import { linkTopicsToToc, onConfigExists, parseTocElements, setConfigValid, sortTocElements} from './utils/helperFunctions';
 import { initializeConfig} from './commands/config';
 import { DocumentationProvider } from './views/documentationProvider';
 import { TopicsProvider } from './views/topicsProvider';
 import { setupWatchers } from './utils/watchers';
+
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
@@ -13,14 +14,14 @@ export function activate(context: vscode.ExtensionContext) {
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
   // Listen for when the active editor changes
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-      if (editor && editor.document.languageId === 'markdown') {
-        // Focus the existing preview if it's open
-        await focusExistingPreview();
-      }
-    })
-  );
+  // context.subscriptions.push(
+  //   vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+  //     if (editor && editor.document.languageId === 'markdown') {
+  //       // Focus the existing preview if it's open
+  //       await focusExistingPreview();
+  //     }
+  //   })
+  // );
 
   // Register the Authord Documentation View
   context.subscriptions.push(

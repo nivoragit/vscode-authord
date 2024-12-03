@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
 import { loadTopics, linkTopicsToToc, setConfigValid } from './helperFunctions';
-import { refreshConfiguration } from '../commands/config';
+import { refreshConfiguration as refreshConfigurations } from '../commands/config';
 
 export function setupWatchers(
   topicsPath: string,
@@ -20,14 +20,14 @@ export function setupWatchers(
 
   // Watch for changes in configuration
   const configWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceRoot, 'authord.config.json'));
-  configWatcher.onDidChange(() => refreshConfiguration(configPath, workspaceRoot, documentationProvider, topicsProvider));
+  configWatcher.onDidChange(() => refreshConfigurations(configPath, workspaceRoot, documentationProvider, topicsProvider));
 
   // Add watchers to context subscriptions
   context.subscriptions.push(topicsWatcher);
   context.subscriptions.push(configWatcher);
 }
 
-function refreshTopics(tocTree: any, topicsPath: string, topicsProvider: any) {
+export function refreshTopics(tocTree: any, topicsPath: string, topicsProvider: any) {
     try{
       const topics = loadTopics(topicsPath);
       linkTopicsToToc(tocTree, topics);

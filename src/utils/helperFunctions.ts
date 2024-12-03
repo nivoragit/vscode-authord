@@ -70,17 +70,17 @@ async function closeExtraPreviews() {
 }
 
 // Helper function to focus the existing preview
-export async function focusExistingPreview() {
-  const previewEditor = vscode.window.visibleTextEditors.find(
-    (editor) =>
-      editor.document.uri.scheme === 'markdown-preview' &&
-      editor.viewColumn === vscode.ViewColumn.Two
-  );
+// export async function focusExistingPreview() {
+//   const previewEditor = vscode.window.visibleTextEditors.find(
+//     (editor) =>
+//       editor.document.uri.scheme === 'markdown-preview' &&
+//       editor.viewColumn === vscode.ViewColumn.Two
+//   );
 
-  if (previewEditor) {
-    await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
-  }
-}
+//   if (previewEditor) {
+//     await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
+//   }
+// }
 
 // Helper function to focus or show the preview
 export async function focusOrShowPreview() {
@@ -95,10 +95,9 @@ export async function focusOrShowPreview() {
     await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
   } else {
     // Show the preview to the side (column two)
-    await vscode.commands.executeCommand('markdown.showPreviewToSide');
-    await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
-
+    await vscode.commands.executeCommand('markdown.showPreviewToSide'); 
   }
+  await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 }
 
 
