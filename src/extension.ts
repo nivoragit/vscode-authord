@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { focusExistingPreview, linkTopicsToToc, onConfigExists, parseTocElements, sortTocElements} from './utils/helperFunctions';
+import { focusExistingPreview, linkTopicsToToc, onConfigExists, parseTocElements, setConfigValid, sortTocElements} from './utils/helperFunctions';
 import { initializeConfig} from './commands/config';
 import { DocumentationProvider } from './views/documentationProvider';
 import { TopicsProvider } from './views/topicsProvider';
-import { setupWatchers } from './views/topics';
+import { setupWatchers } from './utils/watchers';
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
@@ -32,9 +32,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerCommands(context);
 
-  const disposable = onConfigExists(() => {
+  const disposable = onConfigExists(async () => {
+    try{
     initializeExtension(context, workspaceRoot);
     disposable.dispose(); // Clean up the event listener after initialization
+    setConfigValid(true);
+    }catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
+      setConfigValid(false);
+     
+    }
   });
   context.subscriptions.push(disposable);
   

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { setConfigExists } from '../utils/helperFunctions';
+import { configExistsEmitter, setConfigValid } from '../utils/helperFunctions';
 
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
@@ -23,7 +23,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
-        this.updateContent(); // Refresh the view after creating the file
+        await this.updateContent(); // Refresh the view after creating the file
         
       }
     });
@@ -120,12 +120,12 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     
   }
 
-  private updateContent() {
+  private async updateContent() {
     if (!this._view) {
       return;
     }
 
-    const configExists = this.checkConfigFile();
+    const configExists = await this.checkConfigFile();
     const webview = this._view.webview;
 
     if (!configExists) {
@@ -137,16 +137,19 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private checkConfigFile(): boolean {
-    if (!this.workspaceRoot) {
-      setConfigExists(false);
+  private checkConfigFile(){
+    if(!this.workspaceRoot) {
+      setConfigValid(false);
       return false;
     }
 
     const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
     const configExists = fs.existsSync(configFilePath);
-    setConfigExists(configExists);
-    return configExists;
+    if(configExists){
+      configExistsEmitter.fire();
+      return true;
+    }
+    return false;
   }
 
   private getMissingConfigHtml(): string {
@@ -266,8 +269,8 @@ private getNormalViewHtml(): string {
         </style>
       </head>
       <body>
-        <h2>Authord Configuration</h2>
-        <p>Your Authord configuration file is set up and ready to use.</p>
+        <h2>Welcome to Authord</h2>
+        <p>Please fix errors for proceed</p>
       </body>
       </html>
     `;

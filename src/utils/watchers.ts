@@ -1,13 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
-import { loadTopics, linkTopicsToToc } from '../utils/helperFunctions';
+import { loadTopics, linkTopicsToToc, setConfigValid } from './helperFunctions';
 import { refreshConfiguration } from '../commands/config';
-
-function refreshTopics(tocTree: any, topicsPath: string, topicsProvider: any) {
-  const topics = loadTopics(topicsPath);
-  linkTopicsToToc(tocTree, topics);
-  topicsProvider.refresh(tocTree);
-}
 
 export function setupWatchers(
   topicsPath: string,
@@ -32,3 +26,15 @@ export function setupWatchers(
   context.subscriptions.push(topicsWatcher);
   context.subscriptions.push(configWatcher);
 }
+
+function refreshTopics(tocTree: any, topicsPath: string, topicsProvider: any) {
+    try{
+      const topics = loadTopics(topicsPath);
+      linkTopicsToToc(tocTree, topics);
+      topicsProvider.refresh(tocTree);
+    }catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to reload Topics: ${error.message}`);
+      setConfigValid(false);
+    
+    }
+  }

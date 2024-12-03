@@ -2,25 +2,24 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Topic, TocElement, TocTreeItem } from './types';
+import { DocumentationProvider } from '../views/documentationProvider';
+import { refreshConfiguration } from '../commands/config';
 
 // Initial state
-let _configExist = false;
+let _configValid = false;
 let _authorFocus = false;
 
-const configExistsEmitter = new vscode.EventEmitter<void>();
+export const configExistsEmitter = new vscode.EventEmitter<void>();
 export const onConfigExists = configExistsEmitter.event;
 
 // Getter function
-export function configExist(): boolean {
-  return _configExist;
+export function configValid(): boolean {
+  return _configValid;
 }
 // Setter function
-export function setConfigExists(value: boolean): void {
-  _configExist = value;
+export function setConfigValid(value: boolean){
+  _configValid = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
-  if (value){
-    configExistsEmitter.fire();
-  }
 }
 // Getter function
 export function authorFocus(): boolean {
@@ -165,6 +164,39 @@ export function sortTocElements(tocElements: TocTreeItem[]): void {
       sortTocElements(element.children);
     }
   });
+}
+
+// Helper function to validate and refresh configuration
+function validateAndRefreshConfig(
+  configPath: string,
+  documentationProvider: any,
+  topicsProvider: any
+) {
+    vscode.workspace.openTextDocument(configPath).then(
+    async (doc) => {
+      const json = JSON.parse(doc.getText());
+      // Assuming validateConfig is implemented for schema validation
+      const isValid = validateConfig(json);
+      if (isValid) {
+        await refreshConfiguration(configPath, path.dirname(configPath), documentationProvider, topicsProvider);
+      } else {
+        vscode.window.showErrorMessage('Invalid authord.config.json file. Please correct the errors.');
+      }
+    },
+    (err) => vscode.window.showErrorMessage(`Error reading authord.config.json: ${err.message}`)
+  );
+}
+
+// Handle configuration file deletion
+function handleConfigDeletion(
+  _configPath: string,
+  _documentationProvider: DocumentationProvider
+) {
+  vscode.window.showWarningMessage('authord.config.json file deleted. Default settings may apply.');
+  // Additional logic to handle deletion, e.g., reset defaults
+}
+function validateConfig(_json: JSON) {
+  return true; // tod implement
 }
 
 

@@ -1,0 +1,93 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Authord Settings",
+    "type": "object",
+    "properties": {
+      "topics-dir": {
+        "type": "string",
+        "description": "Specify the directory where topic files are located."
+      },
+      "images": {
+        "$ref": "#/definitions/images"
+      },
+      "instance": {
+        "$ref": "#/definitions/instance"
+      }
+    },
+    "definitions": {
+      "images": {
+        "type": "object",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "description": "Specify the directory where image files are stored."
+          },
+          "version": {
+            "type": "string",
+            "description": "Specify the image set version."
+          },
+          "web-path": {
+            "type": "string",
+            "description": "Specify the web path where images should be stored after building."
+          }
+        },
+        "description": "Settings for image files."
+      },
+      "instance": {
+        "type": "object",
+        "description": "Inline instance profile definition.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the instance profile."
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the instance profile."
+          },
+          "start-page": {
+            "type": "string",
+            "description": "Start page for the instance profile."
+          },
+          "toc-elements": {
+            "type": "array",
+            "description": "Array of table-of-contents elements.",
+            "items": {
+              "$ref": "#/definitions/tocElement"
+            }
+          }
+        }
+      },
+      "tocElement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the TOC element."
+          },
+          "topic": {
+            "type": "string",
+            "description": "Topic file associated with this TOC element."
+          },
+          "toc-title": {
+            "type": "string",
+            "description": "Title displayed in the table of contents."
+          },
+          "sort-children": {
+            "type": "string",
+            "enum": ["ascending", "descending", "none"],
+            "default": "none",
+            "description": "Sorting order for child elements."
+          },
+          "children": {
+            "type": "array",
+            "description": "Child TOC elements.",
+            "items": {
+              "$ref": "#/definitions/tocElement"
+            }
+          }
+        }
+      }
+    }
+  }
+  

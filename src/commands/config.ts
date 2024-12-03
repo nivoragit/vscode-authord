@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadTopics, parseTocElements, linkTopicsToToc, sortTocElements } from '../utils/helperFunctions';
+import { loadTopics, parseTocElements, linkTopicsToToc, sortTocElements, setConfigValid } from '../utils/helperFunctions';
 import { Config, TocTreeItem, Topic } from '../utils/types';
 import { DocumentationProvider } from '../views/documentationProvider';
 import { TopicsProvider } from '../views/topicsProvider';
@@ -16,7 +16,7 @@ export function initializeConfig(workspaceRoot: string) {
   const topics: Topic[] = loadTopics(topicsPath);
   const instances = config.instances;
   const tocTree: TocTreeItem[] = [];
-
+  
   return {topicsPath, instances, tocTree, topics };
 }
 export function refreshConfiguration(configPath: string, workspaceRoot: string, documentationProvider:DocumentationProvider , topicsProvider:TopicsProvider) {
@@ -32,7 +32,8 @@ export function refreshConfiguration(configPath: string, workspaceRoot: string, 
       documentationProvider.refresh(instances);
       topicsProvider.refresh(tocTree);
     } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
+      vscode.window.showErrorMessage(`Failed to reload Configurations: ${error.message}`);
+      setConfigValid(false);
       return;
     }
     

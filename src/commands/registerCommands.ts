@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AuthordTreeDataProvider } from '../views/authordTreeDataProviderTreeDataProvider';
-import { configExist, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
+import { configValid, setAuthorFocus, showPreviewInColumnTwo, focusOrShowPreview } from '../utils/helperFunctions';
 
 export function registerCommands(context: vscode.ExtensionContext) {
   
@@ -9,7 +9,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-      if (!configExist()) {
+      if (!configValid()) {
         return;
       }
       setAuthorFocus(true);
@@ -27,7 +27,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownPreview.open', async () => {
-      if (!configExist()) {
+      if (!configValid()) {
         return;
       }
       const editor = vscode.window.activeTextEditor;
