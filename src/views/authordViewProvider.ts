@@ -2,8 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { configExistsEmitter, setConfigValid } from '../utils/helperFunctions';
-import { initializeConfig } from '../commands/config';
-
+import {initializer} from '../extension';
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'authordDocumentationView';
@@ -25,8 +24,6 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
         await this.updateContent(); // Refresh the view after creating the file
-      } else if (message.command === 'reloadExtension') {
-        configExistsEmitter.fire(); // todo replace this
       }
     });
   }
@@ -258,20 +255,6 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
             text-align: center;
             margin-bottom: 2rem;
           }
-          button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            padding: 0.8rem 1.5rem;
-            font-size: 1rem;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-            margin-top: 1rem;
-          }
-          button:hover {
-            background-color: var(--vscode-button-hoverBackground);
-          }
           @media (max-width: 600px) {
             h2 {
               font-size: 1.5rem;
@@ -279,23 +262,12 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
             p {
               font-size: 1rem;
             }
-            button {
-              font-size: 0.9rem;
-              padding: 0.6rem 1rem;
-            }
           }
         </style>
       </head>
       <body>
-        <h2>Welcome to Authord</h2>
-        <p>Please fix errors and reload extension to proceed.</p>
-        <button onclick="reloadExtension()">Reload Extension</button>
-        <script>
-          const vscode = acquireVsCodeApi();
-          function reloadExtension() {
-            vscode.postMessage({ command: 'reloadExtension' });
-          }
-        </script>
+        <h2>Authord</h2>
+        <p>Please fix errors to proceed.</p>
       </body>
       </html>
     `;

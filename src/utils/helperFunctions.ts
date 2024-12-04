@@ -1,33 +1,22 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Topic, TocElement, TocTreeItem } from './types';
-import { DocumentationProvider } from '../views/documentationProvider';
-import { refreshConfiguration } from '../commands/config';
-
+import { InitializeExtension } from './initializeExtension';
 // Initial state
-let _configValid = false;
-let _authorFocus = false;
+export let configValid = false;
+export let authorFocus = false;
 
 export const configExistsEmitter = new vscode.EventEmitter<void>();
 export const onConfigExists = configExistsEmitter.event;
 
-// Getter function
-export function configValid(): boolean {
-  return _configValid;
-}
+
 // Setter function
 export function setConfigValid(value: boolean){
-  _configValid = value;
+  configValid = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
 }
-// Getter function
-export function authorFocus(): boolean {
-  return _authorFocus;
-}
+
 // Setter function
 export function setAuthorFocus(value: boolean): void {
-  _authorFocus = value;
+  authorFocus = value;
   
 }
 
@@ -39,7 +28,7 @@ export async function showPreviewInColumnTwo() {
       editor.viewColumn === vscode.ViewColumn.Two
   );
 
-  if (previewEditors.length === 0 && authorFocus()) {
+  if (previewEditors.length === 0 && authorFocus) {
     // Show the built-in markdown preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   } else {
@@ -69,18 +58,6 @@ async function closeExtraPreviews() {
   }
 }
 
-// Helper function to focus the existing preview
-// export async function focusExistingPreview() {
-//   const previewEditor = vscode.window.visibleTextEditors.find(
-//     (editor) =>
-//       editor.document.uri.scheme === 'markdown-preview' &&
-//       editor.viewColumn === vscode.ViewColumn.Two
-//   );
-
-//   if (previewEditor) {
-//     await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
-//   }
-// }
 
 // Helper function to focus or show the preview
 export async function focusOrShowPreview() {
@@ -99,104 +76,3 @@ export async function focusOrShowPreview() {
   }
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 }
-
-
-export function loadTopics(topicsPath: string): Topic[] {
-  try {
-    const markdownFiles: Topic[] = [];
-
-    const traverseDirectory = (dirPath: string) => {
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          traverseDirectory(fullPath); // Recursively explore subdirectories
-        } else if (entry.isFile() && entry.name.endsWith('.md')) {
-          markdownFiles.push({
-            name: path.basename(entry.name),
-            path: fullPath,
-          });
-        }
-      }
-    };
-    traverseDirectory(topicsPath);
-    return markdownFiles;
-  } catch (error: any) {
-    console.error(`Error loading topics: ${error.message}`);
-    return [];
-  }
-}
-
-
-export function parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
-  return tocElements.map(element => {
-    const children = element.children ? parseTocElements(element.children) : [];
-    return {
-      id: element.id,
-      title: element['toc-title'],
-      topic: element.topic,
-      sortChildren: element['sort-children'],
-      children,
-    };
-  });
-}
-
-
-export function linkTopicsToToc(tocTree: TocTreeItem[], topics: Topic[]): void {
-  tocTree.forEach(element => {
-    if (element.topic) {
-      const topic = topics.find(t => t.name === element.topic);
-      if (topic) {
-        element.filePath = topic.path;
-      }
-    }
-    if (element.children) {
-      linkTopicsToToc(element.children, topics);
-    }
-  });
-}
-
-export function sortTocElements(tocElements: TocTreeItem[]): void {
-  tocElements.forEach(element => {
-    if (element.sortChildren && element.children) {
-      element.children.sort((a, b) => a.title.localeCompare(b.title) * (element.sortChildren === 'ascending' ? 1 : -1));
-      sortTocElements(element.children);
-    }
-  });
-}
-
-// Helper function to validate and refresh configuration
-function validateAndRefreshConfig(
-  configPath: string,
-  documentationProvider: any,
-  topicsProvider: any
-) {
-    vscode.workspace.openTextDocument(configPath).then(
-    async (doc) => {
-      const json = JSON.parse(doc.getText());
-      // Assuming validateConfig is implemented for schema validation
-      const isValid = validateConfig(json);
-      if (isValid) {
-        await refreshConfiguration(configPath, path.dirname(configPath), documentationProvider, topicsProvider);
-      } else {
-        vscode.window.showErrorMessage('Invalid authord.config.json file. Please correct the errors.');
-      }
-    },
-    (err) => vscode.window.showErrorMessage(`Error reading authord.config.json: ${err.message}`)
-  );
-}
-
-// Handle configuration file deletion
-function handleConfigDeletion(
-  _configPath: string,
-  _documentationProvider: DocumentationProvider
-) {
-  vscode.window.showWarningMessage('authord.config.json file deleted. Default settings may apply.');
-  // Additional logic to handle deletion, e.g., reset defaults
-}
-function validateConfig(_json: JSON) {
-  return true; // tod implement
-}
-
-
-
