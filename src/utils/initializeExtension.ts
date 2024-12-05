@@ -1,48 +1,65 @@
 import * as vscode from 'vscode';
-import path from "path";
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 import { DocumentationProvider } from "../views/documentationProvider";
 import { TopicsProvider } from "../views/topicsProvider";
 import { Config, TocElement, TocTreeItem, Topic } from './types';
-import { setConfigValid } from './helperFunctions';
+import { checkConfigFiles, configFiles, setConfigExists } from './helperFunctions';
 
 export class InitializeExtension {
-    private topicsPath: string | undefined;
+    private topicsPath: string = "";
+    private configPath: string;
     private documentationProvider: DocumentationProvider | undefined;
     private instances: any[] = [];
     private tocTree: TocTreeItem[] = [];
     private topics: Topic[] = [];
     private topicsProvider: TopicsProvider = new TopicsProvider();
     private disposables: vscode.Disposable[] = [];
-    private configPath: string;
 
     constructor(private context: vscode.ExtensionContext, private workspaceRoot: string) {
         if (!workspaceRoot) {
             throw new Error('Workspace root is required to initialize InitializeExtension.');
         }
-        this.configPath = path.join(this.workspaceRoot, 'authord.config.json');
+        this.configPath = path.join(this.workspaceRoot, configFiles[0]);
+        this.initialize();
+        
     }
 
-    initialize(): void {
-        this.config();
-        this.registerProviders();
-        this.registerCommands();
+    async initialize(): Promise<void>{
+        try{
+            if (!(await checkConfigFiles(this.workspaceRoot))) {
+                vscode.window.showErrorMessage('config file does not exist'); 
+                return;
+            }
+            this.config();
+            this.registerProviders();
+            this.registerCommands();
+            setConfigExists(true);
+        }catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
+            vscode.commands.executeCommand('setContext', 'authord.configExists', false);
+        }
         // Setup watchers
         this.setupWatchers();
     }
 
-    reinitialize(): void {
+    async reinitialize(): Promise<void> {
         try{
             // Clean up existing disposables
             this.dispose();
+            if (!(await checkConfigFiles(this.workspaceRoot))) {
+                vscode.window.showErrorMessage('config file does not exist'); 
+                return;
+            }
+            
             // Re-run the initialization
             this.config();
             this.registerProviders();
             this.registerCommands();
-            setConfigValid(true);
+            setConfigExists(true);
         }catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
-            setConfigValid(false);
+            vscode.window.showErrorMessage(`Failed to reinitialize extension: ${error.message}`);
+            vscode.commands.executeCommand('setContext', 'authord.configExists', false);
         }
     }
     // Extension Deactivation, External Cleanup
@@ -50,8 +67,9 @@ export class InitializeExtension {
         this.disposables.forEach(disposable => disposable.dispose());
         this.disposables = [];
     }
-    private config(): void {
-        const config: Config = this.loadConfigurations(this.configPath);
+    private config(): void{
+        
+        const config: Config = this.loadConfigurations();
         const topicsDir = config['topics']['dir'];
         this.topicsPath = path.join(this.workspaceRoot, topicsDir);
         this.topics = this.loadTopics(this.topicsPath);
@@ -83,14 +101,9 @@ export class InitializeExtension {
             return [];
         }
     }
-    private loadConfigurations(configPath: string): Config {
-        try {
-            const configContent = fs.readFileSync(configPath, 'utf-8');
-            return JSON.parse(configContent);
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
-            throw error;
-        }
+    private loadConfigurations(): Config{
+        const configContent = fs.readFileSync(this.configPath, 'utf-8');
+        return JSON.parse(configContent);
     }
 
     private registerProviders(): void {
@@ -151,12 +164,32 @@ export class InitializeExtension {
         });
     }
     private setupWatchers(): void {
-
-        // Watch for changes in configuration
-        const configWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(this.workspaceRoot, 'authord.config.json'));
-        configWatcher.onDidChange(() => this.reinitialize());
-
+        // Create a file system watcher for the configuration file
+        const configWatcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(this.workspaceRoot, 'authord.config.json')
+        );
+    
+        // Handle file changes
+        configWatcher.onDidChange(async () => {
+            await this.reinitialize();
+            vscode.window.showInformationMessage('authord.config.json has been modified.');
+        });
+    
+        // Handle file creation
+        configWatcher.onDidCreate(async () => {
+            await this.reinitialize();
+            vscode.window.showInformationMessage('authord.config.json has been created.');
+        });
+    
+        // Handle file deletion
+        configWatcher.onDidDelete(async () => {
+            await this.reinitialize();
+            vscode.window.showInformationMessage('authord.config.json has been deleted.');
+        });
+    
         // Add watchers to context subscriptions
         this.context.subscriptions.push(configWatcher);
     }
+    
 }
+
