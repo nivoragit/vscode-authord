@@ -4,7 +4,6 @@ import * as fs from 'fs';
 import { parseIhpFile } from '../parsers/ihpParser';
 import { parseTreeFile } from '../parsers/treeParser';
 import { Config } from './types';
-import { log } from './logger';
 import { writeFile } from './fileUtils';
 
 // Initial state
