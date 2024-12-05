@@ -5,16 +5,17 @@ import { parseIhpFile } from '../parsers/ihpParser';
 import { parseTreeFile } from '../parsers/treeParser';
 import { Config } from './types';
 import { writeFile } from './fileUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 // Initial state
-export let configExists = false;
-export let authorFocus = false;
+export let configExists = true;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
-export const configExistsEmitter = new vscode.EventEmitter<void>();
-export const onConfigExists = configExistsEmitter.event;
 let workspaceRoot = "";
 
+export function generateUniqueId(): string {
+  return uuidv4();
+}
 export async function checkConfigFiles(root?: string) {
   if (root) { workspaceRoot = root; }
   for (const fileName of configFiles) {
@@ -30,7 +31,6 @@ export async function checkConfigFiles(root?: string) {
           return false;
         }
       }
-      // setConfigValid(true); // cosider with writer.cfg
       return true;
     }
   }
@@ -64,11 +64,6 @@ export function setConfigExists(value: boolean) {
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
 }
 
-// Setter function
-export function setAuthorFocus(value: boolean): void {
-  authorFocus = value;
-
-}
 // Helper function to show the preview in column two
 export async function showPreviewInColumnTwo() {
   const previewEditors = vscode.window.visibleTextEditors.filter(
@@ -77,7 +72,7 @@ export async function showPreviewInColumnTwo() {
       editor.viewColumn === vscode.ViewColumn.Two
   );
 
-  if (previewEditors.length === 0 && authorFocus) {
+  if (previewEditors.length === 0) {
     // Show the built-in markdown preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   } else {

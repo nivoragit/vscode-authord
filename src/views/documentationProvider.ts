@@ -1,14 +1,20 @@
 import * as vscode from 'vscode';
-import { InstanceConfig } from '../utils/types';
+import { InstanceConfig, TocElement } from '../utils/types';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<DocumentationItem | undefined | void> = new vscode.EventEmitter<DocumentationItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<DocumentationItem | undefined | void> = this._onDidChangeTreeData.event;
 
   private instances: InstanceConfig[];
+  private configPath: string;
+  private topicsDir: string | undefined;
 
-  constructor(instances: InstanceConfig[]) {
+  constructor(instances: InstanceConfig[], configPath: string) {
     this.instances = instances;
+    this.configPath = configPath;
   }
 
   refresh(instances: InstanceConfig[]): void {
@@ -34,20 +40,147 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
           title: 'Select Instance',
           arguments: [instance.id]
         };
+        item.contextValue = 'documentation'; // Set contextValue to 'documentation'
         return item;
       });
       return Promise.resolve(items);
     }
     return Promise.resolve([]);
   }
+
+  // Method to add a new documentation
+  async addDocumentation(): Promise<void> {
+    const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
+    if (!title) {
+      vscode.window.showWarningMessage('Doc creation canceled.');
+      return;
+    }
+    const newId = uuidv4();
+    const configData = this.readConfigFile();
+    this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
+    const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
+    const filePath = path.join(this.topicsDir, safeFileName);
+
+
+    try {
+      fs.mkdirSync(this.topicsDir);
+      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+      return;
+    }
+    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    const tocElement: TocElement = {
+      id: newId,
+      topic: safeFileName,
+      "toc-title": tocTitle ?`${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}` : "",
+      "sort-children": "none",
+    };
+    const newDocumentation: InstanceConfig = {
+      id: newId+'-doc',
+      name: title.charAt(0).toUpperCase() + title.slice(1),
+      "start-page": safeFileName,
+      "toc-elements": [tocElement]
+    };
+    this.instances.push(newDocumentation);
+    this.refresh(this.instances);
+    this.updateConfigFile();
+
+  }
+
+  // Method to delete a documentation
+  deleteDocumentation(element: DocumentationItem): void {
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
+      return;
+    }
+  
+    // Remove the documentation from the list
+    this.instances = this.instances.filter(instance => instance.id !== element.id);;
+    const configData = this.readConfigFile();
+    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, String(element.label));
+    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+  
+    try {
+      // Ensure the trash folder exists
+      if (!fs.existsSync(trashPath)) {
+        fs.mkdirSync(trashPath, { recursive: true });
+      }
+  
+      // Merge contents of folderPath into trashPath
+      const destinationPath = path.join(trashPath, path.basename(folderPath));
+      if (fs.existsSync(destinationPath)) {
+        this.mergeFolders(folderPath, destinationPath);
+        fs.rmdirSync(folderPath, { recursive: true }); // Remove source folder after merging
+      } else {
+        fs.renameSync(folderPath, destinationPath);
+      }
+    } catch (error:any) {
+      vscode.window.showErrorMessage(`Failed to move folder to trash: ${error.message}`);
+    }
+  
+    // Refresh the instances and update the config file
+    this.refresh(this.instances);
+    this.updateConfigFile();
+  }
+  
+  // Helper method to merge contents of source folder into destination folder
+  private mergeFolders(source: string, destination: string): void {
+    const sourceFiles = fs.readdirSync(source);
+  
+    for (const file of sourceFiles) {
+      const sourceFilePath = path.join(source, file);
+      const destinationFilePath = path.join(destination, file);
+  
+      if (fs.statSync(sourceFilePath).isDirectory()) {
+        // If it's a directory, recursively merge
+        if (!fs.existsSync(destinationFilePath)) {
+          fs.mkdirSync(destinationFilePath);
+        }
+        this.mergeFolders(sourceFilePath, destinationFilePath);
+      } else {
+        // If it's a file, handle conflicts
+        if (fs.existsSync(destinationFilePath)) {
+          // Rename file to avoid overwriting
+          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
+          const newDestinationFilePath = path.join(destination, newFileName);
+          fs.renameSync(sourceFilePath, newDestinationFilePath);
+        } else {
+          // Move file directly if no conflict
+          fs.renameSync(sourceFilePath, destinationFilePath);
+        }
+      }
+    }
+  }
+  
+  
+
+  // Helper method to update config.json
+  private updateConfigFile(): void {
+    const configData = this.readConfigFile();
+    configData.instances = this.instances;
+    fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+  }
+
+  // Helper method to read config.json
+  private readConfigFile(): any {
+    try {
+      const configContent = fs.readFileSync(this.configPath, 'utf-8');
+      return JSON.parse(configContent);
+    } catch (error) {
+      vscode.window.showErrorMessage('Error reading config.json');
+      return { instances: [] };
+    }
+  }
 }
 
+// Define the DocumentationItem class
 export class DocumentationItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public collapsibleState: vscode.TreeItemCollapsibleState
   ) {
     super(label, collapsibleState);
+    this.contextValue = 'documentation'; // Set contextValue to 'documentation'
   }
 }
-
