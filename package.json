@@ -115,7 +115,13 @@
     "type": "git",
     "url": "https://github.com/nivoragit/authord-authord.git"
   },
-  "files": ["out/", "schemas/", "package.json", "README.md", "LICENSE"],
+  "files": [
+    "out/",
+    "schemas/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -130,6 +136,7 @@
   "devDependencies": {
     "@types/node": "^20.17.9",
     "@types/vscode": "^1.70.0",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
@@ -140,6 +147,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "markdown-it-plantuml": "^1.4.1"
+    "markdown-it-plantuml": "^1.4.1",
+    "xml2js": "^0.6.2"
   }
 }

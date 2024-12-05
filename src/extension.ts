@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { configValid, focusOrShowPreview, onConfigExists, setAuthorFocus, setConfigValid} from './utils/helperFunctions';
+import { configExistsEmitter, checkConfigFiles, configExists, focusOrShowPreview, onConfigExists, setAuthorFocus, setConfigExists, generateJson} from './utils/helperFunctions';
 import { InitializeExtension } from './utils/initializeExtension';
 
 export let initializer: InitializeExtension | undefined;
@@ -9,6 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+  
 
   initializer = new InitializeExtension(context, workspaceRoot);
   const disposable = onConfigExists(async () => {
@@ -17,16 +18,18 @@ export function activate(context: vscode.ExtensionContext) {
         initializer.initialize();
       }
       disposable.dispose(); // Clean up the event listener after initialization
-      setConfigValid(true);
+      setConfigExists(true);
 
     }catch (error: any) {
       vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
-      setConfigValid(false);
+      vscode.commands.executeCommand('setContext', 'authord.configExists', false);
 
      
     }
   });
-
+  context.subscriptions.push(disposable);
+  if(checkConfigFiles(workspaceRoot)){ configExistsEmitter.fire();}
+  
   // Listen for when the active editor changes
   // context.subscriptions.push(
   //   vscode.window.onDidChangeActiveTextEditor(async (editor) => {
@@ -47,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-      if (!configValid) {
+      if (!configExists) {
         return;
       }
       setAuthorFocus(true);
@@ -62,7 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(disposable);
+  
   
 // Return the extendMarkdownIt function
 return {
@@ -80,3 +83,11 @@ export function deactivate() {
     initializer.dispose();
   }
 }
+
+// import * as fs from 'fs';
+// import { generateJson } from './utils/helperFunctions';
+
+// const x = '/Users/madushika/WritersideProjects/untitled/Writerside/authord.config.json';
+// const y = '/Users/madushika/WritersideProjects/untitled/Writerside/writerside.cfg';
+// const convertedConfig = (async () => { return await generateJson(y); })();
+// fs.writeFileSync(x, JSON.stringify(convertedConfig));

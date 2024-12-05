@@ -24,7 +24,6 @@ export interface Config {
     "sort-children": "ascending" | "descending" | "none";
     children?: TocElement[];
   }
-  
   export interface Topic {
     name: string;
     path: string;
@@ -41,3 +40,18 @@ export interface Config {
     sortChildren: "ascending" | "descending" | "none";
     children: TocTreeItem[];
   }  
+
+  export interface IhpData {
+    topics: { dir: string };
+    images: { dir: string; webPath: string };
+    instanceFiles: string[];
+  }
+  export interface TreeData {
+    id: string;
+    name: string;
+    startPage: string;
+    tocElements: TocElement[];
+  }
+  
+
+    

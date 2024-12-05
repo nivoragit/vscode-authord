@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { configExistsEmitter, setConfigValid } from '../utils/helperFunctions';
-import {initializer} from '../extension';
+import { configExistsEmitter, configFiles, configExists } from '../utils/helperFunctions';
+
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'authordDocumentationView';
   private _view?: vscode.WebviewView;
 
-  constructor(private context: vscode.ExtensionContext, private workspaceRoot: string | undefined) {}
+  constructor(private context: vscode.ExtensionContext, private workspaceRoot: string) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this._view = webviewView;
@@ -23,7 +23,9 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
+        configExistsEmitter.fire();
         await this.updateContent(); // Refresh the view after creating the file
+
       }
     });
   }
@@ -34,9 +36,9 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
-    if (!fs.existsSync(configFilePath)) {
-      fs.writeFileSync(configFilePath, JSON.stringify(
+    const configFile = path.join(this.workspaceRoot, configFiles[0]);
+    if (!fs.existsSync(configFile)) {
+      fs.writeFileSync(configFile, JSON.stringify(
         {
           "schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Authord Settings",
@@ -122,7 +124,7 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const configExists = await this.checkConfigFile();
+    
     const webview = this._view.webview;
 
     if (!configExists) {
@@ -134,20 +136,9 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private checkConfigFile() {
-    if (!this.workspaceRoot) {
-      setConfigValid(false);
-      return false;
-    }
 
-    const configFilePath = path.join(this.workspaceRoot, 'authord.config.json');
-    const configExists = fs.existsSync(configFilePath);
-    if (configExists) {
-      configExistsEmitter.fire();
-      return true;
-    }
-    return false;
-  }
+
+
 
   private getMissingConfigHtml(): string {
     return `
