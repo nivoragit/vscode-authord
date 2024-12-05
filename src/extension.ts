@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { configExistsEmitter, checkConfigFiles, configExists, focusOrShowPreview, onConfigExists, setAuthorFocus, setConfigExists, generateJson} from './utils/helperFunctions';
+import {configExists, focusOrShowPreview,setAuthorFocus, setConfigExists} from './utils/helperFunctions';
 import { InitializeExtension } from './utils/initializeExtension';
 
 export let initializer: InitializeExtension | undefined;
@@ -10,26 +10,8 @@ export function activate(context: vscode.ExtensionContext) {
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
   
-
   initializer = new InitializeExtension(context, workspaceRoot);
-  const disposable = onConfigExists(async () => {
-    try{
-      if(initializer){
-        initializer.initialize();
-      }
-      disposable.dispose(); // Clean up the event listener after initialization
-      setConfigExists(true);
 
-    }catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to reload configuration: ${error.message}`);
-      vscode.commands.executeCommand('setContext', 'authord.configExists', false);
-
-     
-    }
-  });
-  context.subscriptions.push(disposable);
-  if(checkConfigFiles(workspaceRoot)){ configExistsEmitter.fire();}
-  
   // Listen for when the active editor changes
   // context.subscriptions.push(
   //   vscode.window.onDidChangeActiveTextEditor(async (editor) => {

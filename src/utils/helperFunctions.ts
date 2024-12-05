@@ -16,19 +16,15 @@ export const configExistsEmitter = new vscode.EventEmitter<void>();
 export const onConfigExists = configExistsEmitter.event;
 let workspaceRoot = "";
 
-export function checkConfigFiles(root?: string) {
+export async function checkConfigFiles(root?: string) {
   if (root) { workspaceRoot = root; }
   for (const fileName of configFiles) {
     const filePath = path.join(workspaceRoot, fileName);
     if (fs.existsSync(filePath)) {
-      vscode.window.showInformationMessage(fileName);
       if (fileName === configFiles[1]) {
         try {
-          (async () => { 
-            const convertedConfig =  await generateJson(filePath);
-            await writeFile(path.join(workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));
-          })();
-          
+          const convertedConfig =  await generateJson(filePath);
+          await writeFile(path.join(workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));          
         } catch (error: any) {
           vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
           setConfigExists(false);
