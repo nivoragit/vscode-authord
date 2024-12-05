@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { configExistsEmitter, configFiles, configExists } from '../utils/helperFunctions';
+import { configExists, configFiles } from '../utils/helperFunctions';
 
 // todo rename this
 export class AuthordViewProvider implements vscode.WebviewViewProvider {
@@ -23,7 +23,6 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.command === 'createConfigFile') {
         await this.createConfigFile();
-        configExistsEmitter.fire();
         await this.updateContent(); // Refresh the view after creating the file
 
       }

@@ -42,21 +42,37 @@
         "authord.topics": {
           "type": "array",
           "default": [],
-          "description": "List of topics to display in the Tree View.: just settings appears here when user set"
+          "description": "List of topics to display in the Tree View."
         },
         "authord.autoFocusEditor": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically focus the editor when the preview becomes active.: just settings appears here when user set"
+          "description": "Automatically focus the editor when the preview becomes active."
         },
         "authord.focusDelay": {
           "type": "number",
           "default": 500,
-          "description": "Delay in milliseconds before shifting focus back to the editor.: just settings appears here when user set"
+          "description": "Delay in milliseconds before shifting focus back to the editor."
         }
       }
     },
     "commands": [
+      {
+        "command": "extension.addTopic",
+        "title": "Add Topic"
+      },
+      {
+        "command": "extension.deleteTopic",
+        "title": "Delete Topic"
+      },
+      {
+        "command": "extension.addDocumentation",
+        "title": "Add Documentation"
+      },
+      {
+        "command": "extension.deleteDocumentation",
+        "title": "Delete Documentation"
+      },
       {
         "command": "authordDocsExtension.selectInstance",
         "title": "Select Documentation Instance",
@@ -109,6 +125,37 @@
           "when": "authord.configExists"
         }
       ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "extension.addTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.deleteTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "inline"
+        },
+        {
+          "command": "extension.deleteDocumentation",
+          "when": "view == documentationView && viewItem == documentation",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "extension.addTopic",
+          "when": "view == topicsView",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.addDocumentation",
+          "when": "view == documentationView",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "repository": {
@@ -148,6 +195,7 @@
   },
   "dependencies": {
     "markdown-it-plantuml": "^1.4.1",
+    "uuid": "^11.0.3",
     "xml2js": "^0.6.2"
   }
 }
