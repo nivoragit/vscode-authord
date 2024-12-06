@@ -8,7 +8,7 @@ import { writeFile } from './fileUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 // Initial state
-export let configExists = false;
+export let configExists = true;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
 let workspaceRoot = "";
