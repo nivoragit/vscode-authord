@@ -19,7 +19,7 @@ export class InitializeExtension {
     private topics: Topic[] = [];
     private topicsProvider: TopicsProvider | undefined;
     private disposables: vscode.Disposable[] = [];
-    
+
 
     constructor(private context: vscode.ExtensionContext, private workspaceRoot: string) {
         if (!workspaceRoot) {
@@ -41,16 +41,15 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 this.registerProviders();
-                this.providersRegistered = true;
                 setConfigExists(true);
             }
+            this.registerCommands();
+            this.commandsRegistered = true;
+            
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
-
         }
-        this.registerCommands();
-        this.commandsRegistered = true;
         // Setup watchers
         this.setupWatchers();
     }
@@ -64,11 +63,11 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 // this.dispose();
+                this.registerProviders();
+                // if (!this.providersRegistered) {
 
-                if (!this.providersRegistered) {
-                    this.registerProviders();
-                    this.providersRegistered = true;
-                }
+                //     this.providersRegistered = true;
+                // }
                 if (!this.commandsRegistered) {
                     this.registerCommands();
                     this.commandsRegistered = true;
