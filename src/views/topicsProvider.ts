@@ -44,7 +44,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         noDocItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
         return Promise.resolve([noDocItem as TopicsItem]);
       }
-      
+
       // Root elements
       return Promise.resolve(this.tocTree.map(item => this.createTreeItem(item)));
     } else {
@@ -90,7 +90,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
 
     const title = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-  
+
     if (!title) {
       vscode.window.showWarningMessage('Topic creation canceled.');
       return;
@@ -100,19 +100,19 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     const newId = uuidv4();
     const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
 
-    let filePath = path.join(this.topicsDir || '', `${safeFileName}-${newId}.md`);
-      let newTopic: TocTreeItem = {
-        id: newId,
-        title: title,
-        filePath: filePath,
-        sortChildren: "none",
-        children: []
-      };
+    let filePath = path.join(this.topicsDir || '', `${safeFileName}.md`);
+    let newTopic: TocTreeItem = {
+      id: newId,
+      title: title,
+      filePath: filePath,
+      sortChildren: "none",
+      children: []
+    };
     if (element && element.id) {
       // Add as a child to the selected topic
       const parentTopic = this.findTopicById(element.id, this.tocTree);
       if (parentTopic) {
-        filePath = path.join(path.dirname(parentTopic.filePath||'') ||'', `${safeFileName}-${newId}.md`);
+        filePath = path.join(path.dirname(parentTopic.filePath || path.dirname(this.configPath)) || '', `${safeFileName}.md`);
         newTopic.filePath = filePath;
         parentTopic.children.push(newTopic);
       }
@@ -121,17 +121,17 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       this.tocTree.push(newTopic);
     }
     try {
-        
+
       fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
     } catch (err) {
       vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
       return;
     }
-  
+
     this.refresh(this.tocTree);
     this.updateConfigFile();
   }
-  
+
   // Most efficient approach for deleting a topic:
   // 1. Remove it from tocTree
   // 2. Delete corresponding .md file
@@ -196,7 +196,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return JSON.parse(configContent);
     } catch (error) {
       vscode.window.showErrorMessage('Error reading config.json');
-      return { instances: [], topics: {dir: "topics"} };
+      return { instances: [], topics: { dir: "topics" } };
     }
   }
 
@@ -223,7 +223,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       for (const topic of topics) {
         if (topic.children) {
           const removed = this.removeTopicById(id, topic.children);
-          if (removed) {return true;}
+          if (removed) { return true; }
         }
       }
     }
