@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TocTreeItem } from '../utils/types';
 import * as fs from 'fs';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
@@ -9,10 +10,20 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
   private tocTree: TocTreeItem[];
   private configPath: string;
+  private topicsDir: string | undefined; // Directory where .md files are located
 
   constructor(tocTree: TocTreeItem[], configPath: string) {
     this.tocTree = tocTree;
     this.configPath = configPath;
+
+    // Initialize topics directory from config
+    const configData = this.readConfigFile();
+    if (configData && configData.topics && configData.topics.dir) {
+      this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir);
+      if (!fs.existsSync(this.topicsDir)) {
+        fs.mkdirSync(this.topicsDir, { recursive: true });
+      }
+    }
   }
 
   refresh(tocTree: TocTreeItem[]): void {
@@ -26,6 +37,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
   getChildren(element?: TopicsItem): Thenable<TopicsItem[]> {
     if (!element) {
+      // If no document is selected (e.g., tocTree is empty), show a placeholder
+      if (!this.tocTree || this.tocTree.length === 0) {
+        const noDocItem = new vscode.TreeItem('No document selected');
+        noDocItem.contextValue = 'noDocSelected';
+        noDocItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
+        return Promise.resolve([noDocItem as TopicsItem]);
+      }
+      
       // Root elements
       return Promise.resolve(this.tocTree.map(item => this.createTreeItem(item)));
     } else {
@@ -45,7 +64,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     );
     treeItem.id = element.id;
     treeItem.children = element.children;
-    treeItem.contextValue = 'topic'; // Set contextValue to 'topic'
+    treeItem.contextValue = 'topic';
     if (element.filePath) {
       treeItem.command = {
         command: 'authordExtension.openMarkdownFile',
@@ -56,21 +75,45 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return treeItem;
   }
 
-  // Method to add a new topic
+  // Most efficient approach for adding a topic:
+  // 1. Prompt user for title
+  // 2. Check if document is selected; if not, show message and return
+  // 3. Create a unique ID
+  // 4. Create corresponding .md file
+  // 5. Insert the new TocTreeItem in the correct position in tocTree
+  // 6. Update config file
   async addTopic(element?: TopicsItem): Promise<void> {
+    // If no document selected, just return
+    if (!this.tocTree || this.tocTree.length === 0) {
+      vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
+      return;
+    }
+
     const title = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
   
-    // Exit the function if title is undefined (user canceled input)
     if (!title) {
       vscode.window.showWarningMessage('Topic creation canceled.');
       return;
     }
-  
+
+    // Create a new .md file for the topic
+    const newId = uuidv4();
+    const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
+    const filePath = path.join(this.topicsDir || '', `${safeFileName}-${newId}.md`);
+
+    try {
+      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+      return;
+    }
+
     const newTopic: TocTreeItem = {
-      id: uuidv4(),
-      title, // Now guaranteed to be a string
-      children: [],
-      sortChildren: "none" // Assuming "none" is an acceptable default value
+      id: newId,
+      title: title,
+      filePath: filePath,
+      sortChildren: "none",
+      children: []
     };
   
     if (element && element.id) {
@@ -88,24 +131,61 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.updateConfigFile();
   }
   
-
-  // Method to delete a topic
+  // Most efficient approach for deleting a topic:
+  // 1. Remove it from tocTree
+  // 2. Delete corresponding .md file
+  // 3. Update config file
   deleteTopic(element: TopicsItem): void {
-    if (element.id) {
-      this.removeTopicById(element.id, this.tocTree);
-      this.refresh(this.tocTree);
-      this.updateConfigFile();
-    } else {
+    if (!element.id) {
       vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
+      return;
     }
+
+    const topicToDelete = this.findTopicById(element.id, this.tocTree);
+    if (!topicToDelete) {
+      vscode.window.showErrorMessage('Topic not found.');
+      return;
+    }
+
+    // Delete the associated .md file if it exists
+    if (topicToDelete.filePath && fs.existsSync(topicToDelete.filePath)) {
+      try {
+        fs.unlinkSync(topicToDelete.filePath);
+      } catch (err) {
+        vscode.window.showErrorMessage(`Failed to delete topic file: ${err}`);
+      }
+    }
+
+    // Remove from tocTree
+    this.removeTopicById(element.id, this.tocTree);
+    this.refresh(this.tocTree);
+    this.updateConfigFile();
   }
-  
 
   // Helper method to update config.json
   private updateConfigFile(): void {
     const configData = this.readConfigFile();
-    configData.tocTree = this.tocTree;
-    fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+    // We need to update the instances[].toc-elements structure from this.tocTree.
+    // Assuming we're dealing with a single instance (e.g., the first instance):
+    if (configData && configData.instances && configData.instances.length > 0) {
+      const instance = configData.instances[0]; // or find the relevant instance if needed
+      instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
+      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+    } else {
+      vscode.window.showErrorMessage('No instance found in config to update.');
+    }
+  }
+
+  private convertTocTreeToTocElements(tocTree: TocTreeItem[]): any[] {
+    return tocTree.map(item => {
+      return {
+        id: item.id,
+        "topic": item.filePath ? path.basename(item.filePath) : "",
+        "toc-title": item.title,
+        "sort-children": item.sortChildren,
+        "children": this.convertTocTreeToTocElements(item.children || [])
+      };
+    });
   }
 
   // Helper method to read config.json
@@ -115,7 +195,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return JSON.parse(configContent);
     } catch (error) {
       vscode.window.showErrorMessage('Error reading config.json');
-      return { tocTree: [] };
+      return { instances: [], topics: {dir: "topics"} };
     }
   }
 
@@ -126,7 +206,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         return topic;
       } else if (topic.children) {
         const found = this.findTopicById(id, topic.children);
-        if (found) {return found;}
+        if (found) { return found; }
       }
     }
     return undefined;
@@ -161,6 +241,6 @@ export class TopicsItem extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     this.children = children;
-    this.contextValue = 'topic'; // Set contextValue to 'topic'
+    this.contextValue = 'topic';
   }
 }

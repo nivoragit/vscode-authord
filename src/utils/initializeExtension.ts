@@ -30,6 +30,7 @@ export class InitializeExtension {
         try {
             if (!(await checkConfigFiles(this.workspaceRoot))) {
                 vscode.window.showErrorMessage('config file does not exist');
+                this.setupWatchers();
                 return;
             }
             this.config();
@@ -112,10 +113,15 @@ export class InitializeExtension {
 
     private registerProviders(): void {
         this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-        vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
+        const treeProviderDisposable = vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
 
         this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
-        vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
+        const topicProviderDisposable = vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
+
+        this.disposables.push(treeProviderDisposable);
+        this.disposables.push(topicProviderDisposable);
+
+    
 
 
 
@@ -134,7 +140,6 @@ export class InitializeExtension {
             this.sortTocElements(this.tocTree);
             this.topicsProvider!.refresh(this.tocTree);
         });
-        this.disposables.push(selectInstanceCommand);
         this.context.subscriptions.push(selectInstanceCommand);
         this.context.subscriptions.push(
             // Topics Commands
