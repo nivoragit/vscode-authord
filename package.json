@@ -59,19 +59,19 @@
     "commands": [
       {
         "command": "extension.addTopic",
-        "title": "Add Topic"
+        "title": "Add"
       },
       {
         "command": "extension.deleteTopic",
-        "title": "Delete Topic"
+        "title": "Delete"
       },
       {
         "command": "extension.addDocumentation",
-        "title": "Add Documentation"
+        "title": "Add"
       },
       {
         "command": "extension.deleteDocumentation",
-        "title": "Delete Documentation"
+        "title": "Delete"
       },
       {
         "command": "authordDocsExtension.selectInstance",
@@ -140,7 +140,7 @@
         },
         {
           "command": "extension.deleteDocumentation",
-          "when": "view == documentationView && viewItem == documentation",
+          "when": "view == documentationsView && viewItem == documentation",
           "group": "inline"
         }
       ],
@@ -152,7 +152,7 @@
         },
         {
           "command": "extension.addDocumentation",
-          "when": "view == documentationView",
+          "when": "view == documentationsView",
           "group": "navigation"
         }
       ]

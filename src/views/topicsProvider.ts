@@ -99,32 +99,33 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     // Create a new .md file for the topic
     const newId = uuidv4();
     const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
-    const filePath = path.join(this.topicsDir || '', `${safeFileName}-${newId}.md`);
 
-    try {
-      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
-      return;
-    }
-
-    const newTopic: TocTreeItem = {
-      id: newId,
-      title: title,
-      filePath: filePath,
-      sortChildren: "none",
-      children: []
-    };
-  
+    let filePath = path.join(this.topicsDir || '', `${safeFileName}-${newId}.md`);
+      let newTopic: TocTreeItem = {
+        id: newId,
+        title: title,
+        filePath: filePath,
+        sortChildren: "none",
+        children: []
+      };
     if (element && element.id) {
       // Add as a child to the selected topic
       const parentTopic = this.findTopicById(element.id, this.tocTree);
       if (parentTopic) {
+        filePath = path.join(path.dirname(parentTopic.filePath||'') ||'', `${safeFileName}-${newId}.md`);
+        newTopic.filePath = filePath;
         parentTopic.children.push(newTopic);
       }
     } else {
       // Add at the root level
       this.tocTree.push(newTopic);
+    }
+    try {
+        
+      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+      return;
     }
   
     this.refresh(this.tocTree);
@@ -222,7 +223,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       for (const topic of topics) {
         if (topic.children) {
           const removed = this.removeTopicById(id, topic.children);
-          if (removed) return true;
+          if (removed) {return true;}
         }
       }
     }

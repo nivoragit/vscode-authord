@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { InstanceConfig } from '../utils/types';
+import { InstanceConfig, TocElement } from '../utils/types';
 import * as fs from 'fs';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
@@ -9,6 +10,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
   private instances: InstanceConfig[];
   private configPath: string;
+  private topicsDir: string | undefined;
 
   constructor(instances: InstanceConfig[], configPath: string) {
     this.instances = instances;
@@ -48,19 +50,42 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
   // Method to add a new documentation
   async addDocumentation(): Promise<void> {
-    const name = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
-    if (name) {
-      const newDocumentation: InstanceConfig = {
-        id: uuidv4(),
-        name,
-        "start-page": "",
-        "toc-elements": []
-      };
-
-      this.instances.push(newDocumentation);
-      this.refresh(this.instances);
-      this.updateConfigFile();
+    const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
+    if (!title) {
+      vscode.window.showWarningMessage('Doc creation canceled.');
+      return;
     }
+    const newId = uuidv4();
+    const configData = this.readConfigFile();
+    this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
+    const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
+    const filePath = path.join(this.topicsDir || '', safeFileName);
+
+
+    try {
+      fs.mkdirSync(this.topicsDir);
+      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+      return;
+    }
+
+    const tocElement: TocElement = {
+      id: newId,
+      topic: safeFileName,
+      "toc-title": "Introduction",
+      "sort-children": "none",
+    };
+    const newDocumentation: InstanceConfig = {
+      id: newId+'-doc',
+      name: title.charAt(0).toUpperCase() + title.slice(1),
+      "start-page": safeFileName,
+      "toc-elements": [tocElement]
+    };
+    this.instances.push(newDocumentation);
+    this.refresh(this.instances);
+    this.updateConfigFile();
+
   }
 
   // Method to delete a documentation

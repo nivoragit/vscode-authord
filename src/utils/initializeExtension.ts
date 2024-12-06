@@ -156,11 +156,6 @@ export class InitializeExtension {
 
         this.disposables.push(treeProviderDisposable);
         this.disposables.push(topicProviderDisposable);
-
-
-
-
-
     }
 
     private registerCommands(): void {
