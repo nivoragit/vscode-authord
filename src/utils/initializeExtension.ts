@@ -6,7 +6,8 @@ import Ajv from 'ajv';
 import { DocumentationItem, DocumentationProvider } from "../views/documentationProvider";
 import { TopicsItem, TopicsProvider } from "../views/topicsProvider";
 import { Config, InstanceConfig, TocElement, TocTreeItem, Topic } from './types';
-import { checkConfigFiles, configFiles, setConfigExists } from './helperFunctions';
+import { configFiles, generateJson, setConfigExists } from './helperFunctions';
+import { writeFile } from './fileUtils';
 
 export class InitializeExtension {
     private topicsPath: string = "";
@@ -14,10 +15,12 @@ export class InitializeExtension {
     private providersRegistered: boolean = false;
     private configPath: string;
     private documentationProvider: DocumentationProvider | undefined;
+    private topicsProvider: TopicsProvider | undefined;
+    private configfile: Config | undefined;
+
     private instances: InstanceConfig[] = [];
     private tocTree: TocTreeItem[] = [];
     private topics: Topic[] = [];
-    private topicsProvider: TopicsProvider | undefined;
     private disposables: vscode.Disposable[] = [];
 
 
@@ -32,7 +35,8 @@ export class InitializeExtension {
 
     async initialize(): Promise<void> {
         try {
-            if (!(await checkConfigFiles(this.workspaceRoot))) {
+
+            if (!(await this.checkConfigFiles())) {
                 vscode.window.showErrorMessage('config file does not exist');
                 this.setupWatchers();
                 return;
@@ -41,11 +45,12 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 this.registerProviders();
-                setConfigExists(true);
+                this.providersRegistered = true;
+
             }
             this.registerCommands();
             this.commandsRegistered = true;
-            
+
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
@@ -56,40 +61,24 @@ export class InitializeExtension {
 
     async reinitialize(): Promise<void> {
         try {
-            if (!(await checkConfigFiles(this.workspaceRoot))) {
+            if (!(await this.checkConfigFiles())) {
                 vscode.window.showErrorMessage('config file does not exist');
 
             } else if (!this.config()) {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 // this.dispose();
-                this.registerProviders();
-                // if (!this.providersRegistered) {
-
-                //     this.providersRegistered = true;
-                // }
+                // this.registerProviders();
+                if (!this.providersRegistered) {
+                    this.registerProviders();
+                    this.providersRegistered = true;
+                }
                 if (!this.commandsRegistered) {
                     this.registerCommands();
                     this.commandsRegistered = true;
                 }
-                setConfigExists(true);
+
             }
-
-            // Clean up existing disposables
-            // this.dispose();
-            // if (!(await checkConfigFiles(this.workspaceRoot))) {
-            //     vscode.window.showErrorMessage('config file does not exist');
-            //     return;
-            // }
-
-            // Re-run the initialization
-            // this.config();
-            // this.registerProviders();
-            // if (!this.commandsRegistered) {
-            //     this.registerCommands(); // order matters
-            //     this.commandsRegistered = true;
-            // }
-            // setConfigExists(true);
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to reinitialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
@@ -102,15 +91,16 @@ export class InitializeExtension {
         this.disposables = [];
     }
     private config(): boolean {
-
-        const config: Config = this.loadConfigurations();
-        if (!this.validateConfig(config)) { return false; }
-        const topicsDir = config['topics']['dir'];
+        if (!this.configfile) { return false; }
+        const topicsDir = this.configfile['topics']['dir'];
         this.topicsPath = path.join(this.workspaceRoot, topicsDir);
         this.topics = this.loadTopics(this.topicsPath);
-        this.instances = config.instances;
-        this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-        this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
+        this.instances = this.configfile.instances;
+        if (!this.documentationProvider || !this.topicsProvider) {
+            this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
+            this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
+        }
+
         return true;
     }
 
@@ -148,8 +138,6 @@ export class InitializeExtension {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage("topicsProvider or documentationProvider not created");
             return;
-            this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-            this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
         }
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
         const topicProviderDisposable = vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
@@ -172,23 +160,32 @@ export class InitializeExtension {
                 instance.id === instanceId ? this.parseTocElements(instance['toc-elements']) : []);
             this.linkTopicsToToc(this.tocTree, this.topics);
             this.sortTocElements(this.tocTree);
-            this.topicsProvider!.refresh(this.tocTree);
+            this.topicsProvider!.refresh(this.tocTree, instanceId);
         });
         this.context.subscriptions.push(selectInstanceCommand);
         this.context.subscriptions.push(
             // Topics Commands
             vscode.commands.registerCommand('extension.addTopic', (item: TopicsItem) => {
-                this.topicsProvider!.addTopic(item);
+                this.topicsProvider!.add(item);
             }),
             vscode.commands.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
                 this.topicsProvider!.deleteTopic(item);
             }),
             // Documentation Commands
             vscode.commands.registerCommand('extension.addDocumentation', () => {
-                this.documentationProvider!.addDocumentation();
+                this.documentationProvider!.addDoc();
             }),
             vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
-                this.documentationProvider!.deleteDocumentation(item);
+                this.documentationProvider!.deleteDoc(item);
+            }),
+            vscode.commands.registerCommand('extension.newTopic', (item: DocumentationItem) => {
+                this.documentationProvider!.newTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.renameTopic', (item: TopicsItem) => {
+                this.topicsProvider!.renameTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
+                this.documentationProvider!.renameDoc(item);
             })
         );
         this.commandsRegistered = true;
@@ -257,7 +254,7 @@ export class InitializeExtension {
         // Add watchers to context subscriptions
         this.context.subscriptions.push(configWatcher);
     }
-    private validateConfig(config: any): boolean {
+    private validateConfig(config: Config): boolean {
 
         const ajv = new Ajv();
         const schemaPath = path.join(this.context.extensionPath, 'schemas', 'authord-config-schema.json');
@@ -272,6 +269,29 @@ export class InitializeExtension {
             // throw new Error();
         }
         return true;
+    }
+    private async checkConfigFiles() {
+
+        for (const fileName of configFiles) {
+            const filePath = path.join(this.workspaceRoot, fileName);
+            if (fs.existsSync(filePath)) {
+                // check if wSide config which is at 2nd position
+                if (fileName === configFiles[1]) {
+                    // this means no author.config
+                    try {
+                        const convertedConfig = await generateJson(filePath);
+                        await writeFile(path.join(this.workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));
+                    } catch (error: any) {
+                        vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
+
+                        return setConfigExists(false);
+                    }
+                }
+                this.configfile = this.loadConfigurations();
+                return setConfigExists(this.validateConfig(this.configfile));
+            }
+        }
+        return setConfigExists(false);
     }
 
 

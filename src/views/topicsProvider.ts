@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TocTreeItem } from '../utils/types';
+import { InstanceConfig, TocTreeItem } from '../utils/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +11,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private tocTree: TocTreeItem[];
   private configPath: string;
   private topicsDir: string | undefined; // Directory where .md files are located
+  private currentDocInstanceId: string | undefined;
 
   constructor(tocTree: TocTreeItem[], configPath: string) {
     this.tocTree = tocTree;
@@ -27,7 +28,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
   }
 
-  refresh(tocTree: TocTreeItem[]): void {
+  refresh(tocTree: TocTreeItem[], instanceId?: string): void {
+    if (instanceId) { this.currentDocInstanceId = instanceId; }
     this.tocTree = tocTree;
     this._onDidChangeTreeData.fire();
   }
@@ -83,7 +85,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   // 4. Create corresponding .md file
   // 5. Insert the new TocTreeItem in the correct position in tocTree
   // 6. Update config file
-  async addTopic(element?: TopicsItem): Promise<void> {
+  async add(element?: TopicsItem): Promise<void> {
     // If no document selected, just return
     if (!this.tocTree || this.tocTree.length === 0) {
       vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
@@ -101,22 +103,16 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     const newId = uuidv4();
     const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
 
-    let filePath = path.join(this.topicsDir || '', `${safeFileName}.md`);
-    let newTopic: TocTreeItem = {
+    const filePath = path.join(this.topicsDir || '', `${safeFileName}.md`);
+    const newTopic: TocTreeItem = {
       id: newId,
       title: title,
       filePath: filePath,
       sortChildren: "none",
       children: []
     };
-    if (element && element.id) {
-      // Add as a child to the selected topic
-      const parentTopic = this.findTopicById(element.id, this.tocTree);
-      if (parentTopic) {
-        filePath = path.join(path.dirname(parentTopic.filePath || path.dirname(this.configPath)) || '', `${safeFileName}.md`);
-        newTopic.filePath = filePath;
-        parentTopic.children.push(newTopic);
-      }
+    if (element && element.id && this.findAndAdd(element.id, this.tocTree, newTopic, safeFileName)) {
+      vscode.window.showErrorMessage('Topic added to dir');
     } else {
       // Add at the root level
       this.tocTree.push(newTopic);
@@ -164,19 +160,56 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.updateConfigFile();
   }
 
+  async renameTopic(element: TopicsItem): Promise<void> {
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to rename topic: ID is missing.');
+      return;
+    }
+    const newName = await vscode.window.showInputBox({ prompt: 'Enter New Title' });
+    if (!newName) {
+      vscode.window.showWarningMessage('Doc rename canceled.');
+      return;
+    }
+    const topicToRename = this.findAndRename(element.id, this.tocTree,newName);
+    if (!topicToRename) {
+      vscode.window.showErrorMessage('Topic not found.');
+      return;
+    }
+
+
+    this.refresh(this.tocTree);
+    this.updateConfigFile();
+  }
+
   // Helper method to update config.json
   private updateConfigFile(): void {
     const configData = this.readConfigFile();
-    // We need to update the instances[].toc-elements structure from this.tocTree.
-    // Assuming we're dealing with a single instance (e.g., the first instance):
+
     if (configData && configData.instances && configData.instances.length > 0) {
-      const instance = configData.instances[0]; // or find the relevant instance if needed
-      instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
-      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+      let instanceFound = false;
+
+      for (const instance of configData.instances) {
+        if (instance.id === this.currentDocInstanceId) {
+          instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
+          instanceFound = true;
+          break;
+        }
+      }
+
+      if (instanceFound) {
+        // Write the updated configData back to the file
+        fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+      } else {
+        vscode.window.showErrorMessage(
+          `Instance with ID ${this.currentDocInstanceId} not found in config.`
+        );
+      }
     } else {
-      vscode.window.showErrorMessage('No instance found in config to update.');
+      vscode.window.showErrorMessage('No instances found in config to update.');
     }
   }
+
+
 
   private convertTocTreeToTocElements(tocTree: TocTreeItem[]): any[] {
     return tocTree.map(item => {
@@ -213,18 +246,47 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
+  private findAndAdd(id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): boolean{
+    for (const topic of topics) {
+      if (topic.id === id) {
+        const filePath = path.join(path.dirname(topic.filePath || path.dirname(this.configPath)) || '', `${safeFileName}.md`);
+        newTopic.filePath = filePath;
+        topic.children.push(newTopic);
+        return true;
+      } else if (topic.children) {
+        this.findAndAdd(id, topic.children, newTopic, safeFileName);
+        return true;
+      }
+    }
+    return false;
+
+  }
+
+  private findAndRename(id: string, topics: TocTreeItem[], newName: string): boolean {
+    for (const topic of topics) {
+      if (topic.id === id) {
+        topic.title = newName;
+        return true;
+      } else if (topic.children) {
+        this.findAndRename(id, topic.children,newName);
+        return true;
+      }
+    }
+    return false;
+
+  }
 
   // Helper method to remove a topic by ID
-  private removeTopicById(id: string, topics: TocTreeItem[]): boolean {
+  private removeTopicById(id: string, topics: TocTreeItem[]) {
     const index = topics.findIndex(topic => topic.id === id);
     if (index > -1) {
       topics.splice(index, 1);
-      return true;
+      return;
     } else {
       for (const topic of topics) {
         if (topic.children) {
           const removed = this.removeTopicById(id, topic.children);
-          if (removed) { return true; }
+          if (removed) { return; }
         }
       }
     }

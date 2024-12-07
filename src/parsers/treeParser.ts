@@ -24,7 +24,7 @@ export async function parseTreeFile(treeFilePath: string) {
 }
 
 function parseTocElements(tocElementsXml: any): any[] {
-  if (!tocElementsXml) return [];
+  if (!tocElementsXml) {return [];}
 
   // Ensure tocElementsXml is always an array
   if (!Array.isArray(tocElementsXml)) {

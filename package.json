@@ -74,6 +74,18 @@
         "title": "Delete"
       },
       {
+        "command": "extension.newTopic",
+        "title": "Topic"
+      },
+      {
+        "command": "extension.renameTopic",
+        "title": "Rename"
+      },
+      {
+        "command": "extension.renameDoc",
+        "title": "Rename"
+      },
+      {
         "command": "authordDocsExtension.selectInstance",
         "title": "Select Documentation Instance",
         "when": "authord.configExists"
@@ -136,6 +148,21 @@
         {
           "command": "extension.deleteTopic",
           "when": "view == topicsView && viewItem == topic",
+          "group": "inline"
+        },
+        {
+          "command": "extension.renameTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "inline"
+        },
+        {
+          "command": "extension.newTopic",
+          "when": "view == documentationsView && viewItem == documentation",
+          "group": "inline"
+        },
+        {
+          "command": "extension.renameDoc",
+          "when": "view == documentationsView && viewItem == documentation",
           "group": "inline"
         },
         {
