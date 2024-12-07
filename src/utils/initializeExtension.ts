@@ -14,10 +14,10 @@ export class InitializeExtension {
     private providersRegistered: boolean = false;
     private configPath: string;
     private documentationProvider: DocumentationProvider | undefined;
+    private topicsProvider: TopicsProvider | undefined;
     private instances: InstanceConfig[] = [];
     private tocTree: TocTreeItem[] = [];
     private topics: Topic[] = [];
-    private topicsProvider: TopicsProvider | undefined;
     private disposables: vscode.Disposable[] = [];
 
 
@@ -41,6 +41,7 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 this.registerProviders();
+                this.providersRegistered = true;
                 setConfigExists(true);
             }
             this.registerCommands();
@@ -63,11 +64,11 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file invalid');
             } else {
                 // this.dispose();
-                this.registerProviders();
-                // if (!this.providersRegistered) {
-
-                //     this.providersRegistered = true;
-                // }
+                // this.registerProviders();
+                if (!this.providersRegistered) {
+                    this.registerProviders();
+                    this.providersRegistered = true;
+                }
                 if (!this.commandsRegistered) {
                     this.registerCommands();
                     this.commandsRegistered = true;
@@ -109,8 +110,11 @@ export class InitializeExtension {
         this.topicsPath = path.join(this.workspaceRoot, topicsDir);
         this.topics = this.loadTopics(this.topicsPath);
         this.instances = config.instances;
-        this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-        this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
+        if(!this.documentationProvider || !this.topicsProvider ){
+            this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
+            this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
+        }
+        
         return true;
     }
 
@@ -148,8 +152,6 @@ export class InitializeExtension {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage("topicsProvider or documentationProvider not created");
             return;
-            this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-            this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
         }
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
         const topicProviderDisposable = vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
@@ -189,6 +191,9 @@ export class InitializeExtension {
             }),
             vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
                 this.documentationProvider!.deleteDocumentation(item);
+            }),
+            vscode.commands.registerCommand('extension.newTopic', (item: DocumentationItem) => {
+                this.documentationProvider!.newTopic(item);
             })
         );
         this.commandsRegistered = true;
