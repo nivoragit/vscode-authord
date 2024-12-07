@@ -22,6 +22,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir);
       if (!fs.existsSync(this.topicsDir)) {
         fs.mkdirSync(this.topicsDir, { recursive: true });
+        fs.mkdirSync(path.join(path.dirname(this.configPath), 'trash'));
       }
     }
   }

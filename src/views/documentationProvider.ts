@@ -59,7 +59,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     const configData = this.readConfigFile();
     this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
     const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    const filePath = path.join(this.topicsDir || '', safeFileName);
+    const filePath = path.join(this.topicsDir, safeFileName);
 
 
     try {
@@ -69,11 +69,11 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
       return;
     }
-
+    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
     const tocElement: TocElement = {
       id: newId,
       topic: safeFileName,
-      "toc-title": "Introduction",
+      "toc-title": tocTitle ?`${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}` : "",
       "sort-children": "none",
     };
     const newDocumentation: InstanceConfig = {
@@ -90,10 +90,70 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
   // Method to delete a documentation
   deleteDocumentation(element: DocumentationItem): void {
-    this.instances = this.instances.filter(instance => instance.id !== element.id);
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
+      return;
+    }
+  
+    // Remove the documentation from the list
+    this.instances = this.instances.filter(instance => instance.id !== element.id);;
+    const configData = this.readConfigFile();
+    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, String(element.label));
+    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+  
+    try {
+      // Ensure the trash folder exists
+      if (!fs.existsSync(trashPath)) {
+        fs.mkdirSync(trashPath, { recursive: true });
+      }
+  
+      // Merge contents of folderPath into trashPath
+      const destinationPath = path.join(trashPath, path.basename(folderPath));
+      if (fs.existsSync(destinationPath)) {
+        this.mergeFolders(folderPath, destinationPath);
+        fs.rmdirSync(folderPath, { recursive: true }); // Remove source folder after merging
+      } else {
+        fs.renameSync(folderPath, destinationPath);
+      }
+    } catch (error:any) {
+      vscode.window.showErrorMessage(`Failed to move folder to trash: ${error.message}`);
+    }
+  
+    // Refresh the instances and update the config file
     this.refresh(this.instances);
     this.updateConfigFile();
   }
+  
+  // Helper method to merge contents of source folder into destination folder
+  private mergeFolders(source: string, destination: string): void {
+    const sourceFiles = fs.readdirSync(source);
+  
+    for (const file of sourceFiles) {
+      const sourceFilePath = path.join(source, file);
+      const destinationFilePath = path.join(destination, file);
+  
+      if (fs.statSync(sourceFilePath).isDirectory()) {
+        // If it's a directory, recursively merge
+        if (!fs.existsSync(destinationFilePath)) {
+          fs.mkdirSync(destinationFilePath);
+        }
+        this.mergeFolders(sourceFilePath, destinationFilePath);
+      } else {
+        // If it's a file, handle conflicts
+        if (fs.existsSync(destinationFilePath)) {
+          // Rename file to avoid overwriting
+          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
+          const newDestinationFilePath = path.join(destination, newFileName);
+          fs.renameSync(sourceFilePath, newDestinationFilePath);
+        } else {
+          // Move file directly if no conflict
+          fs.renameSync(sourceFilePath, destinationFilePath);
+        }
+      }
+    }
+  }
+  
+  
 
   // Helper method to update config.json
   private updateConfigFile(): void {
