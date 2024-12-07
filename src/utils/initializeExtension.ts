@@ -180,20 +180,26 @@ export class InitializeExtension {
         this.context.subscriptions.push(
             // Topics Commands
             vscode.commands.registerCommand('extension.addTopic', (item: TopicsItem) => {
-                this.topicsProvider!.addTopic(item);
+                this.topicsProvider!.add(item);
             }),
             vscode.commands.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
                 this.topicsProvider!.deleteTopic(item);
             }),
             // Documentation Commands
             vscode.commands.registerCommand('extension.addDocumentation', () => {
-                this.documentationProvider!.addDocumentation();
+                this.documentationProvider!.addDoc();
             }),
             vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
-                this.documentationProvider!.deleteDocumentation(item);
+                this.documentationProvider!.deleteDoc(item);
             }),
             vscode.commands.registerCommand('extension.newTopic', (item: DocumentationItem) => {
                 this.documentationProvider!.newTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.renameTopic', (item: TopicsItem) => {
+                this.topicsProvider!.renameTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
+                this.documentationProvider!.renameDoc(item);
             })
         );
         this.commandsRegistered = true;

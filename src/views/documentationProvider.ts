@@ -10,8 +10,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
   private instances: InstanceConfig[];
   private configPath: string;
-  private topicsDir: string | undefined;
-
   constructor(instances: InstanceConfig[], configPath: string) {
     this.instances = instances;
     this.configPath = configPath;
@@ -49,7 +47,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   // Method to add a new documentation
-  async addDocumentation(): Promise<void> {
+  async addDoc(): Promise<void> {
     const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
     if (!title) {
       vscode.window.showWarningMessage('Doc creation canceled.');
@@ -57,13 +55,13 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
     const newId = uuidv4();
     const configData = this.readConfigFile();
-    this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
+    const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
     const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    const filePath = path.join(this.topicsDir, safeFileName);
+    const filePath = path.join(docsDir, safeFileName);
 
 
     try {
-      fs.mkdirSync(this.topicsDir);
+      fs.mkdirSync(docsDir);
       fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
     } catch (err) {
       vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
@@ -93,7 +91,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   // Method to delete a documentation
-  deleteDocumentation(element: DocumentationItem): void {
+  deleteDoc(element: DocumentationItem): void {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
       return;
@@ -145,7 +143,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       const tocElement: TocElement = {
         id: newId,
         topic: safeFileName,
-        "toc-title":`${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
+        "toc-title": `${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
         "sort-children": "none",
       };
       for (const instance of configData.instances) {
@@ -171,7 +169,44 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     // this.refresh(this.instances);d
     // this.updateConfigFile();
   }
+  async renameDoc(element: DocumentationItem): Promise<void> {
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to add rename Doc: ID is missing.');
+      return;
+    }
+    const configData = this.readConfigFile();
+    if (configData && configData.instances && configData.instances.length > 0) {
+      let instanceFound = false;
+      const docTitle = await vscode.window.showInputBox({ prompt: 'Enter New Title' });
+      if (!docTitle) {
+        vscode.window.showWarningMessage('Doc rename canceled.');
+        return;
+      }
+      const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir);
+      for (const instance of configData.instances) {
+        if (instance.id === element.id) {
+          if (docsDir) {
+            const sourceFilePath = path.join(docsDir, instance.name);
+            instance.name = docTitle.charAt(0).toUpperCase() + docTitle.slice(1);
+            const newDestinationFilePath = path.join(docsDir, instance.name);
 
+            fs.renameSync(sourceFilePath, newDestinationFilePath);
+            instanceFound = true;
+          } else {
+            vscode.window.showErrorMessage('topicsDir not defined');
+          }
+          break;
+        }
+      }
+
+      // Refresh the instances and update the config file
+      if (instanceFound) {
+        this.refresh(configData.instances);
+        this.updateConfigFile();
+      }
+
+    }
+  }
   // Helper method to merge contents of source folder into destination folder
   private mergeFolders(source: string, destination: string): void {
     const sourceFiles = fs.readdirSync(source);
@@ -200,8 +235,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       }
     }
   }
-
-
 
   // Helper method to update config.json
   private updateConfigFile(): void {
