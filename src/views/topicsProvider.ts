@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TocTreeItem } from '../utils/types';
+import { InstanceConfig, TocTreeItem } from '../utils/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +11,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private tocTree: TocTreeItem[];
   private configPath: string;
   private topicsDir: string | undefined; // Directory where .md files are located
+  private currentDocInstanceId:  string | undefined;
 
   constructor(tocTree: TocTreeItem[], configPath: string) {
     this.tocTree = tocTree;
@@ -27,7 +28,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
   }
 
-  refresh(tocTree: TocTreeItem[]): void {
+  refresh(tocTree: TocTreeItem[], instanceId?: string): void {
+    if(instanceId){ this.currentDocInstanceId = instanceId;}
     this.tocTree = tocTree;
     this._onDidChangeTreeData.fire();
   }
@@ -167,16 +169,32 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   // Helper method to update config.json
   private updateConfigFile(): void {
     const configData = this.readConfigFile();
-    // We need to update the instances[].toc-elements structure from this.tocTree.
-    // Assuming we're dealing with a single instance (e.g., the first instance):
+
     if (configData && configData.instances && configData.instances.length > 0) {
-      const instance = configData.instances[0]; // or find the relevant instance if needed
-      instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
-      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+        let instanceFound = false;
+
+        for (const instance of configData.instances) {
+            if (instance.id === this.currentDocInstanceId) {
+                instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
+                instanceFound = true;
+                break;
+            }
+        }
+
+        if (instanceFound) {
+            // Write the updated configData back to the file
+            fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+        } else {
+            vscode.window.showErrorMessage(
+                `Instance with ID ${this.currentDocInstanceId} not found in config.`
+            );
+        }
     } else {
-      vscode.window.showErrorMessage('No instance found in config to update.');
+        vscode.window.showErrorMessage('No instances found in config to update.');
     }
-  }
+}
+
+
 
   private convertTocTreeToTocElements(tocTree: TocTreeItem[]): any[] {
     return tocTree.map(item => {

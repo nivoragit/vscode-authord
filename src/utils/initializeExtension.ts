@@ -172,7 +172,7 @@ export class InitializeExtension {
                 instance.id === instanceId ? this.parseTocElements(instance['toc-elements']) : []);
             this.linkTopicsToToc(this.tocTree, this.topics);
             this.sortTocElements(this.tocTree);
-            this.topicsProvider!.refresh(this.tocTree);
+            this.topicsProvider!.refresh(this.tocTree, instanceId);
         });
         this.context.subscriptions.push(selectInstanceCommand);
         this.context.subscriptions.push(
