@@ -112,7 +112,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       children: []
     };
     if (element && element.id && this.findAndAdd(element.id, this.tocTree, newTopic, safeFileName)) {
-      vscode.window.showErrorMessage('Topic added to dir');
+      vscode.window.showInformationMessage('Topic added to dir');
     } else {
       // Add at the root level
       this.tocTree.push(newTopic);
