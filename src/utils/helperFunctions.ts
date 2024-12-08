@@ -16,27 +16,7 @@ let workspaceRoot = "";
 export function generateUniqueId(): string {
   return uuidv4();
 }
-export async function checkConfigFiles(root?: string) {
-  if (root) { workspaceRoot = root; }
-  for (const fileName of configFiles) {
-    const filePath = path.join(workspaceRoot, fileName);
-    if (fs.existsSync(filePath)) {
-      if (fileName === configFiles[1]) {
-        try {
-          const convertedConfig =  await generateJson(filePath);
-          await writeFile(path.join(workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));          
-        } catch (error: any) {
-          vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
-          setConfigExists(false);
-          return false;
-        }
-      }
-      return true;
-    }
-  }
-  setConfigExists(false);
-  return false;
-}
+
 
 export async function generateJson(ihpFilePath: string): Promise<Config> {
   const { topics, images, instanceFiles } = await parseIhpFile(ihpFilePath);
@@ -59,9 +39,10 @@ export async function generateJson(ihpFilePath: string): Promise<Config> {
 }
 
 // Setter function
-export function setConfigExists(value: boolean) {
+export function setConfigExists(value: boolean): boolean{
   configExists = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
+  return value;
 }
 
 // Helper function to show the preview in column two
