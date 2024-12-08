@@ -39,10 +39,9 @@ export async function generateJson(ihpFilePath: string): Promise<Config> {
 }
 
 // Setter function
-export function setConfigExists(value: boolean): boolean{
+export function setConfigExists(value: boolean): void{
   configExists = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
-  return value;
 }
 
 // Helper function to show the preview in column two
