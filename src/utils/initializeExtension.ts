@@ -40,10 +40,7 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file does not exist');
                 this.setupWatchers();
                 return;
-
-            } else if (!this.config()) {
-                vscode.window.showErrorMessage('config file invalid');
-            } else {
+            } else if(this.config()) { 
                 this.registerProviders();
                 this.providersRegistered = true;
 
@@ -63,10 +60,7 @@ export class InitializeExtension {
         try {
             if (!(await this.checkConfigFiles())) {
                 vscode.window.showErrorMessage('config file does not exist');
-
-            } else if (!this.config()) {
-                vscode.window.showErrorMessage('config file invalid');
-            } else {
+            } else if(this.config()) {
                 // this.dispose();
                 // this.registerProviders();
                 if (!this.providersRegistered) {
@@ -90,7 +84,8 @@ export class InitializeExtension {
         this.disposables.forEach(disposable => disposable.dispose());
         this.disposables = [];
     }
-    private config(): boolean {
+    private config(): boolean{
+        try{
         if (!this.configfile) { return false; }
         const topicsDir = this.configfile['topics']['dir'];
         this.topicsPath = path.join(this.workspaceRoot, topicsDir);
@@ -100,8 +95,11 @@ export class InitializeExtension {
             this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
             this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
         }
-
         return true;
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to config extension: ${error}`);
+        return false;
+        }
     }
 
     private loadTopics(topicsPath: string): Topic[] {

@@ -120,8 +120,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     try {
 
       fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
       return;
     }
 
@@ -149,8 +149,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     if (topicToDelete.filePath && fs.existsSync(topicToDelete.filePath)) {
       try {
         fs.unlinkSync(topicToDelete.filePath);
-      } catch (err) {
-        vscode.window.showErrorMessage(`Failed to delete topic file: ${err}`);
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to delete topic file: ${error}`);
       }
     }
 
@@ -229,7 +229,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       const configContent = fs.readFileSync(this.configPath, 'utf-8');
       return JSON.parse(configContent);
     } catch (error) {
-      vscode.window.showErrorMessage('Error reading config.json');
+      vscode.window.showErrorMessage(`Error reading config.json: ${error}`);
       return { instances: [], topics: { dir: "topics" } };
     }
   }

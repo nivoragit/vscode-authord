@@ -63,8 +63,8 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     try {
       fs.mkdirSync(docsDir);
       fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to create topic file: ${err}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
       return;
     }
     const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
@@ -249,7 +249,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       const configContent = fs.readFileSync(this.configPath, 'utf-8');
       return JSON.parse(configContent);
     } catch (error) {
-      vscode.window.showErrorMessage('Error reading config.json');
+      vscode.window.showErrorMessage(`Error reading config.json: ${error}`);
       return { instances: [] };
     }
   }
