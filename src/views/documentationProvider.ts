@@ -53,23 +53,23 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       vscode.window.showWarningMessage('Doc creation canceled.');
       return;
     }
+    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!tocTitle) {
+      vscode.window.showWarningMessage('Doc creation canceled.');
+      return;
+    }
     const newId = uuidv4();
     const configData = this.readConfigFile();
     const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
-    const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
+    const safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
     const filePath = path.join(docsDir, safeFileName);
 
 
     try {
       fs.mkdirSync(docsDir);
-      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+      fs.writeFileSync(filePath, `# ${tocTitle}\n\nContent goes here...`);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
-      return;
-    }
-    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!tocTitle) {
-      vscode.window.showWarningMessage('Doc creation canceled.');
       return;
     }
     const tocElement: TocElement = {
@@ -100,7 +100,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     // Remove the documentation from the list
     this.instances = this.instances.filter(instance => instance.id !== element.id);;
     const configData = this.readConfigFile();
-    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, String(element.label));
+    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, element.label);
     const trashPath = path.join(path.dirname(this.configPath), 'trash');
 
     try {
@@ -110,7 +110,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       }
 
       // Merge contents of folderPath into trashPath
-      const destinationPath = path.join(trashPath, path.basename(folderPath));
+      const destinationPath = path.join(trashPath, element.label);
       if (fs.existsSync(destinationPath)) {
         this.mergeFolders(folderPath, destinationPath);
         fs.rmdirSync(folderPath, { recursive: true }); // Remove source folder after merging
@@ -138,36 +138,37 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
         vscode.window.showWarningMessage('Doc creation canceled.');
         return;
       }
-      const newId = uuidv4();
-      const safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-      const tocElement: TocElement = {
-        id: newId,
-        topic: safeFileName,
-        "toc-title": `${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
-        "sort-children": "none",
-      };
+      let safeFileName = undefined;
       for (const instance of configData.instances) {
         if (instance.id === element.id) {
+          const newId = uuidv4();
+          safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
+          const tocElement: TocElement = {
+            id: newId,
+            topic: safeFileName,
+            "toc-title": `${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
+            "sort-children": "none",
+          };
           instance["toc-elements"].push(tocElement);
           instanceFound = true;
           break;
         }
       }
 
-      if (instanceFound) {
-        // Write the updated configData back to the file
-        // todo move this to update config file method
-        fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+      if (instanceFound && safeFileName) {
+        const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir, element.label.toLowerCase());
+        const filePath = path.join(docsDir, safeFileName);
+        fs.writeFileSync(filePath, `# ${tocTitle}\n\nContent goes here...`);
+        // fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
       } else {
         vscode.window.showErrorMessage(
           `Instance with ID ${element.id} not found in config.`
         );
       }
     }
-
-    // Refresh the instances and update the config file
-    // this.refresh(this.instances);d
-    // this.updateConfigFile();
+    this.refresh(configData.instances);
+    //update the config file
+    this.updateConfigFile();
   }
   async renameDoc(element: DocumentationItem): Promise<void> {
     if (!element.id) {

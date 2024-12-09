@@ -85,7 +85,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   // 4. Create corresponding .md file
   // 5. Insert the new TocTreeItem in the correct position in tocTree
   // 6. Update config file
-  async add(element?: TopicsItem): Promise<void> {
+  async addTopic(element?: TopicsItem): Promise<void> {
     // If no document selected, just return
     if (!this.tocTree || this.tocTree.length === 0) {
       vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
@@ -125,7 +125,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return;
     }
 
-    this.refresh(this.tocTree);
+    // this.refresh(this.tocTree);
     this.updateConfigFile();
   }
 
@@ -147,8 +147,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
     // Delete the associated .md file if it exists
     if (topicToDelete.filePath && fs.existsSync(topicToDelete.filePath)) {
+      const trashPath = path.join(path.dirname(this.configPath), 'trash');
+      const folderPath = path.dirname(topicToDelete.filePath);
       try {
-        fs.unlinkSync(topicToDelete.filePath);
+        //use trashPath and folderPath to move folder with included files to trash.
+        // create if relevent folders doesn't exists
+        fs.mkdirSync(trashPath, { recursive: true });
+        const targetPath = path.join(trashPath, path.basename(folderPath));
+        fs.renameSync(folderPath, targetPath);
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to delete topic file: ${error}`);
       }
@@ -156,7 +162,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
     // Remove from tocTree
     this.removeTopicById(element.id, this.tocTree);
-    this.refresh(this.tocTree);
+    // this.refresh(this.tocTree);
     this.updateConfigFile();
   }
 
@@ -170,14 +176,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       vscode.window.showWarningMessage('Doc rename canceled.');
       return;
     }
-    const topicToRename = this.findAndRename(element.id, this.tocTree,newName);
+    const topicToRename = this.findAndRename(element.id, this.tocTree, newName);
     if (!topicToRename) {
       vscode.window.showErrorMessage('Topic not found.');
       return;
     }
 
 
-    this.refresh(this.tocTree);
+    // this.refresh(this.tocTree);
     this.updateConfigFile();
   }
 
@@ -246,7 +252,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
-  private findAndAdd(id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): boolean{
+  private findAndAdd(id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): boolean {
     for (const topic of topics) {
       if (topic.id === id) {
         const filePath = path.join(path.dirname(topic.filePath || path.dirname(this.configPath)) || '', `${safeFileName}.md`);
@@ -268,7 +274,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         topic.title = newName;
         return true;
       } else if (topic.children) {
-        this.findAndRename(id, topic.children,newName);
+        this.findAndRename(id, topic.children, newName);
         return true;
       }
     }
