@@ -103,22 +103,32 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     const newId = uuidv4();
     const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
 
-    const filePath = path.join(this.topicsDir || '', `${safeFileName}.md`);
+    //path.join(this.topicsDir || '', `${safeFileName}.md`);
     const newTopic: TocTreeItem = {
       id: newId,
       title: title,
-      filePath: filePath,
+      filePath: "",
       sortChildren: "none",
       children: []
     };
-    if (element && element.id && this.findAndAdd(element.id, this.tocTree, newTopic, safeFileName)) {
-      vscode.window.showInformationMessage('Topic added to dir');
+    let filePath = "";
+    if (element && element.id) {
+      // this.getDocTitle()
+      filePath = this.findAndAdd("", element.id, this.tocTree, newTopic, safeFileName);
+      if (filePath) { vscode.window.showInformationMessage('Topic added to dir'); }
+      else {// Add at the root level
+        this.tocTree.push(newTopic);
+      }
+
     } else {
       // Add at the root level
       this.tocTree.push(newTopic);
     }
     try {
 
+      if (!fs.existsSync(filePath)) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
       fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
@@ -187,6 +197,41 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.updateConfigFile();
   }
 
+  private getDocTitle(): string {
+    const configData = this.readConfigFile();
+    if (configData && configData.instances && configData.instances.length > 0) {
+      for (const instance of configData.instances) {
+        if (instance.id === this.currentDocInstanceId) {
+          return instance.name.toLowerCase();
+        }
+      }
+    }
+    return "fff";
+  }
+  private getDocPath(): string {
+    const configData = this.readConfigFile();
+    if (!this.topicsDir) {
+      if (configData && configData.topics && configData.topics.dir) {
+        this.topicsDir = path.join(path.dirname(this.configPath), configData.topics.dir);
+        if (!fs.existsSync(this.topicsDir)) {
+          fs.mkdirSync(this.topicsDir, { recursive: true });
+          fs.mkdirSync(path.join(path.dirname(this.configPath), 'trash'));
+        }
+      }
+    }
+
+    // if (configData && configData.instances && configData.instances.length > 0) {
+
+
+    //   for (const instance of configData.instances) {
+    //     if (instance.id === this.currentDocInstanceId) {
+    //       return path.join(this.topicsDir!, instance.name);
+
+    //     }
+    //   }
+    // }
+    return this.topicsDir!;
+  }
   // Helper method to update config.json
   private updateConfigFile(): void {
     const configData = this.readConfigFile();
@@ -252,19 +297,35 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
-  private findAndAdd(id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): boolean {
+  private findAndAdd(filePath: string, id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): string {
+    const regex = new RegExp(`\\b${this.getDocTitle()}\\b`); // Dynamic regex
+
     for (const topic of topics) {
+      let x = 2;
+      
+      // if (!topic.title && !filePath) {
+      //   filePath = this.getDocTitle();
+      // }
+
       if (topic.id === id) {
-        const filePath = path.join(path.dirname(topic.filePath || path.dirname(this.configPath)) || '', `${safeFileName}.md`);
+        // topic.filePath || 
+
+        filePath = path.join(path.dirname(topic.filePath || this.getDocPath()), filePath, topic.title, `${safeFileName}.md`);
+        if (!regex.test(filePath)) {
+          filePath = path.join(path.dirname(topic.filePath || this.getDocPath()), this.getDocTitle(), topic.title, `${safeFileName}.md`);
+        }
+        vscode.window.showErrorMessage('selected:', filePath);
         newTopic.filePath = filePath;
         topic.children.push(newTopic);
-        return true;
+
+        return filePath;
       } else if (topic.children) {
-        this.findAndAdd(id, topic.children, newTopic, safeFileName);
-        return true;
+
+        this.findAndAdd(path.join(filePath, topic.title), id, topic.children, newTopic, safeFileName);
+        // return true;
       }
     }
-    return false;
+    return "";
 
   }
 
@@ -283,6 +344,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   }
 
   // Helper method to remove a topic by ID
+      // if(topic.filePath){vscode.window.showErrorMessage('selected0:',topic.filePath);}
   private removeTopicById(id: string, topics: TocTreeItem[]) {
     const index = topics.findIndex(topic => topic.id === id);
     if (index > -1) {

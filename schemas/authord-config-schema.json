@@ -33,6 +33,13 @@
       "items": {
         "$ref": "#/definitions/instance"
       }
+    },
+    "file-paths": {
+      "type": "object",
+      "description": "Dictionary mapping IDs to file paths.",
+      "additionalProperties": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false,
@@ -91,6 +98,10 @@
         "topic": {
           "type": "string",
           "description": "Topic file associated with this TOC element."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the element."
         },
         "toc-title": {
           "type": "string",
