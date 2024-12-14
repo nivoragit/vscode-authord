@@ -106,9 +106,35 @@ export class AuthordViewProvider implements vscode.WebviewViewProvider {
                   "children": []
                 }
               ]
+            },
+            {
+              "id": "38b85855-53b1-4db3-b9da-e3132e4dc9a1-doc",
+              "name": "Xxx",
+              "start-page": "n-38b85855-53b1-4db3-b9da-e3132e4dc9a1.md",
+              "toc-elements": [
+                {
+                  "id": "38b85855-53b1-4db3-b9da-e3132e4dc9a1",
+                  "topic": "n-38b85855-53b1-4db3-b9da-e3132e4dc9a1.md",
+                  "toc-title": "N",
+                  "sort-children": "none",
+                  "children": [
+                    {
+                      "id": "95252b76-e87c-466a-901a-62a2d56079ff",
+                      "topic": "mew.md",
+                      "toc-title": "mew",
+                      "sort-children": "none",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
             }
-          ]
-        },
+          ],
+          "file-paths": {
+            
+          }
+        }
+        ,
         null,
         2
       ));

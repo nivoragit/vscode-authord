@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { InstanceConfig, TocTreeItem } from '../utils/types';
+import { TocTreeItem } from '../utils/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -68,113 +68,141 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     treeItem.id = element.id;
     treeItem.children = element.children;
     treeItem.contextValue = 'topic';
-    if (element.filePath) {
+
+    const filePath = this.getFilePathById(element.id);
+    if (filePath) {
       treeItem.command = {
         command: 'authordExtension.openMarkdownFile',
         title: 'Open Markdown File',
-        arguments: [element.filePath]
+        arguments: [filePath]
       };
     }
     return treeItem;
   }
 
-  // Most efficient approach for adding a topic:
-  // 1. Prompt user for title
-  // 2. Check if document is selected; if not, show message and return
-  // 3. Create a unique ID
-  // 4. Create corresponding .md file
-  // 5. Insert the new TocTreeItem in the correct position in tocTree
-  // 6. Update config file
   async addTopic(element?: TopicsItem): Promise<void> {
-    // If no document selected, just return
     if (!this.tocTree || this.tocTree.length === 0) {
       vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
       return;
     }
-
+  
     const title = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-
     if (!title) {
       vscode.window.showWarningMessage('Topic creation canceled.');
       return;
     }
-
-    // Create a new .md file for the topic
+  
     const newId = uuidv4();
-    const safeFileName = title.toLowerCase().replace(/\s+/g, '-');
-
-    //path.join(this.topicsDir || '', `${safeFileName}.md`);
+    const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
+    
+    // Determine the doc path
+    const docPath = this.getDocPath();
+    const topicFolderName = title.toLowerCase().replace(/\s+/g, '-');
+  
+    let parentDir = docPath;
+    if (element && element.id) {
+      const parentFilePath = this.getFilePathById(element.id);
+      if (parentFilePath) {
+        // Place the new topic folder inside the parent's folder
+        parentDir = path.join(path.dirname(parentFilePath), topicFolderName);
+      } else {
+        parentDir = path.join(docPath, topicFolderName);
+      }
+    } else {
+      // No parent - create topic folder directly under doc path
+      parentDir = path.join(docPath, topicFolderName);
+    }
+  
+    const filePath = path.join(parentDir, safeFileName);
+    fs.mkdirSync(parentDir, { recursive: true });
+    fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
+  
     const newTopic: TocTreeItem = {
       id: newId,
       title: title,
-      filePath: "",
       sortChildren: "none",
       children: []
     };
-    let filePath = "";
+  
     if (element && element.id) {
-      // this.getDocTitle()
-      filePath = this.findAndAdd("", element.id, this.tocTree, newTopic, safeFileName);
-      if (filePath) { vscode.window.showInformationMessage('Topic added to dir'); }
-      else {// Add at the root level
-        this.tocTree.push(newTopic);
-      }
-
+      this.findAndAddTopicToParent(element.id, this.tocTree, newTopic);
     } else {
-      // Add at the root level
       this.tocTree.push(newTopic);
     }
-    try {
-
-      if (!fs.existsSync(filePath)) {
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      }
-      fs.writeFileSync(filePath, `# ${title}\n\nContent goes here...`);
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
-      return;
-    }
-
-    // this.refresh(this.tocTree);
+  
+    this.setFilePathById(newId, filePath);
     this.updateConfigFile();
   }
+  
+// Most Efficient Updated Code Snippet
 
-  // Most efficient approach for deleting a topic:
-  // 1. Remove it from tocTree
-  // 2. Delete corresponding .md file
-  // 3. Update config file
-  deleteTopic(element: TopicsItem): void {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
-      return;
+// In the deleteTopic method, before renaming the directory to the trash folder,
+// ensure that if the target directory already exists, merge the contents instead 
+// of directly renaming. This avoids the ENOTEMPTY error.
+
+deleteTopic(element: TopicsItem): void {
+  if (!element.id) {
+    vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
+    return;
+  }
+
+  const filePath = this.getFilePathById(element.id);
+  if (!filePath || !fs.existsSync(filePath)) {
+    vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
+    return;
+  }
+
+  const sourceDir = path.dirname(filePath);
+  const trashPath = path.join(path.dirname(this.configPath), 'trash');
+  if (!fs.existsSync(trashPath)) {
+    fs.mkdirSync(trashPath, { recursive: true });
+  }
+
+  const targetDir = path.join(trashPath, path.basename(sourceDir));
+
+  try {
+    if (fs.existsSync(targetDir)) {
+      // If target exists, merge folders and then remove sourceDir
+      this.mergeFolders(sourceDir, targetDir);
+      fs.rmdirSync(sourceDir, { recursive: true });
+    } else {
+      fs.renameSync(sourceDir, targetDir);
     }
 
-    const topicToDelete = this.findTopicById(element.id, this.tocTree);
-    if (!topicToDelete) {
-      vscode.window.showErrorMessage('Topic not found.');
-      return;
-    }
-
-    // Delete the associated .md file if it exists
-    if (topicToDelete.filePath && fs.existsSync(topicToDelete.filePath)) {
-      const trashPath = path.join(path.dirname(this.configPath), 'trash');
-      const folderPath = path.dirname(topicToDelete.filePath);
-      try {
-        //use trashPath and folderPath to move folder with included files to trash.
-        // create if relevent folders doesn't exists
-        fs.mkdirSync(trashPath, { recursive: true });
-        const targetPath = path.join(trashPath, path.basename(folderPath));
-        fs.renameSync(folderPath, targetPath);
-      } catch (error) {
-        vscode.window.showErrorMessage(`Failed to delete topic file: ${error}`);
-      }
-    }
-
-    // Remove from tocTree
     this.removeTopicById(element.id, this.tocTree);
-    // this.refresh(this.tocTree);
+    this.removeFilePathById(element.id);
     this.updateConfigFile();
+
+  } catch (error: any) {
+    vscode.window.showErrorMessage(`Failed to move topic folder to trash: ${error.message}`);
   }
+}
+
+// Reuse the mergeFolders method from DocumentationProvider or define it similarly here
+// This will merge all files and subfolders from source into destination without overwriting:
+private mergeFolders(source: string, destination: string): void {
+  const sourceFiles = fs.readdirSync(source);
+
+  for (const file of sourceFiles) {
+    const sourceFilePath = path.join(source, file);
+    const destinationFilePath = path.join(destination, file);
+
+    if (fs.statSync(sourceFilePath).isDirectory()) {
+      if (!fs.existsSync(destinationFilePath)) {
+        fs.mkdirSync(destinationFilePath);
+      }
+      this.mergeFolders(sourceFilePath, destinationFilePath);
+    } else {
+      if (fs.existsSync(destinationFilePath)) {
+        const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
+        const newDestinationFilePath = path.join(destination, newFileName);
+        fs.renameSync(sourceFilePath, newDestinationFilePath);
+      } else {
+        fs.renameSync(sourceFilePath, destinationFilePath);
+      }
+    }
+  }
+}
 
   async renameTopic(element: TopicsItem): Promise<void> {
     if (!element.id) {
@@ -192,8 +220,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return;
     }
 
-
-    // this.refresh(this.tocTree);
     this.updateConfigFile();
   }
 
@@ -208,6 +234,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return "fff";
   }
+
   private getDocPath(): string {
     const configData = this.readConfigFile();
     if (!this.topicsDir) {
@@ -219,20 +246,9 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         }
       }
     }
-
-    // if (configData && configData.instances && configData.instances.length > 0) {
-
-
-    //   for (const instance of configData.instances) {
-    //     if (instance.id === this.currentDocInstanceId) {
-    //       return path.join(this.topicsDir!, instance.name);
-
-    //     }
-    //   }
-    // }
     return this.topicsDir!;
   }
-  // Helper method to update config.json
+
   private updateConfigFile(): void {
     const configData = this.readConfigFile();
 
@@ -241,14 +257,13 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
       for (const instance of configData.instances) {
         if (instance.id === this.currentDocInstanceId) {
-          instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree);
+          instance["toc-elements"] = this.convertTocTreeToTocElements(this.tocTree, configData);
           instanceFound = true;
           break;
         }
       }
 
       if (instanceFound) {
-        // Write the updated configData back to the file
         fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
       } else {
         vscode.window.showErrorMessage(
@@ -260,32 +275,64 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
   }
 
-
-
-  private convertTocTreeToTocElements(tocTree: TocTreeItem[]): any[] {
+  private convertTocTreeToTocElements(tocTree: TocTreeItem[], configData: any): any[] {
     return tocTree.map(item => {
+      const filePath = this.getFilePathById(item.id);
       return {
         id: item.id,
-        "topic": item.filePath ? path.basename(item.filePath) : "",
+        "topic": filePath ? path.basename(filePath) : "",
         "toc-title": item.title,
         "sort-children": item.sortChildren,
-        "children": this.convertTocTreeToTocElements(item.children || [])
+        "children": this.convertTocTreeToTocElements(item.children || [], configData)
       };
     });
   }
 
-  // Helper method to read config.json
   private readConfigFile(): any {
     try {
       const configContent = fs.readFileSync(this.configPath, 'utf-8');
       return JSON.parse(configContent);
     } catch (error) {
       vscode.window.showErrorMessage(`Error reading config.json: ${error}`);
-      return { instances: [], topics: { dir: "topics" } };
+      return { instances: [], topics: { dir: "topics" }, "file-paths": {} };
     }
   }
 
-  // Helper method to find a topic by ID
+  private getFilePathById(id: string): string | undefined {
+    const configData = this.readConfigFile();
+    return configData["file-paths"] ? configData["file-paths"][id] : undefined;
+  }
+
+  private setFilePathById(id: string, filePath: string): void {
+    const configData = this.readConfigFile();
+    if (!configData["file-paths"]) {
+      configData["file-paths"] = {};
+    }
+    configData["file-paths"][id] = filePath;
+    fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+  }
+  private findAndAddTopicToParent(parentId: string, topics: TocTreeItem[], newTopic: TocTreeItem): boolean {
+    for (const topic of topics) {
+      if (topic.id === parentId) {
+        topic.children.push(newTopic);
+        return true;
+      } else if (topic.children && topic.children.length > 0) {
+        if (this.findAndAddTopicToParent(parentId, topic.children, newTopic)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private removeFilePathById(id: string): void {
+    const configData = this.readConfigFile();
+    if (configData["file-paths"] && configData["file-paths"][id]) {
+      delete configData["file-paths"][id];
+      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+    }
+  }
+
   private findTopicById(id: string, topics: TocTreeItem[]): TocTreeItem | undefined {
     for (const topic of topics) {
       if (topic.id === id) {
@@ -297,37 +344,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
-  private findAndAdd(filePath: string, id: string, topics: TocTreeItem[], newTopic: TocTreeItem, safeFileName: string): string {
-    const regex = new RegExp(`\\b${this.getDocTitle()}\\b`); // Dynamic regex
 
-    for (const topic of topics) {
-      let x = 2;
-      
-      // if (!topic.title && !filePath) {
-      //   filePath = this.getDocTitle();
-      // }
-
-      if (topic.id === id) {
-        // topic.filePath || 
-
-        filePath = path.join(path.dirname(topic.filePath || this.getDocPath()), filePath, topic.title, `${safeFileName}.md`);
-        if (!regex.test(filePath)) {
-          filePath = path.join(path.dirname(topic.filePath || this.getDocPath()), this.getDocTitle(), topic.title, `${safeFileName}.md`);
-        }
-        vscode.window.showErrorMessage('selected:', filePath);
-        newTopic.filePath = filePath;
-        topic.children.push(newTopic);
-
-        return filePath;
-      } else if (topic.children) {
-
-        this.findAndAdd(path.join(filePath, topic.title), id, topic.children, newTopic, safeFileName);
-        // return true;
-      }
-    }
-    return "";
-
-  }
 
   private findAndRename(id: string, topics: TocTreeItem[], newName: string): boolean {
     for (const topic of topics) {
@@ -335,26 +352,23 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         topic.title = newName;
         return true;
       } else if (topic.children) {
-        this.findAndRename(id, topic.children, newName);
-        return true;
+        const renamed = this.findAndRename(id, topic.children, newName);
+        if (renamed) {return true;}
       }
     }
     return false;
-
   }
 
-  // Helper method to remove a topic by ID
-      // if(topic.filePath){vscode.window.showErrorMessage('selected0:',topic.filePath);}
   private removeTopicById(id: string, topics: TocTreeItem[]) {
     const index = topics.findIndex(topic => topic.id === id);
     if (index > -1) {
       topics.splice(index, 1);
-      return;
+      return true;
     } else {
       for (const topic of topics) {
         if (topic.children) {
           const removed = this.removeTopicById(id, topic.children);
-          if (removed) { return; }
+          if (removed) { return true; }
         }
       }
     }

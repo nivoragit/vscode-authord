@@ -60,18 +60,19 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
     const newId = uuidv4();
     const configData = this.readConfigFile();
-    const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir, `${title.toLowerCase()}`);
+    const docFolderName = title.toLowerCase();
+    const docDir = path.join(path.dirname(this.configPath), configData.topics.dir, docFolderName);
     const safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    const filePath = path.join(docsDir, safeFileName);
-
-
+    const filePath = path.join(docDir, safeFileName);
+  
     try {
-      fs.mkdirSync(docsDir);
+      fs.mkdirSync(docDir, { recursive: true });
       fs.writeFileSync(filePath, `# ${tocTitle}\n\nContent goes here...`);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
       return;
     }
+  
     const tocElement: TocElement = {
       id: newId,
       topic: safeFileName,
@@ -85,46 +86,15 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       "toc-elements": [tocElement]
     };
     this.instances.push(newDocumentation);
-    this.refresh(this.instances);
-    this.updateConfigFile();
-
-  }
-
-  // Method to delete a documentation
-  deleteDoc(element: DocumentationItem): void {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
-      return;
-    }
-
-    // Remove the documentation from the list
-    this.instances = this.instances.filter(instance => instance.id !== element.id);;
-    const configData = this.readConfigFile();
-    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, element.label);
-    const trashPath = path.join(path.dirname(this.configPath), 'trash');
-
-    try {
-      // Ensure the trash folder exists
-      if (!fs.existsSync(trashPath)) {
-        fs.mkdirSync(trashPath, { recursive: true });
-      }
-
-      // Merge contents of folderPath into trashPath
-      const destinationPath = path.join(trashPath, element.label);
-      if (fs.existsSync(destinationPath)) {
-        this.mergeFolders(folderPath, destinationPath);
-        fs.rmdirSync(folderPath, { recursive: true }); // Remove source folder after merging
-      } else {
-        fs.renameSync(folderPath, destinationPath);
-      }
-    } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to move folder to trash: ${error.message}`);
-    }
-
-    // Refresh the instances and update the config file
+  
+    // Set file-paths for the doc and its root topic
+    this.setFilePathById(newId, filePath);
+  
     this.refresh(this.instances);
     this.updateConfigFile();
   }
+  
+  // In newTopic method: ensure each child topic is placed in its own folder within the doc folder structure.
   async newTopic(element: DocumentationItem): Promise<void> {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to add new topic: ID is missing.');
@@ -132,44 +102,106 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
     const configData = this.readConfigFile();
     if (configData && configData.instances && configData.instances.length > 0) {
-      let instanceFound = false;
       const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
       if (!tocTitle) {
         vscode.window.showWarningMessage('Doc creation canceled.');
         return;
       }
-      let safeFileName = undefined;
+  
+      let safeFileName: string | undefined;
+      let newId: string | undefined;
+      let instanceFound = false;
+  
       for (const instance of configData.instances) {
         if (instance.id === element.id) {
-          const newId = uuidv4();
+          newId = uuidv4();
           safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
           const tocElement: TocElement = {
             id: newId,
             topic: safeFileName,
             "toc-title": `${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
             "sort-children": "none",
+            "children": []
           };
           instance["toc-elements"].push(tocElement);
           instanceFound = true;
           break;
         }
       }
-
-      if (instanceFound && safeFileName) {
-        const docsDir = path.join(path.dirname(this.configPath), configData.topics.dir, element.label.toLowerCase());
-        const filePath = path.join(docsDir, safeFileName);
+  
+      if (instanceFound && safeFileName && newId) {
+        const docInstance = configData.instances.find((i: { id: string | undefined; }) => i.id === element.id);
+        if (!docInstance) {
+          vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
+          return;
+        }
+        const docFolderName = docInstance.name.toLowerCase();
+        const docDir = path.join(path.dirname(this.configPath), configData.topics.dir, docFolderName);
+  
+        // Each topic gets its own folder
+        const topicFolderName = tocTitle.toLowerCase().replace(/\s+/g, '-');
+        const topicDir = path.join(docDir, topicFolderName);
+        const filePath = path.join(topicDir, safeFileName);
+  
+        fs.mkdirSync(topicDir, { recursive: true });
         fs.writeFileSync(filePath, `# ${tocTitle}\n\nContent goes here...`);
-        // fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+  
+        // Set file-paths for new topic
+        this.setFilePathById(newId, filePath);
       } else {
-        vscode.window.showErrorMessage(
-          `Instance with ID ${element.id} not found in config.`
-        );
+        vscode.window.showErrorMessage(`Instance with ID ${element.id} not found in config.`);
       }
+  
+      this.refresh(configData.instances);
+      this.updateConfigFile();
     }
-    this.refresh(configData.instances);
-    //update the config file
+  }
+  
+  // In deleteDoc method: move the entire doc folder to trash (including all topics).
+  deleteDoc(element: DocumentationItem): void {
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
+      return;
+    }
+  
+    const configData = this.readConfigFile();
+    const instanceToDelete = this.instances.find(instance => instance.id === element.id);
+    if (!instanceToDelete) {
+      vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
+      return;
+    }
+  
+    // Remove the documentation from the list
+    this.instances = this.instances.filter(instance => instance.id !== element.id);
+    const docFolderName = instanceToDelete.name.toLowerCase();
+    const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, docFolderName);
+    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+  
+    try {
+      if (!fs.existsSync(trashPath)) {
+        fs.mkdirSync(trashPath, { recursive: true });
+      }
+      const destinationPath = path.join(trashPath, docFolderName);
+  
+      if (fs.existsSync(destinationPath)) {
+        this.mergeFolders(folderPath, destinationPath);
+        fs.rmdirSync(folderPath, { recursive: true });
+      } else {
+        fs.renameSync(folderPath, destinationPath);
+      }
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to move folder to trash: ${error.message}`);
+    }
+  
+    // Remove all file-path entries associated with this doc's topics
+    for (const tocElement of instanceToDelete["toc-elements"]) {
+      this.removeFilePathById(tocElement.id);
+    }
+  
+    this.refresh(this.instances);
     this.updateConfigFile();
   }
+  
   async renameDoc(element: DocumentationItem): Promise<void> {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to add rename Doc: ID is missing.');
@@ -243,7 +275,22 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     configData.instances = this.instances;
     fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
   }
-
+  private setFilePathById(id: string, filePath: string): void {
+    const configData = this.readConfigFile();
+    if (!configData["file-paths"]) {
+      configData["file-paths"] = {};
+    }
+    configData["file-paths"][id] = filePath;
+    fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+  }
+  
+  private removeFilePathById(id: string): void {
+    const configData = this.readConfigFile();
+    if (configData["file-paths"] && configData["file-paths"][id]) {
+      delete configData["file-paths"][id];
+      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
+    }
+  }
   // Helper method to read config.json
   private readConfigFile(): any {
     try {
