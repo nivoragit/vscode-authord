@@ -80,8 +80,10 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return treeItem;
   }
 
+
   async addTopic(element?: TopicsItem): Promise<void> {
-    if (!this.tocTree || this.tocTree.length === 0) {
+    // Check if there's a current doc selected
+    if (!this.currentDocInstanceId) {
       vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
       return;
     }
@@ -94,12 +96,15 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   
     const newId = uuidv4();
     const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    
+  
     // Determine the doc path
     const docPath = this.getDocPath();
     const topicFolderName = title.toLowerCase().replace(/\s+/g, '-');
   
     let parentDir = docPath;
+  
+    // If no specific topic is selected, add the new topic at the root level
+    // If element is defined and has an id, add it as a child to that parent topic.
     if (element && element.id) {
       const parentFilePath = this.getFilePathById(element.id);
       if (parentFilePath) {
@@ -109,7 +114,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         parentDir = path.join(docPath, topicFolderName);
       }
     } else {
-      // No parent - create topic folder directly under doc path
+      // No parent topic is selected, so add the new topic directly under the root doc path
       parentDir = path.join(docPath, topicFolderName);
     }
   
@@ -125,8 +130,10 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     };
   
     if (element && element.id) {
+      // Add as a child of the selected topic
       this.findAndAddTopicToParent(element.id, this.tocTree, newTopic);
     } else {
+      // Add at the root level of the TOC tree
       this.tocTree.push(newTopic);
     }
   
@@ -134,106 +141,131 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.updateConfigFile();
   }
   
-// Most Efficient Updated Code Snippet
 
-// In the deleteTopic method, before renaming the directory to the trash folder,
-// ensure that if the target directory already exists, merge the contents instead 
-// of directly renaming. This avoids the ENOTEMPTY error.
-
-deleteTopic(element: TopicsItem): void {
-  if (!element.id) {
-    vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
-    return;
-  }
-
-  const filePath = this.getFilePathById(element.id);
-  if (!filePath || !fs.existsSync(filePath)) {
-    vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
-    return;
-  }
-
-  const sourceDir = path.dirname(filePath);
-  const trashPath = path.join(path.dirname(this.configPath), 'trash');
-  if (!fs.existsSync(trashPath)) {
-    fs.mkdirSync(trashPath, { recursive: true });
-  }
-
-  const targetDir = path.join(trashPath, path.basename(sourceDir));
-
-  try {
-    if (fs.existsSync(targetDir)) {
-      // If target exists, merge folders and then remove sourceDir
-      this.mergeFolders(sourceDir, targetDir);
-      fs.rmdirSync(sourceDir, { recursive: true });
-    } else {
-      fs.renameSync(sourceDir, targetDir);
+  deleteTopic(element: TopicsItem): void {
+    if (!element.id) {
+      vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
+      return;
     }
 
-    this.removeTopicById(element.id, this.tocTree);
-    this.removeFilePathById(element.id);
-    this.updateConfigFile();
+    const filePath = this.getFilePathById(element.id);
+    if (!filePath || !fs.existsSync(filePath)) {
+      vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
+      return;
+    }
 
-  } catch (error: any) {
-    vscode.window.showErrorMessage(`Failed to move topic folder to trash: ${error.message}`);
-  }
-}
+    const sourceDir = path.dirname(filePath);
+    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+    if (!fs.existsSync(trashPath)) {
+      fs.mkdirSync(trashPath, { recursive: true });
+    }
 
-// Reuse the mergeFolders method from DocumentationProvider or define it similarly here
-// This will merge all files and subfolders from source into destination without overwriting:
-private mergeFolders(source: string, destination: string): void {
-  const sourceFiles = fs.readdirSync(source);
+    const targetDir = path.join(trashPath, path.basename(sourceDir));
 
-  for (const file of sourceFiles) {
-    const sourceFilePath = path.join(source, file);
-    const destinationFilePath = path.join(destination, file);
-
-    if (fs.statSync(sourceFilePath).isDirectory()) {
-      if (!fs.existsSync(destinationFilePath)) {
-        fs.mkdirSync(destinationFilePath);
-      }
-      this.mergeFolders(sourceFilePath, destinationFilePath);
-    } else {
-      if (fs.existsSync(destinationFilePath)) {
-        const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
-        const newDestinationFilePath = path.join(destination, newFileName);
-        fs.renameSync(sourceFilePath, newDestinationFilePath);
+    try {
+      if (fs.existsSync(targetDir)) {
+        // If target exists, merge folders and then remove sourceDir
+        this.mergeFolders(sourceDir, targetDir);
+        fs.rmdirSync(sourceDir, { recursive: true });
       } else {
-        fs.renameSync(sourceFilePath, destinationFilePath);
+        fs.renameSync(sourceDir, targetDir);
+      }
+
+      this.removeTopicById(element.id, this.tocTree);
+      this.removeFilePathById(element.id);
+      this.updateConfigFile();
+
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to move topic folder to trash: ${error.message}`);
+    }
+  }
+
+  // Reuse the mergeFolders method from DocumentationProvider or define it similarly here
+  // This will merge all files and subfolders from source into destination without overwriting:
+  private mergeFolders(source: string, destination: string): void {
+    const sourceFiles = fs.readdirSync(source);
+
+    for (const file of sourceFiles) {
+      const sourceFilePath = path.join(source, file);
+      const destinationFilePath = path.join(destination, file);
+
+      if (fs.statSync(sourceFilePath).isDirectory()) {
+        if (!fs.existsSync(destinationFilePath)) {
+          fs.mkdirSync(destinationFilePath);
+        }
+        this.mergeFolders(sourceFilePath, destinationFilePath);
+      } else {
+        if (fs.existsSync(destinationFilePath)) {
+          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
+          const newDestinationFilePath = path.join(destination, newFileName);
+          fs.renameSync(sourceFilePath, newDestinationFilePath);
+        } else {
+          fs.renameSync(sourceFilePath, destinationFilePath);
+        }
       }
     }
   }
-}
 
   async renameTopic(element: TopicsItem): Promise<void> {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to rename topic: ID is missing.');
       return;
     }
+  
     const newName = await vscode.window.showInputBox({ prompt: 'Enter New Title' });
     if (!newName) {
-      vscode.window.showWarningMessage('Doc rename canceled.');
+      vscode.window.showWarningMessage('Topic rename canceled.');
       return;
     }
-    const topicToRename = this.findAndRename(element.id, this.tocTree, newName);
-    if (!topicToRename) {
-      vscode.window.showErrorMessage('Topic not found.');
+  
+    const oldFilePath = this.getFilePathById(element.id);
+    if (!oldFilePath || !fs.existsSync(oldFilePath)) {
+      vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
       return;
     }
-
-    this.updateConfigFile();
-  }
-
-  private getDocTitle(): string {
-    const configData = this.readConfigFile();
-    if (configData && configData.instances && configData.instances.length > 0) {
-      for (const instance of configData.instances) {
-        if (instance.id === this.currentDocInstanceId) {
-          return instance.name.toLowerCase();
-        }
+  
+    // Extract old folder and file information
+    const oldFolderPath = path.dirname(oldFilePath);
+    const oldFileName = path.basename(oldFilePath);
+    const oldFileNameWithoutExt = path.basename(oldFileName, '.md');
+    const fileNameParts = oldFileNameWithoutExt.split('-');
+    const topicUuid = fileNameParts[fileNameParts.length - 1]; // UUID is the last part
+  
+    // Construct new folder and file names
+    const newFolderName = newName.toLowerCase().replace(/\s+/g, '-');
+    const newFileName = `${newFolderName}-${topicUuid}.md`;
+  
+    // Rename the folder and file
+    try {
+      const parentDir = path.dirname(oldFolderPath);
+      const newFolderPath = path.join(parentDir, newFolderName);
+  
+      // Rename the folder
+      fs.renameSync(oldFolderPath, newFolderPath);
+  
+      // Rename the file within the new folder
+      const oldFileFullPath = path.join(newFolderPath, oldFileName);
+      const newFilePath = path.join(newFolderPath, newFileName);
+      fs.renameSync(oldFileFullPath, newFilePath);
+  
+      // Update in-memory topic title
+      const topicRenamed = this.findAndRename(element.id, this.tocTree, newName);
+      if (!topicRenamed) {
+        vscode.window.showErrorMessage('Topic not found in memory.');
+        return;
       }
+  
+      // Update file-paths with the new file path
+      this.setFilePathById(element.id, newFilePath);
+  
+      // Update the config file to reflect changes
+      this.updateConfigFile();
+  
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
     }
-    return "fff";
   }
+  
 
   private getDocPath(): string {
     const configData = this.readConfigFile();
@@ -353,7 +385,7 @@ private mergeFolders(source: string, destination: string): void {
         return true;
       } else if (topic.children) {
         const renamed = this.findAndRename(id, topic.children, newName);
-        if (renamed) {return true;}
+        if (renamed) { return true; }
       }
     }
     return false;

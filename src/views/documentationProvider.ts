@@ -53,47 +53,31 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       vscode.window.showWarningMessage('Doc creation canceled.');
       return;
     }
-    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!tocTitle) {
-      vscode.window.showWarningMessage('Doc creation canceled.');
-      return;
-    }
+
     const newId = uuidv4();
     const configData = this.readConfigFile();
     const docFolderName = title.toLowerCase();
     const docDir = path.join(path.dirname(this.configPath), configData.topics.dir, docFolderName);
-    const safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    const filePath = path.join(docDir, safeFileName);
-  
+
     try {
       fs.mkdirSync(docDir, { recursive: true });
-      fs.writeFileSync(filePath, `# ${tocTitle}\n\nContent goes here...`);
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to create topic file: ${error}`);
+      vscode.window.showErrorMessage(`Failed to create doc folder: ${error}`);
       return;
     }
-  
-    const tocElement: TocElement = {
-      id: newId,
-      topic: safeFileName,
-      "toc-title": `${tocTitle.charAt(0).toUpperCase()}${tocTitle.slice(1)}`,
-      "sort-children": "none",
-    };
+
     const newDocumentation: InstanceConfig = {
       id: newId + '-doc',
       name: title.charAt(0).toUpperCase() + title.slice(1),
-      "start-page": safeFileName,
-      "toc-elements": [tocElement]
+      "start-page": "",       // No default start-page since no topic is created
+      "toc-elements": []      // Empty array - no topics created by default
     };
+
     this.instances.push(newDocumentation);
-  
-    // Set file-paths for the doc and its root topic
-    this.setFilePathById(newId, filePath);
-  
     this.refresh(this.instances);
     this.updateConfigFile();
   }
-  
+
   // In newTopic method: ensure each child topic is placed in its own folder within the doc folder structure.
   async newTopic(element: DocumentationItem): Promise<void> {
     if (!element.id) {
@@ -156,33 +140,33 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       this.updateConfigFile();
     }
   }
-  
+
   // In deleteDoc method: move the entire doc folder to trash (including all topics).
   deleteDoc(element: DocumentationItem): void {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
       return;
     }
-  
+
     const configData = this.readConfigFile();
     const instanceToDelete = this.instances.find(instance => instance.id === element.id);
     if (!instanceToDelete) {
       vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
       return;
     }
-  
+
     // Remove the documentation from the list
     this.instances = this.instances.filter(instance => instance.id !== element.id);
     const docFolderName = instanceToDelete.name.toLowerCase();
     const folderPath = path.join(path.dirname(this.configPath), configData.topics.dir, docFolderName);
     const trashPath = path.join(path.dirname(this.configPath), 'trash');
-  
+
     try {
       if (!fs.existsSync(trashPath)) {
         fs.mkdirSync(trashPath, { recursive: true });
       }
       const destinationPath = path.join(trashPath, docFolderName);
-  
+
       if (fs.existsSync(destinationPath)) {
         this.mergeFolders(folderPath, destinationPath);
         fs.rmdirSync(folderPath, { recursive: true });
@@ -192,16 +176,16 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to move folder to trash: ${error.message}`);
     }
-  
+
     // Remove all file-path entries associated with this doc's topics
     for (const tocElement of instanceToDelete["toc-elements"]) {
       this.removeFilePathById(tocElement.id);
     }
-  
+
     this.refresh(this.instances);
     this.updateConfigFile();
   }
-  
+
   async renameDoc(element: DocumentationItem): Promise<void> {
     if (!element.id) {
       vscode.window.showErrorMessage('Unable to add rename Doc: ID is missing.');
@@ -283,7 +267,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     configData["file-paths"][id] = filePath;
     fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 2));
   }
-  
+
   private removeFilePathById(id: string): void {
     const configData = this.readConfigFile();
     if (configData["file-paths"] && configData["file-paths"][id]) {
