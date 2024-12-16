@@ -8,6 +8,8 @@ import { TopicsItem, TopicsProvider } from "../views/topicsProvider";
 import { Config, InstanceConfig, TocElement, TocTreeItem, Topic } from './types';
 import { configFiles, generateJson, setConfigExists } from './helperFunctions';
 import { writeFile } from './fileUtils';
+import { AuthordConfigurationManager } from '../config/AuthordConfigurationManager';
+import { AbstractConfigManager } from '../config/abstractConfigManager';
 
 export class InitializeExtension {
     private topicsPath: string = "";
@@ -22,6 +24,7 @@ export class InitializeExtension {
     private tocTree: TocTreeItem[] = [];
     private topics: Topic[] = [];
     private instanceId: string | undefined;
+    private configCode: number = 0;
 
 
 
@@ -36,8 +39,8 @@ export class InitializeExtension {
 
     async initialize(): Promise<void> {
         try {
-
-            if (!(await this.checkConfigFiles())) {
+            this.configCode = await this.checkConfigFiles();
+            if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
                 this.setupWatchers();
                 return;
@@ -59,7 +62,8 @@ export class InitializeExtension {
 
     async reinitialize(): Promise<void> {
         try {
-            if (!(await this.checkConfigFiles())) {
+            this.configCode = await this.checkConfigFiles();
+            if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
             } else if (this.config()) {
                 // this.dispose();
@@ -99,8 +103,22 @@ export class InitializeExtension {
             this.topics = this.loadTopics(this.topicsPath);
             this.instances = this.configfile.instances;
             if (!this.documentationProvider || !this.topicsProvider) {
-                this.documentationProvider = new DocumentationProvider(this.instances, this.configPath);
-                this.topicsProvider = new TopicsProvider(this.tocTree, this.configPath);
+                let configManager = undefined;
+                if (this.configCode === 2) {
+                    configManager = new AuthordConfigurationManager(this.configPath);
+                }
+                // else if(this.configCode === 2){
+                // todo xml config
+                // }else{
+
+                // }
+
+                if (configManager) {
+                    this.documentationProvider = new DocumentationProvider(configManager as AbstractConfigManager);
+                    this.topicsProvider = new TopicsProvider(this.tocTree, configManager as AbstractConfigManager);
+                }else{
+                    return false;
+                }
             }
             return true;
         } catch (error) {
@@ -281,21 +299,25 @@ export class InitializeExtension {
             if (fs.existsSync(filePath)) {
                 // check if wSide config which is at 2nd position
                 if (fileName === configFiles[1]) {
-                    // this means no author.config
-                    try {
-                        const convertedConfig = await generateJson(filePath);
-                        await writeFile(path.join(this.workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));
-                    } catch (error: any) {
-                        vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
 
-                        return setConfigExists(false);
-                    }
+                    // this means no author.config
+                    return 1;
+                    // try {
+                    //     const convertedConfig = await generateJson(filePath);
+                    //     await writeFile(path.join(this.workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));
+                    // } catch (error: any) {
+                    //     vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
+
+                    //     return setConfigExists(false);
+                    // }
                 }
                 this.configfile = this.loadConfigurations();
-                return setConfigExists(this.validateConfig(this.configfile));
+                setConfigExists(this.validateConfig(this.configfile));
+                return 2;
             }
         }
-        return setConfigExists(false);
+        setConfigExists(false);
+        return 0;
     }
 
 
