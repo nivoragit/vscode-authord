@@ -56,7 +56,7 @@ return {
 }
 
 export function deactivate() {
-  if (initializer) {
-    initializer.dispose();
-  }
+  // if (initializer) {
+  //   initializer.dispose();
+  // }
 }

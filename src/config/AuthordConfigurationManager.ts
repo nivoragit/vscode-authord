@@ -1,23 +1,9 @@
-import { AbstractConfigManager } from './abstractConfigManager';
+import { InstanceConfig, AbstractConfigManager, TocElement, Topic } from './abstractConfigManager';
 import * as fs from 'fs';
 import * as path from 'path';
+import Ajv from 'ajv';
 
-interface TocElement {
-  id: string;
-  topic: string;
-  "toc-title": string;
-  "sort-children": string;
-  children: TocElement[];
-}
-
-interface InstanceConfig {
-  id: string;
-  name: string;
-  "start-page": string;
-  "toc-elements": TocElement[];
-}
-
-interface AuthordConfig {
+export interface AuthordConfig {
   instances: InstanceConfig[];
   "file-paths"?: { [key: string]: string };
   topics?: { dir: string };
@@ -25,15 +11,19 @@ interface AuthordConfig {
 }
 
 export class AuthordConfigurationManager extends AbstractConfigManager {
-  private configData: AuthordConfig | null = null;
+  configData: AuthordConfig;
 
   constructor(configPath: string) {
     super(configPath);
-    this.refresh();
+    this.configData = this.readConfig();
   }
 
   refresh(): void {
     this.configData = this.readConfig();
+  }
+
+  loadInstances(): InstanceConfig[] {
+    return this.readConfig().instances;
   }
 
   private readConfig(): AuthordConfig {
@@ -55,25 +45,25 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   private writeConfig(): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     fs.writeFileSync(this.configPath, JSON.stringify(this.configData, null, 2), 'utf-8');
   }
 
   // Document-specific methods
   addDocument(newDocument: InstanceConfig): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     this.configData.instances.push(newDocument);
     this.writeConfig();
   }
 
   deleteDocument(docId: string): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     this.configData.instances = this.configData.instances.filter(d => d.id !== docId);
     this.writeConfig();
   }
 
   renameDocument(docId: string, newName: string): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     const doc = this.configData.instances.find(d => d.id === docId);
     if (doc) {
       doc.name = newName;
@@ -87,9 +77,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   // Topic-specific methods
   addTopic(docId: string, parentTopicId: string | null, newTopic: TocElement): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+    if (!doc) { return; }
 
     if (parentTopicId === null) {
       doc["toc-elements"].push(newTopic);
@@ -104,17 +94,17 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   deleteTopic(docId: string, topicId: string): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+    if (!doc) { return; }
     this.removeTopicById(doc["toc-elements"], topicId);
     this.writeConfig();
   }
 
   renameTopic(docId: string, topicId: string, newName: string): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+    if (!doc) { return; }
 
     const topic = this.findTopicById(doc["toc-elements"], topicId);
     if (topic) {
@@ -124,12 +114,12 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   moveTopic(docId: string, topicId: string, newParentId: string | null): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+    if (!doc) { return; }
 
     const topic = this.extractTopicById(doc["toc-elements"], topicId);
-    if (!topic) {return;}
+    if (!topic) { return; }
 
     if (newParentId === null) {
       doc["toc-elements"].push(topic);
@@ -142,19 +132,36 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     this.writeConfig();
   }
 
-  getTopics(docId: string): TocElement[] {
-    if (!this.configData) {return [];}
-    const doc = this.configData.instances.find(d => d.id === docId);
-    return doc ? doc["toc-elements"] : [];
+  getTopics(): Topic[] {
+    const topics: Topic[] = [];
+    const traverseElements = (elements: TocElement[]) => {
+      for (const e of elements) {
+        const filePath = this.getFilePathById(e.id);
+        if (filePath) {
+          topics.push({
+            name: path.basename(filePath),
+            path: filePath
+          });
+        }
+        if (e.children && e.children.length > 0) {
+          traverseElements(e.children);
+        }
+      }
+    };
+
+    this.configData!.instances.forEach((doc) => {
+      traverseElements(doc["toc-elements"]);
+    });
+
+    return topics;
   }
 
-  // File-path methods
   getFilePathById(id: string): string | undefined {
     return this.configData && this.configData["file-paths"] ? this.configData["file-paths"][id] : undefined;
   }
 
   setFilePathById(id: string, filePath: string): void {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     if (!this.configData["file-paths"]) {
       this.configData["file-paths"] = {};
     }
@@ -163,7 +170,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   removeFilePathById(id: string): void {
-    if (!this.configData || !this.configData["file-paths"]) {return;}
+    if (!this.configData || !this.configData["file-paths"]) { return; }
     delete this.configData["file-paths"][id];
     this.writeConfig();
   }
@@ -223,12 +230,27 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
+  // Validation method
+  validateAgainstSchema(schemaPath:string): void {
+    // Using Ajv to validate configData against AUTHORD_SETTINGS_SCHEMA
+   
+    const ajv = new Ajv({ allErrors: true });
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+    const validate = ajv.compile(schema);
+    const valid = validate(this.configData);
+
+    if (!valid) {
+      const errors = validate.errors || [];
+      throw new Error(`Schema validation failed: ${JSON.stringify(errors, null, 2)}`);
+    }
+  }
+
   // Helper methods for topics
   private findTopicById(topics: TocElement[], id: string): TocElement | undefined {
     for (const t of topics) {
-      if (t.id === id) {return t;}
+      if (t.id === id) { return t; }
       const found = this.findTopicById(t.children, id);
-      if (found) {return found;}
+      if (found) { return found; }
     }
     return undefined;
   }
@@ -240,7 +262,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       return true;
     }
     for (const t of topics) {
-      if (this.removeTopicById(t.children, id)) {return true;}
+      if (this.removeTopicById(t.children, id)) { return true; }
     }
     return false;
   }
@@ -253,7 +275,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
     for (const t of topics) {
       const extracted = this.extractTopicById(t.children, id);
-      if (extracted) {return extracted;}
+      if (extracted) { return extracted; }
     }
     return null;
   }
