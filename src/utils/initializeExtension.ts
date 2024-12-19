@@ -5,26 +5,25 @@ import * as fs from 'fs';
 import Ajv from 'ajv';
 import { DocumentationItem, DocumentationProvider } from "../views/documentationProvider";
 import { TopicsItem, TopicsProvider } from "../views/topicsProvider";
-import { Config, InstanceConfig, TocElement, TocTreeItem, Topic } from './types';
-import { configFiles, generateJson, setConfigExists } from './helperFunctions';
-import { writeFile } from './fileUtils';
-import { AuthordConfigurationManager } from '../config/AuthordConfigurationManager';
-import { AbstractConfigManager } from '../config/abstractConfigManager';
+import { Config, TocTreeItem } from './types';
+import { configFiles, setConfigExists } from './helperFunctions';
+import { AuthordConfigurationManager, AuthordConfig } from '../config/AuthordConfigurationManager';
+import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from '../config/abstractConfigManager';
+import { XMLConfigurationManager } from '../config/XMLConfigurationManager';
+
 
 export class InitializeExtension {
-    private topicsPath: string = "";
     private commandsRegistered: boolean = false;
     private providersRegistered: boolean = false;
-    private configPath: string;
+    private setupConfigWatchers: boolean = false;
     private documentationProvider: DocumentationProvider | undefined;
     private topicsProvider: TopicsProvider | undefined;
-    private configfile: Config | undefined;
-
-    private instances: InstanceConfig[] | undefined;
     private tocTree: TocTreeItem[] = [];
     private topics: Topic[] = [];
     private instanceId: string | undefined;
     private configCode: number = 0;
+    private configManager: AbstractConfigManager | undefined;
+    private instances: InstanceConfig[] | undefined;
 
 
 
@@ -32,7 +31,7 @@ export class InitializeExtension {
         if (!workspaceRoot) {
             throw new Error('Workspace root is required to initialize InitializeExtension.');
         }
-        this.configPath = path.join(this.workspaceRoot, configFiles[0]);
+        // this.configPath = path.join(this.workspaceRoot, configFiles[0]);
         this.initialize();
 
     }
@@ -42,9 +41,11 @@ export class InitializeExtension {
             this.configCode = await this.checkConfigFiles();
             if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
-                this.setupWatchers();
+
                 return;
-            } else if (this.config()) {
+            } else if (this.instances) {               
+                this.topicsProvider = new TopicsProvider(this.configManager!);
+                this.documentationProvider = new DocumentationProvider(this.configManager!, this.topicsProvider);
                 this.registerProviders();
                 this.providersRegistered = true;
 
@@ -56,8 +57,7 @@ export class InitializeExtension {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
         }
-        // Setup watchers
-        this.setupWatchers();
+
     }
 
     async reinitialize(): Promise<void> {
@@ -65,9 +65,14 @@ export class InitializeExtension {
             this.configCode = await this.checkConfigFiles();
             if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
-            } else if (this.config()) {
+            } else if (this.instances) {
                 // this.dispose();
                 // this.registerProviders();
+                if (!this.documentationProvider || !this.topicsProvider) {
+                    this.topicsProvider = new TopicsProvider(this.configManager!);
+                    this.documentationProvider = new DocumentationProvider(this.configManager!,this.topicsProvider);
+                    
+                }
                 if (!this.providersRegistered) {
                     this.registerProviders();
                     this.providersRegistered = true;
@@ -76,12 +81,18 @@ export class InitializeExtension {
                     this.registerCommands();
                     this.commandsRegistered = true;
                 }
-                if (this.instanceId) {
-                    // when doc tree need to refresh toc tree
-                    this.tocTree = this.instances!.flatMap(instance =>
-                        instance.id === this.instanceId ? this.parseTocElements(instance['toc-elements']) : []);
-                    this.topicsProvider?.refresh(this.tocTree);
-                }
+                // refresh when file update from outside
+                // if (!this.instanceId) {
+                //     this.tocTree = [];
+                //     this.topicsProvider?.refresh(this.tocTree,"");
+                //     this.documentationProvider.refresh();
+                //     // when doc tree need to refresh toc tree
+                //     // this.tocTree = this.instances.flatMap(instance =>
+                //     //     instance.id === this.instanceId ? this.parseTocElements(instance['toc-elements']) : []);
+                //     // this.topicsProvider?.refresh(this.tocTree,this.instanceId);
+                // }
+                this.documentationProvider.refresh();
+                
 
             }
         } catch (error: any) {
@@ -95,79 +106,34 @@ export class InitializeExtension {
     //     this.disposables.forEach(disposable => disposable.dispose());
     //     this.disposables = [];
     // }
-    private config(): boolean {
-        try {
-            if (!this.configfile) { return false; }
-            const topicsDir = this.configfile['topics']['dir'];
-            this.topicsPath = path.join(this.workspaceRoot, topicsDir);
-            this.topics = this.loadTopics(this.topicsPath);
-            this.instances = this.configfile.instances;
-            if (!this.documentationProvider || !this.topicsProvider) {
-                let configManager = undefined;
-                if (this.configCode === 2) {
-                    configManager = new AuthordConfigurationManager(this.configPath);
-                }
-                // else if(this.configCode === 2){
-                // todo xml config
-                // }else{
 
-                // }
 
-                if (configManager) {
-                    this.documentationProvider = new DocumentationProvider(configManager as AbstractConfigManager);
-                    this.topicsProvider = new TopicsProvider(this.tocTree, configManager as AbstractConfigManager);
-                }else{
-                    return false;
-                }
-            }
-            return true;
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to config extension: ${error}`);
-            return false;
-        }
-    }
 
-    private loadTopics(topicsPath: string): Topic[] {
-        try {
-            const markdownFiles: Topic[] = [];
 
-            const traverseDirectory = (dirPath: string) => {
-                const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-                for (const entry of entries) {
-                    const fullPath = path.join(dirPath, entry.name);
-                    if (entry.isDirectory()) {
-                        traverseDirectory(fullPath); // Recursively explore subdirectories
-                    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-                        markdownFiles.push({
-                            name: path.basename(entry.name),
-                            path: fullPath,
-                        });
-                    }
-                }
-            };
-            traverseDirectory(topicsPath);
-            return markdownFiles;
-        } catch (error: any) {
-            console.error(`Error loading topics: ${error.message}`);
-            return [];
-        }
-    }
-    private loadConfigurations(): Config {
-        const configContent = fs.readFileSync(this.configPath, 'utf-8');
-        return JSON.parse(configContent);
-    }
 
     private registerProviders(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage("topicsProvider or documentationProvider not created");
             return;
         }
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
-        const topicProviderDisposable = vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
+        vscode.window.registerTreeDataProvider('documentationsView', this.documentationProvider);
+        vscode.window.registerTreeDataProvider('topicsView', this.topicsProvider);
 
-        // this.disposables.push(treeProviderDisposable);
-        // this.disposables.push(topicProviderDisposable);
+
+        // Create and register tree views
+        const topicsView = vscode.window.createTreeView('topicsView', {
+            treeDataProvider: this.topicsProvider,
+        });
+        const docsView = vscode.window.createTreeView('documentationsView', {
+            treeDataProvider: this.documentationProvider,
+        });
+
+        // Add the tree views to context subscriptions for automatic disposal
+        this.context.subscriptions.push(topicsView, docsView);
+
     }
+
+
 
     private registerCommands(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
@@ -176,14 +142,34 @@ export class InitializeExtension {
 
         }
         // Register commands and push them to disposables for later cleanup
-        const selectInstanceCommand = vscode.commands.registerCommand('authordDocsExtension.selectInstance', (instanceId) => {
-            this.instanceId = instanceId;
-            this.tocTree = this.instances!.flatMap(instance =>
-                instance.id === instanceId ? this.parseTocElements(instance['toc-elements']) : []);
-            this.linkTopicsToToc(this.tocTree, this.topics);
-            this.sortTocElements(this.tocTree);
-            this.topicsProvider!.refresh(this.tocTree, instanceId);
+        // const selectInstanceCommand = vscode.commands.registerCommand('authordDocsExtension.selectInstance', (instanceId) => {
+        //     this.instanceId = instanceId;
+        //     this.tocTree = this.instances!.flatMap(instance =>
+        //         instance.id === instanceId ? this.parseTocElements(instance['toc-elements']) : []);
+        //     this.linkTopicsToToc(this.tocTree, this.topics);
+        //     this.sortTocElements(this.tocTree);
+        //     this.topicsProvider!.refresh(this.tocTree, instanceId);
+        // });
+        const selectInstanceCommand = vscode.commands.registerCommand('authordDocsExtension.selectInstance', (docId: string) => {
+            const doc = this.configManager!.getDocuments().find(d => d.id === docId);
+            if (!doc) {
+                vscode.window.showErrorMessage(`No document found with id ${docId}`);
+                return;
+            }
+
+            // Transform doc["toc-elements"] (TocElement[]) into TocTreeItem[]
+            const tocTreeItems = doc["toc-elements"].map((e: TocElement) => {
+                return {
+                    topic: e.topic,
+                    title: e.title,
+                    sortChildren: e.sortChildren,
+                    children: this.parseTocElements(e.children)
+                };
+            });
+
+            this.topicsProvider!.refresh(tocTreeItems, docId);
         });
+
         this.context.subscriptions.push(selectInstanceCommand);
         this.context.subscriptions.push(
             // Topics Commands
@@ -240,82 +226,110 @@ export class InitializeExtension {
         return tocElements.map(element => {
             const children = element.children ? this.parseTocElements(element.children) : [];
             return {
-                id: element.id,
-                title: element['toc-title'],
+                title: element.title,
                 topic: element.topic,
-                sortChildren: element['sort-children'],
+                sortChildren: element.sortChildren,
                 children,
             };
         });
     }
-    private setupWatchers(): void {
+    setupWatchers(fileName: string): void {
         // Create a file system watcher for the configuration file
+        // todo add watcher for .tree files??
         const configWatcher = vscode.workspace.createFileSystemWatcher(
-            new vscode.RelativePattern(this.workspaceRoot, 'authord.config.json')
+
+            new vscode.RelativePattern(this.workspaceRoot, fileName)
         );
 
         // Handle file changes
         configWatcher.onDidChange(async () => {
             await this.reinitialize();
-            vscode.window.showInformationMessage('authord.config.json has been modified.');
+            vscode.window.showInformationMessage('config file has been modified.');
 
         });
 
         // Handle file creation
         configWatcher.onDidCreate(async () => {
             await this.reinitialize();
-            vscode.window.showInformationMessage('authord.config.json has been created.');
+            vscode.window.showInformationMessage('config file has been created.');
         });
 
         // Handle file deletion
         configWatcher.onDidDelete(async () => {
             await this.reinitialize();
-            vscode.window.showInformationMessage('authord.config.json has been deleted.');
+            vscode.window.showInformationMessage('config file has been deleted.');
         });
 
         // Add watchers to context subscriptions
         this.context.subscriptions.push(configWatcher);
     }
-    private validateConfig(config: Config): boolean {
+    // private validateConfig(config: Config): boolean {
 
-        const ajv = new Ajv();
-        const schemaPath = path.join(this.context.extensionPath, 'schemas', 'authord-config-schema.json');
-        const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-        const validate = ajv.compile(schema);
+    //     const ajv = new Ajv();
+    //     const schemaPath = path.join(this.context.extensionPath, 'schemas', 'authord-config-schema.json');
+    //     const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+    //     const validate = ajv.compile(schema);
 
-        if (!validate(config)) {
-            const errors = validate.errors?.map(e => `${e.instancePath} ${e.message}`).join('\n');
-            vscode.window.showErrorMessage(`Invalid config according to schema:\n${errors}`);
-            vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
-            return false;
-            // throw new Error();
-        }
-        return true;
-    }
+    //     if (!validate(config)) {
+    //         const errors = validate.errors?.map(e => `${e.instancePath} ${e.message}`).join('\n');
+    //         vscode.window.showErrorMessage(`Invalid config according to schema:\n${errors}`);
+    //         vscode.commands.executeCommand('setContext', 'authord.configExists', false); // witout updating ConfigExists variable
+    //         return false;
+    //         // throw new Error();
+    //     }
+    //     return true;
+    // }
+
     private async checkConfigFiles() {
-
+        // this function get call several times
         for (const fileName of configFiles) {
             const filePath = path.join(this.workspaceRoot, fileName);
             if (fs.existsSync(filePath)) {
+                const schemaPath = path.join(this.context.extensionPath, 'schemas', 'authord-config-schema.json');
+
                 // check if wSide config which is at 2nd position
                 if (fileName === configFiles[1]) {
 
-                    // this means no author.config
-                    return 1;
-                    // try {
-                    //     const convertedConfig = await generateJson(filePath);
-                    //     await writeFile(path.join(this.workspaceRoot, configFiles[0]), JSON.stringify(convertedConfig));
-                    // } catch (error: any) {
-                    //     vscode.window.showErrorMessage(`Error reading authord.json: ${error.message}`);
+                    this.configManager = new XMLConfigurationManager(filePath);
 
-                    //     return setConfigExists(false);
-                    // }
+
+                    try {
+                        (this.configManager as XMLConfigurationManager).validateAgainstSchema(schemaPath);
+                    }
+                    catch (error: any) {
+                        setConfigExists(false);
+                        vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
+                        return 0;
+                    }
+                    this.instances = this.configManager!.loadInstances();
+                    setConfigExists(true);
+                    if (!this.setupConfigWatchers) {
+
+                        this.setupWatchers(fileName); // for xml file
+                        this.setupConfigWatchers = true;
+                    }
+                    return 1;
                 }
-                this.configfile = this.loadConfigurations();
-                setConfigExists(this.validateConfig(this.configfile));
+                this.configManager = new AuthordConfigurationManager(filePath);
+                try {
+                    (this.configManager as AuthordConfigurationManager).validateAgainstSchema(schemaPath);
+                }
+                catch (error: any) {
+                    setConfigExists(false);
+                    vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
+                    // this.configPath ="";
+                    return 0;
+                }
+                this.instances = this.configManager.loadInstances();
+                setConfigExists(true);
+                if (!this.setupConfigWatchers) {
+                    this.setupWatchers(fileName); // authord config
+                    this.setupConfigWatchers = true;
+                }
                 return 2;
             }
         }
+        // this.configPath ="";
         setConfigExists(false);
         return 0;
     }

@@ -1,21 +1,26 @@
 import * as vscode from 'vscode';
-import { InstanceConfig, TocElement } from '../utils/types';
+import { InstanceConfig, TocTreeItem } from '../utils/types';
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { AbstractConfigManager } from '../config/abstractConfigManager';
+import { TocElement, AbstractConfigManager } from '../config/abstractConfigManager';
+import { XMLConfigurationManager } from '../config/XMLConfigurationManager';
 
+import { InitializeExtension } from '../utils/initializeExtension';
+import { TopicsProvider } from './topicsProvider';
 
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
+
   private _onDidChangeTreeData: vscode.EventEmitter<DocumentationItem | undefined | void> = new vscode.EventEmitter<DocumentationItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<DocumentationItem | undefined | void> = this._onDidChangeTreeData.event;
 
-  private configManager: AbstractConfigManager; 
+  private configManager: AbstractConfigManager;
   private instances: InstanceConfig[] = [];
+  private topicsProvider: TopicsProvider;
 
-  constructor(configManager: AbstractConfigManager) {
+  constructor(configManager: AbstractConfigManager, topicsProvider: TopicsProvider) {
     this.configManager = configManager;
-    this.instances = this.configManager.getDocuments();
+    this.topicsProvider = topicsProvider;
+    this.refresh();
   }
 
   refresh(): void {
@@ -27,188 +32,147 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     return element;
   }
 
-  getChildren(element?: DocumentationItem): Thenable<DocumentationItem[]> {
-    if (!element) {
-      const items = this.instances.map(instance => {
-        const item = new DocumentationItem(
-          instance.name,
-          vscode.TreeItemCollapsibleState.None
-        );
-        item.id = instance.id;
-        item.command = {
-          command: 'authordDocsExtension.selectInstance',
-          title: 'Select Instance',
-          arguments: [instance.id]
-        };
-        item.contextValue = 'documentation';
-        return item;
-      });
-      return Promise.resolve(items);
-    }
-    return Promise.resolve([]);
+  getChildren(): Thenable<DocumentationItem[]> {
+    const items = this.instances.map(instance => {
+      const item = new DocumentationItem(instance.id,instance.name, vscode.TreeItemCollapsibleState.None);
+      item.command = {
+        command: 'authordDocsExtension.selectInstance',
+        title: 'Select Instance',
+        arguments: [instance.id]
+      };
+      item.contextValue = 'documentation';
+      return item;
+    });
+    return Promise.resolve(items);
   }
+  deleteDoc(item: DocumentationItem) {
+    if (!item.id) {
+      vscode.window.showWarningMessage('No document selected for deletion.');
+      return;
+    }
+
+    vscode.window.showWarningMessage(
+      `Are you sure you want to delete documentation "${item.label}"?`,
+      { modal: true },
+      'Yes'
+    ).then((confirm) => {
+      if (confirm === 'Yes') {
+        this.configManager.deleteDocument(item.id as string);
+        this.topicsProvider.refresh([],undefined);
+        this.refresh();
+        vscode.window.showInformationMessage(`Deleted documentation "${item.label}".`);
+      }
+    });
+  }
+
+  async renameDoc(item: DocumentationItem) {
+    if (!item.id) {
+      vscode.window.showWarningMessage('No document selected for rename.');
+      return;
+    }
+
+    const newName = await vscode.window.showInputBox({ prompt: 'Enter new documentation name', value: item.label as string });
+    if (!newName) {
+      vscode.window.showWarningMessage('Rename canceled.');
+      return;
+    }
+
+    this.configManager.renameDocument(item.id as string, newName);
+    this.refresh();
+    vscode.window.showInformationMessage(`Renamed documentation "${item.label}" to "${newName}".`);
+  }
+
 
   async addDoc(): Promise<void> {
     const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
     if (!title) {
-      vscode.window.showWarningMessage('Doc creation canceled.');
+      vscode.window.showWarningMessage('Document creation canceled.');
       return;
     }
+    // removed folder for each doc
+    // const docDir = path.join(this.configManager.getTopicsDir(), title.toLowerCase().replace(/\s+/g, '-'));
 
-    const newId = uuidv4();
-    const configData = (this.configManager as any)['configData']; // If needed or use another public method
-    const docFolderName = title.toLowerCase();
-    const docDir = path.join(path.dirname(this.configManager.configPath), configData.topics.dir, docFolderName);
+    // if (fs.existsSync(docDir)) {
+    //   vscode.window.showInformationMessage(`Document "${title}" already exists.`);
+    //   return;
+    // }
 
-    try {
-      this.configManager.createDirectory(docDir);
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to create doc folder: ${error}`);
-      return;
-    }
-
-    const newDocumentation: InstanceConfig = {
-      id: newId,
-      name: title.charAt(0).toUpperCase() + title.slice(1),
+    this.configManager.createDirectory(this.configManager.getTopicsDir());
+    const newDocument: InstanceConfig = {
+      id: title,
+      name: title,
       "start-page": "",
       "toc-elements": []
     };
 
-    this.configManager.addDocument(newDocumentation);
+    this.configManager.addDocument(newDocument);
+    // setup watcher for .tree file looking for external changes
+    // if (this.configManager.constructor.name === 'XMLConfigurationManager') {
+    //   this.setupXmlWatchers(this.configManager as XMLConfigurationManager, InitializeExtension);
+    // }
     this.refresh();
   }
+  // private setupXmlWatchers(manager: XMLConfigurationManager, InitializeExtension: InitializeExtension): void {
+  //   manager.setupWatchers(InitializeExtension);
+  // }
 
+  private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
+    return tocElements.map(element => {
+      const children = element.children ? this.parseTocElements(element.children) : [];
+      return {
+        title: element.title,
+        topic: element.topic,
+        sortChildren: element.sortChildren,
+        children,
+      };
+    });
+  }
   async newTopic(element: DocumentationItem): Promise<void> {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to add new topic: ID is missing.');
+
+
+    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!topicTitle) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
       return;
     }
 
-    const tocTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!tocTitle) {
-      vscode.window.showWarningMessage('Doc creation canceled.');
-      return;
-    }
 
-    const newId = uuidv4();
-    const safeFileName = `${tocTitle.toLowerCase().replace(/\s+/g, '-')}-${newId}.md`;
-    const docInstance = this.instances.find(i => i.id === element.id);
-    if (!docInstance) {
-      vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
-      return;
-    }
-
-    const docFolderName = docInstance.name.toLowerCase();
-    const configData = (this.configManager as any)['configData'];
-    const docDir = path.join(path.dirname(this.configManager.configPath), configData.topics.dir, docFolderName);
-
-    const topicFolderName = tocTitle.toLowerCase().replace(/\s+/g, '-');
-    const topicDir = path.join(docDir, topicFolderName);
-    const filePath = path.join(topicDir, safeFileName);
-
-    this.configManager.createDirectory(topicDir);
-    this.configManager.writeFile(filePath, `# ${tocTitle}\n\nContent goes here...`);
-
-    const tocElement: TocElement = {
-      id: newId,
+    const safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+    const newTopic: TocElement = {
       topic: safeFileName,
-      "toc-title": tocTitle,
-      "sort-children": "none",
-      "children": []
+      title: topicTitle,
+      sortChildren: "none",
+      children: []
     };
 
-    // Update configuration through manager
-    this.configManager.addTopic(element.id, null, tocElement);
-    this.configManager.setFilePathById(newId, filePath);
-
+    this.configManager.addTopic(element.id as string, null, newTopic);
     this.refresh();
-  }
 
-  deleteDoc(element: DocumentationItem): void {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to delete documentation: ID is missing.');
-      return;
-    }
-
-    const instanceToDelete = this.instances.find(instance => instance.id === element.id);
-    if (!instanceToDelete) {
-      vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
-      return;
-    }
-
-    const docFolderName = instanceToDelete.name.toLowerCase();
-    const configData = (this.configManager as any)['configData'];
-    const folderPath = path.join(path.dirname(this.configManager.configPath), configData.topics.dir, docFolderName);
-    this.configManager.moveFolderToTrash(folderPath);
-
-
-    // Remove file-path entries for this doc's topics
-    for (const tocElement of instanceToDelete["toc-elements"]) {
-      this.configManager.removeFilePathById(tocElement.id);
-    }
-
-    this.configManager.deleteDocument(element.id);
-    this.refresh();
-  }
-
-  async renameDoc(element: DocumentationItem): Promise<void> {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to rename Doc: ID is missing.');
-      return;
-    }
-    const docTitle = await vscode.window.showInputBox({ prompt: 'Enter New Title' });
-    if (!docTitle) {
-      vscode.window.showWarningMessage('Doc rename canceled.');
-      return;
-    }
-
-    const doc = this.instances.find(d => d.id === element.id);
+    const doc = this.configManager!.getDocuments().find(d => d.id === element.id);
     if (!doc) {
-      vscode.window.showErrorMessage(`Instance with ID ${element.id} not found.`);
+      vscode.window.showErrorMessage(`No document found with id ${element.label}`);
       return;
     }
 
-    const configData = (this.configManager as any)['configData'];
-    const docsDir = path.join(path.dirname(this.configManager.configPath), configData.topics.dir);
-    const sourceFilePath = path.join(docsDir, doc.name);
-    doc.name = docTitle.charAt(0).toUpperCase() + docTitle.slice(1);
-    const newDestinationFilePath = path.join(docsDir, doc.name);
+    // Transform doc["toc-elements"] (TocElement[]) into TocTreeItem[]
+    const tocTreeItems = doc["toc-elements"].map((e: TocElement) => {
+      return {
+        topic: e.topic,
+        title: e.title,
+        sortChildren: e.sortChildren,
+        children: this.parseTocElements(e.children)
+      };
+    });
 
-    fs.renameSync(sourceFilePath, newDestinationFilePath);
-    this.configManager.renameDocument(element.id, doc.name);
-    this.refresh();
-  }
-
-  private mergeFolders(source: string, destination: string): void {
-    const sourceFiles = fs.readdirSync(source);
-    for (const file of sourceFiles) {
-      const sourceFilePath = path.join(source, file);
-      const destinationFilePath = path.join(destination, file);
-
-      if (fs.statSync(sourceFilePath).isDirectory()) {
-        if (!fs.existsSync(destinationFilePath)) {
-          fs.mkdirSync(destinationFilePath);
-        }
-        this.mergeFolders(sourceFilePath, destinationFilePath);
-      } else {
-        if (fs.existsSync(destinationFilePath)) {
-          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
-          const newDestinationFilePath = path.join(destination, newFileName);
-          fs.renameSync(sourceFilePath, newDestinationFilePath);
-        } else {
-          fs.renameSync(sourceFilePath, destinationFilePath);
-        }
-      }
-    }
+    this.topicsProvider!.refresh(tocTreeItems, element.id);
   }
 }
 
 export class DocumentationItem extends vscode.TreeItem {
-  constructor(
-    public readonly label: string,
-    public collapsibleState: vscode.TreeItemCollapsibleState
-  ) {
+  constructor(id: string,label: string, collapsibleState: vscode.TreeItemCollapsibleState) {
     super(label, collapsibleState);
     this.contextValue = 'documentation';
+    this.id = id;
   }
+
 }

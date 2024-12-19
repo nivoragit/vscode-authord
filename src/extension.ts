@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { AuthordViewProvider } from './views/authordViewProvider';
-import { configExists, focusOrShowPreview } from './utils/helperFunctions';
+import { configExists, createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
 import { InitializeExtension } from './utils/initializeExtension';
+import { Token } from 'markdown-it';
 
 export let initializer: InitializeExtension | undefined;
 
@@ -9,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-  
+
   initializer = new InitializeExtension(context, workspaceRoot);
 
   // Listen for when the active editor changes
@@ -41,22 +42,75 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Focus the existing preview or open it if it doesn't exist
       await focusOrShowPreview();
-     
+
     })
-  ); 
-// Return the extendMarkdownIt function
-return {
-  extendMarkdownIt(md: any) {
-    // Apply your custom markdown-it plugins or rules here
-    // For example, adding PlantUML support:
-    return md.use(require('markdown-it-plantuml'));
-  },
-};
-  
+  );
+  // Return the extendMarkdownIt function
+  return {
+    extendMarkdownIt(md: any) {
+      // 1) Override the standard image renderer
+      const defaultImageRenderer =
+        md.renderer.rules.image ||
+        function (
+          tokens: Token[],
+          idx: number,
+          options: any,
+          _env: any,
+          self: any
+        ) {
+          return self.renderToken(tokens, idx, options);
+        };
+      md.renderer.rules.image = createCustomImageRenderer(defaultImageRenderer);
+
+      // 2) Override HTML block rendering to fix <img> tags
+      const defaultHtmlBlock =
+        md.renderer.rules.html_block ||
+        function (
+          tokens: Token[],
+          idx: number,
+          options: any,
+          _env: any,
+          self: any
+        ) {
+          return self.renderToken(tokens, idx, options);
+        };
+      md.renderer.rules.html_block = createCustomHtmlRenderer(defaultHtmlBlock);
+
+      // 3) Override HTML inline rendering to fix <img> tags inside inline HTML
+      const defaultHtmlInline =
+        md.renderer.rules.html_inline ||
+        function (
+          tokens: Token[],
+          idx: number,
+          options: any,
+          _env: any,
+          self: any
+        ) {
+          return self.renderToken(tokens, idx, options);
+        };
+      md.renderer.rules.html_inline = createCustomHtmlRenderer(defaultHtmlInline);
+
+      const defaultRender =
+        md.renderer.rules.image ||
+        function (
+          tokens: Token[],
+          idx: number,
+          options: any,
+          _env: any,
+          self: any
+        ) { return self.renderToken(tokens, idx, options); };
+      md.renderer.rules.image = createCustomImageRenderer(defaultRender);
+      // Apply your custom markdown-it plugins or rules here
+      // For example, adding PlantUML support:
+      return md.use(require('markdown-it-plantuml'));
+    },
+  };
+
+
 }
 
 export function deactivate() {
-  if (initializer) {
-    initializer.dispose();
-  }
+  // if (initializer) {
+  //   initializer.dispose();
+  // }
 }

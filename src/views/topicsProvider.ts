@@ -2,35 +2,23 @@ import * as vscode from 'vscode';
 import { TocTreeItem } from '../utils/types';
 import { AbstractConfigManager } from '../config/abstractConfigManager';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TopicsItem | undefined | void> = new vscode.EventEmitter<TopicsItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<TopicsItem | undefined | void> = this._onDidChangeTreeData.event;
 
-  private tocTree: TocTreeItem[];
-  private currentDocInstanceId: string | undefined;
+  private tocTree: TocTreeItem[] = [];
+  private currentDocId: string | undefined;
   private configManager: AbstractConfigManager;
-  private topicsDir: string | undefined;
 
-  constructor(tocTree: TocTreeItem[], configManager: AbstractConfigManager) {
-    this.tocTree = tocTree;
+  constructor(configManager: AbstractConfigManager) {
     this.configManager = configManager;
-
-
-    const configData = (this.configManager as any)['configData']; // Adjust accessor if needed
-    if (configData && configData.topics && configData.topics.dir) {
-      this.topicsDir = path.join(path.dirname(this.configManager.configPath), configData.topics.dir);
-      this.configManager.createDirectory(this.topicsDir);
-      this.configManager.createDirectory(path.join(path.dirname(this.configManager.configPath), 'trash'));
-    }
   }
 
-  refresh(tocTree: TocTreeItem[], instanceId?: string): void {
-    if (instanceId) { 
-      this.currentDocInstanceId = instanceId; 
-    }
+  refresh(tocTree: TocTreeItem[], docId: string| undefined): void {
     this.tocTree = tocTree;
+    this.currentDocId = docId;
     this._onDidChangeTreeData.fire();
   }
 
@@ -40,215 +28,130 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
   getChildren(element?: TopicsItem): Thenable<TopicsItem[]> {
     if (!element) {
-      if (!this.tocTree || this.tocTree.length === 0) {
-        const noDocItem = new vscode.TreeItem('No document selected');
-        noDocItem.contextValue = 'noDocSelected';
-        noDocItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
-        return Promise.resolve([noDocItem as TopicsItem]);
-      }
       return Promise.resolve(this.tocTree.map(item => this.createTreeItem(item)));
-    } else {
-      return Promise.resolve(
-        element.children.map(item => this.createTreeItem(item))
-      );
     }
+    return Promise.resolve(element.children.map(child => this.createTreeItem(child)));
   }
 
-  private createTreeItem(element: TocTreeItem): TopicsItem {
-    const hasChildren = element.children && element.children.length > 0;
+  private createTreeItem(item: TocTreeItem): TopicsItem {
+    const hasChildren = item.children && item.children.length > 0;
     const treeItem = new TopicsItem(
-      element.title,
+      item.title,
       hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
-      element.children
+      item.children,
+      item.topic
     );
-    treeItem.id = element.id;
-    treeItem.children = element.children;
-    treeItem.contextValue = 'topic';
-
-    const filePath = this.configManager.getFilePathById(element.id);
-    if (filePath) {
-      treeItem.command = {
-        command: 'authordExtension.openMarkdownFile',
-        title: 'Open Markdown File',
-        arguments: [filePath]
-      };
-    }
+    treeItem.command = {
+      command: 'authordExtension.openMarkdownFile',
+      title: 'Open Topic',
+      arguments: [path.join(this.configManager.getTopicsDir(), item.topic)]
+    };
     return treeItem;
   }
 
-  async addTopic(element?: TopicsItem): Promise<void> {
-    if (!this.currentDocInstanceId) {
-      vscode.window.showInformationMessage('No document selected. Cannot create a new topic.');
-      return;
-    }
-  
-    const title = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!title) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return;
-    }
-  
-    const newId = uuidv4();
-    const safeFileName = `${title.toLowerCase().replace(/\s+/g, '-')}.md`;
-    const docPath = this.getDocPath();
-    const topicFolderName = title.toLowerCase().replace(/\s+/g, '-');
-  
-    let parentDir = docPath;
-    if (element && element.id) {
-      const parentFilePath = this.configManager.getFilePathById(element.id);
-      if (parentFilePath) {
-        parentDir = path.join(path.dirname(parentFilePath), topicFolderName);
-      } else {
-        parentDir = path.join(docPath, topicFolderName);
+  async addTopic(parent?: TopicsItem): Promise<void> {
+    let topicTitle = undefined;
+    let safeFileName = undefined;
+    const docDir = this.configManager.getTopicsDir();
+
+
+    while (true) {
+      topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+      if (!topicTitle || !this.currentDocId) {
+        vscode.window.showWarningMessage('Topic creation canceled.');
+        return;
+
       }
-    } else {
-      parentDir = path.join(docPath, topicFolderName);
+      safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+      const topicPath = path.join(docDir, safeFileName);
+      if (!fs.existsSync(topicPath)) {
+        break;
+      }
+      vscode.window.showInformationMessage(`Topic "${topicTitle}" already exists.`);
     }
-  
-    const filePath = path.join(parentDir, safeFileName);
-    this.configManager.createDirectory(parentDir);
-    this.configManager.writeFile(filePath, `# ${title}\n\nContent goes here...`);
-  
+
+
+
+
+
     const newTopic: TocTreeItem = {
-      id: newId,
-      title: title,
+      topic: safeFileName,
+      title: topicTitle,
       sortChildren: "none",
       children: []
     };
 
-    if (element && element.id) {
-      this.findAndAddTopicToParent(element.id, this.tocTree, newTopic);
+    if (parent) {
+      parent.children.push(newTopic);
     } else {
       this.tocTree.push(newTopic);
     }
 
-    const tocElement = {
-      id: newId,
-      topic: path.basename(filePath),
-      "toc-title": title,
-      "sort-children": "none",
-      children: []
-    };
-    this.configManager.addTopic(this.currentDocInstanceId, element?.id || null, tocElement);
-    this.configManager.setFilePathById(newId, filePath);
+    this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
+    this.refresh(this.tocTree, this.currentDocId);
   }
 
-  deleteTopic(element: TopicsItem): void {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to delete topic: ID is missing.');
+  async deleteTopic(item: TopicsItem) {
+    if (!this.currentDocId || !item.topic) {
+      vscode.window.showWarningMessage('No topic selected or invalid document state.');
       return;
     }
 
-    const filePath = this.configManager.getFilePathById(element.id);
-    if (!filePath || !this.configManager.fileExists(filePath)) {
-      vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
+    const confirm = await vscode.window.showWarningMessage(
+      `Are you sure you want to delete topic "${item.label}"?`,
+      { modal: true },
+      'Yes'
+    );
+    if (confirm !== 'Yes') {
       return;
     }
 
-    const sourceDir = path.dirname(filePath);
-    this.configManager.moveFolderToTrash(sourceDir);
-
-    this.removeTopicById(element.id, this.tocTree);
-    if (this.currentDocInstanceId) {
-      this.configManager.deleteTopic(this.currentDocInstanceId, element.id);
-    }
-    this.configManager.removeFilePathById(element.id);
+    this.configManager.deleteTopic(this.currentDocId, item.topic);
+    this.removeTopicFromTree(item.topic, this.tocTree);
+    
+    this.refresh(this.tocTree, this.currentDocId);
   }
 
-  async renameTopic(element: TopicsItem): Promise<void> {
-    if (!element.id) {
-      vscode.window.showErrorMessage('Unable to rename topic: ID is missing.');
+  async renameTopic(item: TopicsItem) {
+    if (!this.currentDocId || !item.topic) {
+      vscode.window.showWarningMessage('No topic selected or invalid document state.');
       return;
     }
-  
-    const newName = await vscode.window.showInputBox({ prompt: 'Enter New Title' });
+
+    const newName = await vscode.window.showInputBox({ prompt: 'Enter new topic title', value: item.label as string });
     if (!newName) {
       vscode.window.showWarningMessage('Topic rename canceled.');
       return;
     }
-  
-    const oldFilePath = this.configManager.getFilePathById(element.id);
-    if (!oldFilePath || !this.configManager.fileExists(oldFilePath)) {
-      vscode.window.showErrorMessage('Topic file not found or missing in file-paths.');
-      return;
-    }
-  
-    const oldFolderPath = path.dirname(oldFilePath);
-    const oldFileName = path.basename(oldFilePath);
-    const oldFileNameWithoutExt = path.basename(oldFileName, '.md');
-    const fileNameParts = oldFileNameWithoutExt.split('-');
-    const topicUuid = fileNameParts[fileNameParts.length - 1];
-  
-    const newFolderName = newName.toLowerCase().replace(/\s+/g, '-');
-    const newFileName = `${newFolderName}-${topicUuid}.md`;
-  
-    try {
-      const parentDir = path.dirname(oldFolderPath);
-      const newFolderPath = path.join(parentDir, newFolderName);
-  
-      this.configManager.renamePath(oldFolderPath, newFolderPath);
-  
-      const oldFileFullPath = path.join(newFolderPath, oldFileName);
-      const newFilePath = path.join(newFolderPath, newFileName);
-      this.configManager.renamePath(oldFileFullPath, newFilePath);
-  
-      const topicRenamed = this.findAndRename(element.id, this.tocTree, newName);
-      if (!topicRenamed) {
-        vscode.window.showErrorMessage('Topic not found in memory.');
-        return;
-      }
 
-      this.configManager.setFilePathById(element.id, newFilePath);
-      if (this.currentDocInstanceId) {
-        this.configManager.renameTopic(this.currentDocInstanceId, element.id, newName);
-      }
-  
-    } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
-    }
+    this.configManager.renameTopic(this.currentDocId, item.topic, newName);
+    this.renameTopicInTree(item.topic, newName, this.tocTree);
+    this.refresh(this.tocTree, this.currentDocId);
   }
 
-  private getDocPath(): string {
-    return this.topicsDir!;
-  }
-
-  private findAndAddTopicToParent(parentId: string, topics: TocTreeItem[], newTopic: TocTreeItem): boolean {
-    for (const topic of topics) {
-      if (topic.id === parentId) {
-        topic.children.push(newTopic);
+  private removeTopicFromTree(topicId: string, tree: TocTreeItem[]): boolean {
+    for (let i = 0; i < tree.length; i++) {
+      if (tree[i].topic === topicId) {
+        tree.splice(i, 1);
         return true;
-      } else if (topic.children && topic.children.length > 0) {
-        if (this.findAndAddTopicToParent(parentId, topic.children, newTopic)) {
-          return true;
-        }
+      }
+      if (tree[i].children && tree[i].children.length > 0) {
+        const found = this.removeTopicFromTree(topicId, tree[i].children);
+        if (found) { return true; }
       }
     }
     return false;
   }
 
-  private removeTopicById(id: string, topics: TocTreeItem[]) {
-    const index = topics.findIndex(topic => topic.id === id);
-    if (index > -1) {
-      topics.splice(index, 1);
-      return true;
-    }
-    for (const topic of topics) {
-      if (topic.children) {
-        const removed = this.removeTopicById(id, topic.children);
-        if (removed) { return true; }
-      }
-    }
-    return false;
-  }
-
-  private findAndRename(id: string, topics: TocTreeItem[], newName: string): boolean {
-    for (const topic of topics) {
-      if (topic.id === id) {
-        topic.title = newName;
+  private renameTopicInTree(topicId: string, newName: string, tree: TocTreeItem[]): boolean {
+    for (let i = 0; i < tree.length; i++) {
+      if (tree[i].topic === topicId) {
+        tree[i].title = newName;
         return true;
-      } else if (topic.children) {
-        const renamed = this.findAndRename(id, topic.children, newName);
-        if (renamed) { return true; }
+      }
+      if (tree[i].children && tree[i].children.length > 0) {
+        const found = this.renameTopicInTree(topicId, newName, tree[i].children);
+        if (found) { return true; }
       }
     }
     return false;
@@ -257,16 +160,17 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
 export class TopicsItem extends vscode.TreeItem {
   children: TocTreeItem[];
+  topic: string;
 
   constructor(
-    public readonly label: string,
-    public collapsibleState: vscode.TreeItemCollapsibleState,
-    children: TocTreeItem[] = []
+    label: string,
+    collapsibleState: vscode.TreeItemCollapsibleState,
+    children: TocTreeItem[] = [],
+    topic: string
   ) {
     super(label, collapsibleState);
     this.children = children;
     this.contextValue = 'topic';
+    this.topic = topic;
   }
 }
-
-

@@ -33,11 +33,10 @@ export interface Topics {
 }
 
 export interface TocTreeItem {
-  id: string;
   title: string;
-  topic?: string;
+  topic: string;
   filePath?: string;
-  sortChildren: "ascending" | "descending" | "none";
+  sortChildren:  string;
   children: TocTreeItem[];
 }
 
