@@ -69,8 +69,9 @@ export class InitializeExtension {
                 // this.dispose();
                 // this.registerProviders();
                 if (!this.documentationProvider || !this.topicsProvider) {
-                    this.documentationProvider = new DocumentationProvider(this.configManager!);
                     this.topicsProvider = new TopicsProvider(this.configManager!);
+                    this.documentationProvider = new DocumentationProvider(this.configManager!,this.topicsProvider);
+                    
                 }
                 if (!this.providersRegistered) {
                     this.registerProviders();

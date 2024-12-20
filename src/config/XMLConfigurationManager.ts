@@ -152,11 +152,16 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   private writeInstanceProfile(doc: InstanceConfig): void {
     const builder = new XMLBuilder({ ignoreAttributes: false });
     const treeFile = this.getTreeFileForDoc(doc.id);
+    let startPage =""; 
+    if (doc['toc-elements'].length !== 0){
+      startPage = doc["start-page"]; // updating start-page when go back to 0 topics
+    } 
+
     const profileObj = {
       "instance-profile": {
         "@_id": doc.id,
         "@_name": doc.name,
-        "@_start-page": doc["start-page"],
+        "@_start-page": startPage,
         "toc-element": this.buildTocElements(doc["toc-elements"])
       }
     };
@@ -490,7 +495,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   // Helper methods updated to check t.topic instead of t.title
   private findTopicByFilename(topics: TocElement[], fileName: string): TocElement | undefined {
     for (const t of topics) {
-      if (t.topic === fileName) { 
+      if (t.title === fileName) { 
         return t; 
       }
       const found = this.findTopicByFilename(t.children, fileName);
@@ -511,72 +516,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     return false;
   }
   
-
-  // deleteTopic(docId: string, topicFileName: string): void {
-  //   const doc = this.instances.find(d => d.id === docId);
-  //   if (!doc) { return; }
-  //   this.removeTopicByFilename(doc["toc-elements"], topicFileName);
-  //   this.writeInstanceProfile(doc);
-  // }
-
-  // renameTopic(docId: string, oldTopicFile: string, newName: string): void {
-  //   const doc = this.instances.find(d => d.id === docId);
-  //   if (!doc) { return; }
-  //   const topic = this.findTopicByFilename(doc["toc-elements"], oldTopicFile);
-  //   if (topic) {
-  //     const topicsDir = this.getTopicsDir();
-  //     const newTopicFile = this.formatTitleAsFilename(newName);
-  //     const oldFilePath = path.join(topicsDir, oldTopicFile);
-  //     const newFilePath = path.join(topicsDir, newTopicFile);
-
-  //     if (!this.fileExists(oldFilePath)) {
-  //       console.log(`Original file ${oldTopicFile} not found.`);
-  //       return;
-  //     }
-
-  //     if (this.fileExists(newFilePath)) {
-  //       console.log("already exists");
-  //       return;
-  //     }
-
-  //     this.renamePath(oldFilePath, newFilePath);
-  //     topic.topic = newTopicFile;
-  //     topic.title = newName;
-  //     this.writeInstanceProfile(doc);
-  //   }
-  // }
-
-  // moveTopic(docId: string, topicFileName: string, newParentFileName: string | null): void {
-  //   const doc = this.instances.find(d => d.id === docId);
-  //   if (!doc) { return; }
-
-  //   const topic = this.extractTopicByFilename(doc["toc-elements"], topicFileName);
-  //   if (!topic) { return; }
-
-  //   let parentArray = doc["toc-elements"];
-  //   if (newParentFileName) {
-  //     const parent = this.findTopicByFilename(doc["toc-elements"], newParentFileName);
-  //     if (!parent) { return; }
-  //     parentArray = parent.children;
-  //   }
-  //   parentArray.push(topic);
-  //   this.writeInstanceProfile(doc);
-  // }
-
-  // Helpers for topics
-
-
-  // private removeTopicByFilename(topics: TocElement[], fileName: string): boolean {
-  //   const idx = topics.findIndex(t => t.topic === fileName);
-  //   if (idx > -1) {
-  //     topics.splice(idx, 1);
-  //     return true;
-  //   }
-  //   for (const t of topics) {
-  //     if (this.removeTopicByFilename(t.children, fileName)) { return true; }
-  //   }
-  //   return false;
-  // }
 
   private extractTopicByFilename(topics: TocElement[], fileName: string): TocElement | null {
     const idx = topics.findIndex(t => t.topic === fileName);
