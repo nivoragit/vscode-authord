@@ -34,7 +34,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
   getChildren(): Thenable<DocumentationItem[]> {
     const items = this.instances.map(instance => {
-      const item = new DocumentationItem(instance.name, vscode.TreeItemCollapsibleState.None);
+      const item = new DocumentationItem(instance.id,instance.name, vscode.TreeItemCollapsibleState.None);
       item.command = {
         command: 'authordDocsExtension.selectInstance',
         title: 'Select Instance',
@@ -46,7 +46,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     return Promise.resolve(items);
   }
   deleteDoc(item: DocumentationItem) {
-    if (!item.label) {
+    if (!item.id) {
       vscode.window.showWarningMessage('No document selected for deletion.');
       return;
     }
@@ -57,7 +57,8 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       'Yes'
     ).then((confirm) => {
       if (confirm === 'Yes') {
-        this.configManager.deleteDocument(item.label as string);
+        this.configManager.deleteDocument(item.id as string);
+        this.topicsProvider.refresh([],undefined);
         this.refresh();
         vscode.window.showInformationMessage(`Deleted documentation "${item.label}".`);
       }
@@ -65,7 +66,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   async renameDoc(item: DocumentationItem) {
-    if (!item.label) {
+    if (!item.id) {
       vscode.window.showWarningMessage('No document selected for rename.');
       return;
     }
@@ -76,7 +77,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       return;
     }
 
-    this.configManager.renameDocument(item.label as string, newName);
+    this.configManager.renameDocument(item.id as string, newName);
     this.refresh();
     vscode.window.showInformationMessage(`Renamed documentation "${item.label}" to "${newName}".`);
   }
@@ -144,10 +145,10 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       children: []
     };
 
-    this.configManager.addTopic(element.label as string, null, newTopic);
+    this.configManager.addTopic(element.id as string, null, newTopic);
     this.refresh();
 
-    const doc = this.configManager!.getDocuments().find(d => d.name === element.label);
+    const doc = this.configManager!.getDocuments().find(d => d.id === element.id);
     if (!doc) {
       vscode.window.showErrorMessage(`No document found with id ${element.label}`);
       return;
@@ -163,14 +164,15 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       };
     });
 
-    this.topicsProvider!.refresh(tocTreeItems, element.label as string);
+    this.topicsProvider!.refresh(tocTreeItems, element.id);
   }
 }
 
 export class DocumentationItem extends vscode.TreeItem {
-  constructor(label: string, collapsibleState: vscode.TreeItemCollapsibleState) {
+  constructor(id: string,label: string, collapsibleState: vscode.TreeItemCollapsibleState) {
     super(label, collapsibleState);
     this.contextValue = 'documentation';
+    this.id = id;
   }
 
 }

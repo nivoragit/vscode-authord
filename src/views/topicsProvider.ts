@@ -16,7 +16,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[], docId: string): void {
+  refresh(tocTree: TocTreeItem[], docId: string| undefined): void {
     this.tocTree = tocTree;
     this.currentDocId = docId;
     this._onDidChangeTreeData.fire();

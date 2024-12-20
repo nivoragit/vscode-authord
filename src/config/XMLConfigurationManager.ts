@@ -226,7 +226,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     let xmlContent = builder.build(profileObj);
 
     // Prepend XML declaration and DOCTYPE
-    // todo jetbrains
+    // todo remove jetbrains
     const doctype = `<?xml version="1.0" encoding="UTF-8"?>
   <!DOCTYPE instance-profile SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">\n\n`;
     xmlContent = doctype + xmlContent;
@@ -319,7 +319,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
 
   // Topics
   addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): void {
-    const doc = this.instances.find(d => d.id === docItem || d.name === docItem);
+    const doc = this.instances.find(d => d.id === docItem); // || d.name === docItem); //todo d.name === docItem for doc topic creation
     if (!doc) {
       console.error(`Document "${docItem}" not found.`);
       vscode.window.showWarningMessage(`Document "${docItem}" not found.`);

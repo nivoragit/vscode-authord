@@ -92,8 +92,7 @@ export class InitializeExtension {
                 //     // this.topicsProvider?.refresh(this.tocTree,this.instanceId);
                 // }
                 this.documentationProvider.refresh();
-                // when deleting a doc topic should be refresh
-                this.topicsProvider?.refresh([],""); 
+                
 
             }
         } catch (error: any) {
