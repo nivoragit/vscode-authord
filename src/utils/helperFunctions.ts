@@ -6,6 +6,8 @@ import { parseTreeFile } from '../parsers/treeParser';
 import { Config } from './types';
 import { writeFile } from './fileUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { Token } from 'markdown-it';
+
 
 // Initial state
 export let configExists = true;
@@ -99,4 +101,84 @@ export async function focusOrShowPreview() {
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   }
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
+}
+
+// 1) Helper to handle standard Markdown images: ![Alt text](path)
+export function createCustomImageRenderer(
+  defaultRender: (
+    tokens: Token[],
+    idx: number,
+    options: any,
+    env: any,
+    self: any
+  ) => string
+) {
+  return function (
+    tokens: Token[],
+    idx: number,
+    options: any,
+    env: any,
+    self: any
+  ) {
+    const token = tokens[idx];
+    const srcIndex = token.attrIndex('src');
+
+    // Prefix markdown image paths if missing "images/"
+    if (srcIndex >= 0) {
+      const srcValue = token.attrs![srcIndex][1];
+      if (
+        srcValue &&
+        !srcValue.startsWith('../images/') &&
+        !srcValue.startsWith('http') // skip web images
+      ) {
+        token.attrs![srcIndex][1] = '../images/' + srcValue;
+      }
+    }
+
+    return defaultRender(tokens, idx, options, env, self);
+  };
+}
+
+// 2) Helper to handle HTML-based images: <img src="..." width=".." height="..">
+export function createCustomHtmlRenderer(
+  defaultRender: (
+    tokens: Token[],
+    idx: number,
+    options: any,
+    env: any,
+    self: any
+  ) => string
+) {
+  return function (
+    tokens: Token[],
+    idx: number,
+    options: any,
+    env: any,
+    self: any
+  ) {
+    let content = tokens[idx].content;
+    // Look for <img ...> tags inside HTML blocks or inline HTML
+    // E.g., <img src="images/example.png" alt="Example" width="300">
+    // We'll prefix any src that doesn't start with http or 'images/'.
+    content = content.replace(
+      /<img\s+([^>]*src\s*=\s*["'])([^"']+)(["'][^>]*)>/gi,
+      (match, beforeSrc, srcValue, afterSrc) => {
+        // Only prefix if missing 'images/' and not a URL
+        if (
+          srcValue &&
+          !srcValue.startsWith('../images/') &&
+          !/^https?:\/\//i.test(srcValue)
+        ) {
+          return `<img ${beforeSrc}../images/${srcValue}${afterSrc}>`;
+        }
+        return match;
+      }
+    );
+
+    // You can handle <a><img ...></a> or other combos similarly if needed.
+
+    // Update token’s content
+    tokens[idx].content = content;
+    return defaultRender(tokens, idx, options, env, self);
+  };
 }

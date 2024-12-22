@@ -208,6 +208,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.9",
     "@types/vscode": "^1.70.0",
     "@types/xml2js": "^0.4.14",
