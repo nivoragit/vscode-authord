@@ -7,7 +7,6 @@ import Ajv from 'ajv';
 
 export interface AuthordConfig {
   instances: InstanceConfig[];
-  "file-paths"?: { [key: string]: string };
   topics?: { dir: string };
   [key: string]: any;
 }
@@ -16,7 +15,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   moveTopic(_docId: string, _topicId: string, _newParentId: string | null): void {
     throw new Error('Method not implemented.');
   }
-  configData: AuthordConfig = { instances: [], "file-paths": {}, topics: { dir: "topics" } };
+  configData: AuthordConfig = { instances: [], topics: { dir: "topics" } };
   private watchedFile: string = "";
 
   constructor(configPath: string) {
@@ -37,14 +36,13 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   private readConfig(): AuthordConfig {
     if (!fs.existsSync(this.configPath)) {
-      const defaultConfig: AuthordConfig = { instances: [], "file-paths": {}, topics: { dir: "topics" } };
+      const defaultConfig: AuthordConfig = { instances: [], topics: { dir: "topics" } };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
       return defaultConfig;
     }
     const raw = fs.readFileSync(this.configPath, 'utf-8');
     const data = JSON.parse(raw);
     if (!data.instances) { data.instances = []; }
-    if (!data["file-paths"]) { data["file-paths"] = {}; }
     if (!data.topics) { data.topics = { dir: "topics" }; }
     return data;
   }
@@ -266,25 +264,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     });
     return topics;
   }
-
-  getFilePathById(id: string): string | undefined {
-    return this.configData["file-paths"] ? this.configData["file-paths"][id] : undefined;
-  }
-
-  setFilePathById(id: string, filePath: string): void {
-    if (!this.configData["file-paths"]) {
-      this.configData["file-paths"] = {};
-    }
-    this.configData["file-paths"][id] = filePath;
-    this.writeConfig();
-  }
-
-  removeFilePathById(id: string): void {
-    if (!this.configData["file-paths"]) { return; }
-    delete this.configData["file-paths"][id];
-    this.writeConfig();
-  }
-
   // File handling
   createDirectory(dirPath: string): void {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -341,7 +320,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   validateAgainstSchema(schemaPath: string): void {
-    return; // todo
     const ajv = new Ajv({ allErrors: true });
     const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
     const validate = ajv.compile(schema);
@@ -395,26 +373,4 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
     return null;
   }
-
-  // private findTopicById(topics: TocElement[], id: string): TocElement | undefined {
-  //   for (const t of topics) {
-  //     if (t.id === id) { return t; }
-  //     const found = this.findTopicById(t.children, id);
-  //     if (found) { return found; }
-  //   }
-  //   return undefined;
-  // }
-
-  // private extractTopicById(topics: TocElement[], id: string): TocElement | null {
-  //   const idx = topics.findIndex(t => t.id === id);
-  //   if (idx > -1) {
-  //     const [removed] = topics.splice(idx, 1);
-  //     return removed;
-  //   }
-  //   for (const t of topics) {
-  //     const extracted = this.extractTopicById(t.children, id);
-  //     if (extracted) { return extracted; }
-  //   }
-  //   return null;
-  // }
 }

@@ -2,12 +2,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import Ajv from 'ajv';
 import { DocumentationItem, DocumentationProvider } from "../views/documentationProvider";
 import { TopicsItem, TopicsProvider } from "../views/topicsProvider";
-import { Config, TocTreeItem } from './types';
+import { TocTreeItem } from './types';
 import { configFiles, setConfigExists } from './helperFunctions';
-import { AuthordConfigurationManager, AuthordConfig } from '../config/AuthordConfigurationManager';
+import { AuthordConfigurationManager } from '../config/AuthordConfigurationManager';
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from '../config/abstractConfigManager';
 import { XMLConfigurationManager } from '../config/XMLConfigurationManager';
 
@@ -43,7 +42,7 @@ export class InitializeExtension {
                 vscode.window.showErrorMessage('config file does not exist');
 
                 return;
-            } else if (this.instances) {               
+            } else if (this.instances) {
                 this.topicsProvider = new TopicsProvider(this.configManager!);
                 this.documentationProvider = new DocumentationProvider(this.configManager!, this.topicsProvider);
                 this.registerProviders();
@@ -65,34 +64,39 @@ export class InitializeExtension {
             this.configCode = await this.checkConfigFiles();
             if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
-            } else if (this.instances) {
-                // this.dispose();
-                // this.registerProviders();
+            } else {
                 if (!this.documentationProvider || !this.topicsProvider) {
                     this.topicsProvider = new TopicsProvider(this.configManager!);
-                    this.documentationProvider = new DocumentationProvider(this.configManager!,this.topicsProvider);
+                    this.documentationProvider = new DocumentationProvider(this.configManager!, this.topicsProvider);
+
+                }
+                if (this.instances) {
+                    // this.dispose();
+                    // this.registerProviders();
+
+                    if (!this.providersRegistered) {
+                        this.registerProviders();
+                        this.providersRegistered = true;
+                    }
+                    if (!this.commandsRegistered) {
+                        this.registerCommands();
+                        this.commandsRegistered = true;
+                    }
+                    // refresh when file update from outside
+                    // if (!this.instanceId) {
+                    //     this.tocTree = [];
+                    //     this.topicsProvider?.refresh(this.tocTree,"");
+                    //     this.documentationProvider.refresh();
+                    //     // when doc tree need to refresh toc tree
+                    //     // this.tocTree = this.instances.flatMap(instance =>
+                    //     //     instance.id === this.instanceId ? this.parseTocElements(instance['toc-elements']) : []);
+                    //     // this.topicsProvider?.refresh(this.tocTree,this.instanceId);
+                    // }
                     
+
                 }
-                if (!this.providersRegistered) {
-                    this.registerProviders();
-                    this.providersRegistered = true;
-                }
-                if (!this.commandsRegistered) {
-                    this.registerCommands();
-                    this.commandsRegistered = true;
-                }
-                // refresh when file update from outside
-                // if (!this.instanceId) {
-                //     this.tocTree = [];
-                //     this.topicsProvider?.refresh(this.tocTree,"");
-                //     this.documentationProvider.refresh();
-                //     // when doc tree need to refresh toc tree
-                //     // this.tocTree = this.instances.flatMap(instance =>
-                //     //     instance.id === this.instanceId ? this.parseTocElements(instance['toc-elements']) : []);
-                //     // this.topicsProvider?.refresh(this.tocTree,this.instanceId);
-                // }
                 this.documentationProvider.refresh();
-                
+                vscode.window.showInformationMessage('extension reinitialized');
 
             }
         } catch (error: any) {
@@ -106,11 +110,6 @@ export class InitializeExtension {
     //     this.disposables.forEach(disposable => disposable.dispose());
     //     this.disposables = [];
     // }
-
-
-
-
-
     private registerProviders(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage("topicsProvider or documentationProvider not created");
@@ -289,47 +288,42 @@ export class InitializeExtension {
 
                 // check if wSide config which is at 2nd position
                 if (fileName === configFiles[1]) {
-
                     this.configManager = new XMLConfigurationManager(filePath);
-
-
+                    this.instances = this.configManager!.loadInstances();
+                    setConfigExists(true);
+                    if (!this.setupConfigWatchers) {
+                        this.setupWatchers(fileName); // for xml file
+                        this.setupConfigWatchers = true;
+                    }
                     try {
-                        (this.configManager as XMLConfigurationManager).validateAgainstSchema(schemaPath);
+                        this.configManager.validateAgainstSchema(schemaPath);
                     }
                     catch (error: any) {
                         setConfigExists(false);
                         vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
                         return 0;
                     }
-                    this.instances = this.configManager!.loadInstances();
-                    setConfigExists(true);
-                    if (!this.setupConfigWatchers) {
-
-                        this.setupWatchers(fileName); // for xml file
-                        this.setupConfigWatchers = true;
-                    }
+                    
                     return 1;
                 }
                 this.configManager = new AuthordConfigurationManager(filePath);
-                try {
-                    (this.configManager as AuthordConfigurationManager).validateAgainstSchema(schemaPath);
-                }
-                catch (error: any) {
-                    setConfigExists(false);
-                    vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
-                    // this.configPath ="";
-                    return 0;
-                }
                 this.instances = this.configManager.loadInstances();
                 setConfigExists(true);
                 if (!this.setupConfigWatchers) {
                     this.setupWatchers(fileName); // authord config
                     this.setupConfigWatchers = true;
                 }
+                try {
+                    this.configManager.validateAgainstSchema(schemaPath);
+                }
+                catch (error: any) {
+                    setConfigExists(false);
+                    vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
+                    return 0;
+                }
                 return 2;
             }
         }
-        // this.configPath ="";
         setConfigExists(false);
         return 0;
     }
