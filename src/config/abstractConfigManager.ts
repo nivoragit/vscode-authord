@@ -8,6 +8,7 @@ export abstract class AbstractConfigManager {
   constructor(configPath: string) {
     this.configPath = configPath;
   }
+  abstract validateAgainstSchema(schemaPath: string):void;
   abstract getTopicsDir(): string;
   // Document-specific methods
   abstract addDocument(newDocument: any):void;
@@ -23,11 +24,6 @@ export abstract class AbstractConfigManager {
   abstract moveTopic(docId: string, topicId: string, newParentId: string | null): void;
   abstract getTopics(): any[];
 
-  // File-path methods
-  abstract getFilePathById(id: string): string | undefined;
-  abstract setFilePathById(id: string, filePath: string): void;
-  abstract removeFilePathById(id: string): void;
-
   // Refresh configuration
   abstract refresh(): void;
 
@@ -40,11 +36,6 @@ export abstract class AbstractConfigManager {
   abstract mergeFolders(source: string, destination: string): void;
 }
 
-interface Config {
-  instances?: InstanceConfig[]; // Adjust as needed
-  "file-paths"?: { [key: string]: string };
-}
-
 
 export interface InstanceConfig {
   id: string;
@@ -53,13 +44,6 @@ export interface InstanceConfig {
   "toc-elements": TocElement[];
 }
 
-// export interface TocElement {
-//   id: string;
-//   topic: string;
-//   "toc-title": string;
-//   "sort-children": string;
-//   children: TocElement[];
-// }
 export interface TocElement {
   topic: string; // The filename for the topic, e.g., "example.md"
   title: string; // The display title of the topic

@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import { parseIhpFile } from '../parsers/ihpParser';
 import { parseTreeFile } from '../parsers/treeParser';
 import { Config } from './types';
-import { writeFile } from './fileUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { Token } from 'markdown-it';
 
@@ -12,8 +10,6 @@ import { Token } from 'markdown-it';
 // Initial state
 export let configExists = true;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
-
-let workspaceRoot = "";
 
 export function generateUniqueId(): string {
   return uuidv4();

@@ -11,16 +11,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     throw new Error('Method not implemented.');
   }
   private treeFileName: string = "";
-  getFilePathById(_id: string): string | undefined {
-    throw new Error('Method not implemented.');
-  }
-  setFilePathById(_id: string, _filePath: string): void {
-    throw new Error('Method not implemented.');
-  }
-  removeFilePathById(_id: string): void {
-    throw new Error('Method not implemented.');
-  }
-
   instances: InstanceConfig[] = [];
   private ihpData: any;
 
@@ -590,23 +580,23 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   validateAgainstSchema(schemaPath: string) {
-    return; // todo
+    // return; // todo
     const ihp = this.ihpData.ihp;
-    const topicsDir = ihp.topics ? ihp.topics["@_dir"] || "topics" : "topics";
+    const topicsDir = ihp.topics["@_dir"];
 
     let imagesObj: any = undefined;
     if (ihp.images) {
       imagesObj = {
-        dir: ihp.images["@_dir"] || "",
-        version: ihp.images["@_version"] || "",
-        "web-path": ihp.images["@_web-path"] || ""
+        dir: ihp.images["@_dir"],
+        version: ihp.images["@_version"],
+        "web-path": ihp.images["@_web-path"]
       };
     }
 
     const configJson = {
-      schema: this.ihpData.schema || "http://json-schema.org/draft-07/schema#",
-      title: this.ihpData.title || "Authord Settings",
-      type: this.ihpData.type || "object",
+      schema: this.ihpData.schema,
+      title: this.ihpData.title,
+      type: this.ihpData.type,
       topics: {
         dir: topicsDir
       },

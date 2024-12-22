@@ -33,13 +33,6 @@
       "items": {
         "$ref": "#/definitions/instance"
       }
-    },
-    "file-paths": {
-      "type": "object",
-      "description": "Dictionary mapping IDs to file paths.",
-      "additionalProperties": {
-        "type": "string"
-      }
     }
   },
   "additionalProperties": false,
@@ -119,6 +112,16 @@
           "items": {
             "$ref": "#/definitions/tocElement"
           }
+        },
+        "title": {
+          "type": "string",
+          "description": "Title displayed in the TOC element."
+        },
+        "sortChildren": {
+          "type": "string",
+          "enum": ["ascending", "descending", "none"],
+          "default": "none",
+          "description": "Sorting order for child elements."
         }
       },
       "additionalProperties": false
