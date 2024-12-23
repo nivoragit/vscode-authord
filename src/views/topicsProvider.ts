@@ -1,23 +1,22 @@
 import * as vscode from 'vscode';
-import { TocTreeItem } from '../utils/types';
-import { AbstractConfigManager } from '../config/abstractConfigManager';
 import * as path from 'path';
-import * as fs from 'fs';
+import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
+import { TocTreeItem } from '../utils/types';
+import { AbstractConfigManager, TocElement } from '../config/abstractConfigManager';
+import { DocumentationItem } from './documentationProvider';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TopicsItem | undefined | void> = new vscode.EventEmitter<TopicsItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<TopicsItem | undefined | void> = this._onDidChangeTreeData.event;
-
   private tocTree: TocTreeItem[] = [];
-  private currentDocId: string | undefined;
   private configManager: AbstractConfigManager;
-
+  currentDocId: string | undefined;
   constructor(configManager: AbstractConfigManager) {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[], docId: string| undefined): void {
-    this.tocTree = tocTree;
+  refresh(tocTree: TocTreeItem[]| null, docId: string | undefined): void {
+    if(tocTree){this.tocTree = tocTree;} 
     this.currentDocId = docId;
     this._onDidChangeTreeData.fire();
   }
@@ -49,30 +48,74 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return treeItem;
   }
 
-  async addTopic(parent?: TopicsItem): Promise<void> {
-    let topicTitle = undefined;
-    let safeFileName = undefined;
-    const docDir = this.configManager.getTopicsDir();
 
+  async rootTopic(element: DocumentationItem): Promise<void> {
+    if(element && !this.currentDocId){
+      this.currentDocId =element.id;
+    }
+    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!topicTitle) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return;
+    }
+
+    const safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+    const newTopic: TocElement = {
+      topic: safeFileName,
+      title: topicTitle,
+      sortChildren: "none",
+      children: []
+    };
+
+    this.configManager.addTopic(this.currentDocId as string, null, newTopic);
+    const doc = this.configManager.getDocuments().find(d => d.id === this.currentDocId);
+    if (!doc) {
+      vscode.window.showErrorMessage(`No document found with id ${this.currentDocId}`);
+      return;
+    }
+
+    const tocTreeItems = doc["toc-elements"].map((e: TocElement) => ({
+      topic: e.topic,
+      title: e.title,
+      sortChildren: e.sortChildren,
+      children: this.parseTocElements(e.children)
+    }));
+    this._onDidChangeTreeData.fire();
+  }
+  private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
+    return tocElements.map(element => {
+      const children = element.children ? this.parseTocElements(element.children) : [];
+      return {
+        title: element.title,
+        topic: element.topic,
+        sortChildren: element.sortChildren,
+        children,
+      };
+    });
+  }
+  async addTopic(parent?: TopicsItem): Promise<void> {
+    let topicTitle: string | undefined;
+    let safeFileName: string | undefined;
+    const docDir = this.configManager.getTopicsDir();
 
     while (true) {
       topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
       if (!topicTitle || !this.currentDocId) {
         vscode.window.showWarningMessage('Topic creation canceled.');
         return;
-
       }
       safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
       const topicPath = path.join(docDir, safeFileName);
-      if (!fs.existsSync(topicPath)) {
+
+      try {
+        await fs.access(topicPath);
+        // If we reach here, the file exists
+        vscode.window.showInformationMessage(`Topic "${topicTitle}" already exists.`);
+      } catch {
+        // File doesn't exist, it's safe to use this file name
         break;
       }
-      vscode.window.showInformationMessage(`Topic "${topicTitle}" already exists.`);
     }
-
-
-
-
 
     const newTopic: TocTreeItem = {
       topic: safeFileName,
@@ -88,10 +131,10 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
 
     this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
-    this.refresh(this.tocTree, this.currentDocId);
+    this._onDidChangeTreeData.fire();
   }
 
-  async deleteTopic(item: TopicsItem) {
+  async deleteTopic(item: TopicsItem): Promise<void> {
     if (!this.currentDocId || !item.topic) {
       vscode.window.showWarningMessage('No topic selected or invalid document state.');
       return;
@@ -108,17 +151,19 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
     this.configManager.deleteTopic(this.currentDocId, item.topic);
     this.removeTopicFromTree(item.topic, this.tocTree);
-    
     this.refresh(this.tocTree, this.currentDocId);
   }
 
-  async renameTopic(item: TopicsItem) {
+  async renameTopic(item: TopicsItem): Promise<void> {
     if (!this.currentDocId || !item.topic) {
       vscode.window.showWarningMessage('No topic selected or invalid document state.');
       return;
     }
 
-    const newName = await vscode.window.showInputBox({ prompt: 'Enter new topic title', value: item.label as string });
+    const newName = await vscode.window.showInputBox({
+      prompt: 'Enter new topic title',
+      value: item.label as string
+    });
     if (!newName) {
       vscode.window.showWarningMessage('Topic rename canceled.');
       return;
@@ -137,7 +182,9 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
       if (tree[i].children && tree[i].children.length > 0) {
         const found = this.removeTopicFromTree(topicId, tree[i].children);
-        if (found) { return true; }
+        if (found) {
+          return true;
+        }
       }
     }
     return false;
@@ -151,7 +198,9 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
       if (tree[i].children && tree[i].children.length > 0) {
         const found = this.renameTopicInTree(topicId, newName, tree[i].children);
-        if (found) { return true; }
+        if (found) {
+          return true;
+        }
       }
     }
     return false;

@@ -1,17 +1,17 @@
 import * as vscode from 'vscode';
-import { AuthordViewProvider } from './views/authordViewProvider';
-import { configExists, createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
-import { InitializeExtension } from './utils/initializeExtension';
-import { Token } from 'markdown-it';
+import {  createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
 
-export let initializer: InitializeExtension | undefined;
+import { Token } from 'markdown-it';
+import { Authord } from './authordExtension';
+
+export let initializer: Authord | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-
-  initializer = new InitializeExtension(context, workspaceRoot);
+  
+  initializer = new Authord(context, workspaceRoot);
 
   // Listen for when the active editor changes
   // context.subscriptions.push(
@@ -23,28 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
   //   })
   // );
 
-  // Register the Authord Documentation View
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      AuthordViewProvider.viewType, // ID from package.json
-      new AuthordViewProvider(context, workspaceRoot)
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-      if (!configExists) {
-        return;
-      }
-      // Open the markdown file in the first column
-      const document = await vscode.workspace.openTextDocument(resourceUri);
-      await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
-
-      // Focus the existing preview or open it if it doesn't exist
-      await focusOrShowPreview();
-
-    })
-  );
+ 
   // Return the extendMarkdownIt function
   return {
     extendMarkdownIt(md: any) {

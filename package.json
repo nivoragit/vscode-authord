@@ -18,6 +18,13 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsWelcome": [
+      {
+        "view": "emptyProjectView",
+        "contents": "Welcome to Authord\nIn order to use authord features, you can open a folder containing a project.\n[Open Folder](command:vscode.openFolder)\nOr create a new project:\n[Create a New Project](command:extension.createProject)\n\nTo report an issue, [Report Issue](https://github.com/nivoragit/vscode-authord/issues).",
+        "when": "!authord.configExists"
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": "authord.config.json",
@@ -58,25 +65,33 @@
     },
     "commands": [
       {
-        "command": "extension.addTopic",
-        "title": "Add"
+        "command": "extension.createProject",
+        "title": "Create a New Project",
+        "when": "!authord.configExists"
       },
+      {
+        "command": "extension.addDocumentation",
+        "title": "Doc"
+      },
+      {
+        "command": "extension.rootTopic",
+        "title": "Root"
+      },
+      {
+        "command": "extension.addTopic",
+        "title": "Child"
+        
+      },
+
       {
         "command": "extension.deleteTopic",
         "title": "Delete"
       },
       {
-        "command": "extension.addDocumentation",
-        "title": "Add"
-      },
-      {
         "command": "extension.deleteDocumentation",
         "title": "Delete"
       },
-      {
-        "command": "extension.newTopic",
-        "title": "Topic"
-      },
+     
       {
         "command": "extension.renameTopic",
         "title": "Rename"
@@ -89,12 +104,6 @@
         "command": "authordDocsExtension.selectInstance",
         "title": "Select Documentation Instance",
         "when": "authord.configExists"
-      },
-      {
-        "command": "authordDocsExtension.createConfig",
-        "title": "Create Authord Configuration File",
-        "category": "Authord",
-        "when": "!authord.configExists"
       },
       {
         "command": "authordDocsExtension.initialize",
@@ -121,19 +130,18 @@
     "views": {
       "authordExtensionContainer": [
         {
-          "type": "webview",
-          "id": "authordDocumentationView",
-          "name": "Empty Project",
+          "id": "emptyProjectView",
+          "name": "empty project",
           "when": "!authord.configExists"
         },
         {
           "id": "documentationsView",
-          "name": "Documentations",
-          "when": "authord.configExists"
+          "name": "instances",
+          "when": "authord.configExists && !authord.singleInstance"
         },
         {
           "id": "topicsView",
-          "name": "Topics",
+          "name": "table of contents",
           "when": "authord.configExists"
         }
       ]
@@ -156,11 +164,6 @@
           "group": "inline"
         },
         {
-          "command": "extension.newTopic",
-          "when": "view == documentationsView && viewItem == documentation",
-          "group": "inline"
-        },
-        {
           "command": "extension.renameDoc",
           "when": "view == documentationsView && viewItem == documentation",
           "group": "inline"
@@ -173,13 +176,23 @@
       ],
       "view/title": [
         {
+          "command": "extension.rootTopic",
+          "when": "view == topicsView",
+          "group": "navigation"
+        },
+        {
           "command": "extension.addTopic",
           "when": "view == topicsView",
           "group": "navigation"
         },
         {
           "command": "extension.addDocumentation",
-          "when": "view == documentationsView",
+          "when": "view == documentationsView && !authord.singleInstance",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.addDocumentation",
+          "when": "view == topicsView && authord.singleInstance",
           "group": "navigation"
         }
       ]

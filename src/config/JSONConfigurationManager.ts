@@ -1,3 +1,4 @@
+
 // import { InstanceConfig, AbstractConfigManager, TocElement, Topic } from './abstractConfigManager';
 // import * as fs from 'fs';
 // import * as path from 'path';

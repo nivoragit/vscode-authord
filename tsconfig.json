@@ -18,7 +18,7 @@
 		"noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statements
 		"noUnusedParameters": true // Report errors for unused parameters
 	},
-	"include": ["src/**/*.ts"], // Include all TypeScript files in the src directory
+	"include": ["src/**/*.ts", "src/initializeExtension.ts"], // Include all TypeScript files in the src directory
 	"exclude": ["node_modules", ".vscode"]
   }
   
