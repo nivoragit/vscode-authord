@@ -1,7 +1,3 @@
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-
-
 export abstract class AbstractConfigManager {
   configPath: string;
 
@@ -15,14 +11,14 @@ export abstract class AbstractConfigManager {
   abstract deleteDocument(docId: string): void;
   abstract renameDocument(docId: string, newName: string): void;
   abstract getDocuments(): any[];
-  abstract loadInstances(): InstanceConfig[];
+  abstract loadInstances(): Promise<InstanceConfig[]>;
 
   // Topic-specific methods
   abstract addTopic(docId: string, parentTopicId: string | null, newTopic: any): void;
   abstract deleteTopic(docId: string, topicId: string): void;
   abstract renameTopic(docId: string, topicId: string, newName: string): void;
   abstract moveTopic(docId: string, topicId: string, newParentId: string | null): void;
-  abstract getTopics(): any[];
+  abstract getTopics():  Promise<Topic[]>;
 
   // Refresh configuration
   abstract refresh(): void;
@@ -31,7 +27,7 @@ export abstract class AbstractConfigManager {
   abstract createDirectory(dirPath: string): void;
   abstract writeFile(filePath: string, content: string): void;
   abstract renamePath(oldPath: string, newPath: string): void;
-  abstract fileExists(filePath: string): boolean;
+  abstract fileExists(filePath: string):Promise<boolean>
   abstract moveFolderToTrash(folderPath: string): void;
   abstract mergeFolders(source: string, destination: string): void;
 }

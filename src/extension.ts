@@ -1,17 +1,17 @@
 import * as vscode from 'vscode';
 import { AuthordViewProvider } from './views/authordViewProvider';
 import { configExists, createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
-import { InitializeExtension } from './utils/initializeExtension';
+import { Authord } from './authordExtension';
 import { Token } from 'markdown-it';
 
-export let initializer: InitializeExtension | undefined;
+export let initializer: Authord | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
-  initializer = new InitializeExtension(context, workspaceRoot);
+  initializer = new Authord(context, workspaceRoot);
 
   // Listen for when the active editor changes
   // context.subscriptions.push(

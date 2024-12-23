@@ -128,12 +128,12 @@
         },
         {
           "id": "documentationsView",
-          "name": "Documentations",
+          "name": "instances",
           "when": "authord.configExists"
         },
         {
           "id": "topicsView",
-          "name": "Topics",
+          "name": "table of contents",
           "when": "authord.configExists"
         }
       ]
