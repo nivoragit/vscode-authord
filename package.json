@@ -80,9 +80,7 @@
       {
         "command": "extension.addTopic",
         "title": "Child"
-        
       },
-
       {
         "command": "extension.deleteTopic",
         "title": "Delete"
@@ -91,7 +89,6 @@
         "command": "extension.deleteDocumentation",
         "title": "Delete"
       },
-     
       {
         "command": "extension.renameTopic",
         "title": "Rename"
@@ -238,6 +235,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "fast-xml-parser": "^4.5.1",
+    "markdown-it-attrs": "^4.3.1",
     "markdown-it-plantuml": "^1.4.1",
     "uuid": "^11.0.3",
     "xml2js": "^0.6.2"
