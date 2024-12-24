@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import {  createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
+import { createCustomHtmlRenderer, createCustomImageRenderer, focusOrShowPreview } from './utils/helperFunctions';
 
 import { Token } from 'markdown-it';
 import { Authord } from './authordExtension';
@@ -10,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Get the workspace root
   if (!vscode.workspace.workspaceFolders) { return; }
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-  
+
   initializer = new Authord(context, workspaceRoot);
 
   // Listen for when the active editor changes
@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
   //   })
   // );
 
- 
+
   // Return the extendMarkdownIt function
   return {
     extendMarkdownIt(md: any) {
@@ -81,7 +81,9 @@ export function activate(context: vscode.ExtensionContext) {
       md.renderer.rules.image = createCustomImageRenderer(defaultRender);
       // Apply your custom markdown-it plugins or rules here
       // For example, adding PlantUML support:
-      return md.use(require('markdown-it-plantuml'));
+      return md
+      .use(require('markdown-it-plantuml'))
+      .use(require('markdown-it-attrs'));
     },
   };
 
