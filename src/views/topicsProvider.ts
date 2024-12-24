@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
 import { TocTreeItem } from '../utils/types';
-import { AbstractConfigManager } from '../config/abstractConfigManager';
+import { AbstractConfigManager, TocElement } from '../config/abstractConfigManager';
+import { DocumentationItem } from './documentationProvider';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TopicsItem | undefined | void> = new vscode.EventEmitter<TopicsItem | undefined | void>();
@@ -14,8 +15,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[], docId: string | undefined): void {
-    this.tocTree = tocTree;
+  refresh(tocTree: TocTreeItem[]| null, docId: string | undefined): void {
+    if(tocTree){this.tocTree = tocTree;} 
     this.currentDocId = docId;
     this._onDidChangeTreeData.fire();
   }
@@ -47,6 +48,51 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return treeItem;
   }
 
+
+  async rootTopic(element: DocumentationItem): Promise<void> {
+    if(element && !this.currentDocId){
+      this.currentDocId =element.id;
+    }
+    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!topicTitle) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return;
+    }
+
+    const safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+    const newTopic: TocElement = {
+      topic: safeFileName,
+      title: topicTitle,
+      sortChildren: "none",
+      children: []
+    };
+
+    this.configManager.addTopic(this.currentDocId as string, null, newTopic);
+    const doc = this.configManager.getDocuments().find(d => d.id === this.currentDocId);
+    if (!doc) {
+      vscode.window.showErrorMessage(`No document found with id ${this.currentDocId}`);
+      return;
+    }
+
+    const tocTreeItems = doc["toc-elements"].map((e: TocElement) => ({
+      topic: e.topic,
+      title: e.title,
+      sortChildren: e.sortChildren,
+      children: this.parseTocElements(e.children)
+    }));
+    this._onDidChangeTreeData.fire();
+  }
+  private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
+    return tocElements.map(element => {
+      const children = element.children ? this.parseTocElements(element.children) : [];
+      return {
+        title: element.title,
+        topic: element.topic,
+        sortChildren: element.sortChildren,
+        children,
+      };
+    });
+  }
   async addTopic(parent?: TopicsItem): Promise<void> {
     let topicTitle: string | undefined;
     let safeFileName: string | undefined;
@@ -85,7 +131,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
 
     this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
-    this.refresh(this.tocTree, this.currentDocId);
+    this._onDidChangeTreeData.fire();
   }
 
   async deleteTopic(item: TopicsItem): Promise<void> {

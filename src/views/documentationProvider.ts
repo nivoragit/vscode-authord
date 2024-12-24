@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { promises as fs } from 'fs'; // Use fs.promises for async operations
 import { InstanceConfig, TocTreeItem } from '../utils/types';
 import { TocElement, AbstractConfigManager } from '../config/abstractConfigManager';
 import { TopicsProvider } from './topicsProvider';
@@ -18,6 +16,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   constructor(configManager: AbstractConfigManager, topicsProvider: TopicsProvider) {
     this.configManager = configManager;
     this.topicsProvider = topicsProvider;
+    this.refresh();
   }
 
   refresh(): void {
@@ -29,10 +28,10 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
         sortChildren: e.sortChildren,
         children: this.parseTocElements(e.children),
       }));
-      this.topicsProvider!.refresh(tocTreeItems, ins[0].id);
+      this.topicsProvider!.refresh(tocTreeItems,ins[0].id);
       this.singleInstance = ins[0];
       this.instances = [];
-      
+
     } else {
       this.instances = ins;
       this.singleInstance = undefined;
@@ -45,23 +44,15 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   getChildren(): Thenable<DocumentationItem[]> {
-
-    // if (this.instances.length === 1) {
-    //     // If there's only one instance, return it with no collapsible arrow
-    //     const singleItem = new DocumentationItem(
-    //         this.instances[0].id,
-    //         this.instances[0].name,
-    //         vscode.TreeItemCollapsibleState.Collapsed
-    //     );
-
-    //     return Promise.resolve([singleItem]);
-    // } else {
+    if(this.singleInstance){
+      return Promise.resolve([]);
+    }
     // For multiple instances, use Collapsed state
     const items = this.instances.map(instance => {
       const item = new DocumentationItem(
         instance.id,
         instance.name,
-        vscode.TreeItemCollapsibleState.Collapsed
+        vscode.TreeItemCollapsibleState.None
       );
       item.command = {
         command: 'authordDocsExtension.selectInstance',
@@ -72,7 +63,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       return item;
     });
     return Promise.resolve(items);
-    // }
+
   }
 
   deleteDoc(item: DocumentationItem) {

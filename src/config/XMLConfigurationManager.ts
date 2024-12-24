@@ -1,10 +1,10 @@
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
-import { Authord } from '../authordExtension';
 import * as vscode from 'vscode';
 import { promises as fs } from 'fs'; // Use fs.promises for async operations
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import Ajv from 'ajv';
+import { Authord } from '../authordExtension';
 
 export class XMLConfigurationManager extends AbstractConfigManager {
   moveTopic(_docId: string, _topicId: string, _newParentId: string | null): void {
@@ -17,20 +17,12 @@ export class XMLConfigurationManager extends AbstractConfigManager {
 
   constructor(configPath: string) {
     super(configPath);
-
-    // Immediately invoke an async IIFE to handle asynchronous init within constructor
-    (async () => {
-      await this.refresh();
-      this.instances = await this.loadInstances();
-    })().catch(err => {
-      vscode.window.showErrorMessage(`Failed to initialize XMLConfigurationManager: ${err}`);
-    });
   }
 
   /**
    * If a .tree file name is set (via addDocument), we set up watchers for it.
    */
-  public setupWatchers(InitializeExtension: Authord): void {
+  setupWatchers(InitializeExtension: Authord): void {
     if (this.treeFileName) {
       InitializeExtension.setupWatchers(this.treeFileName);
       this.treeFileName = '';
@@ -40,16 +32,16 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Re-loads ihpData from XML file and refreshes local state, including `this.instances`.
    */
-  public async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     this.ihpData = await this.readIhpFile();
-    this.instances = await this.loadInstances();
+    await this.loadInstances();
   }
 
   /**
    * Returns all topics across all instances by scanning their toc-elements and checking the file system.
    * Uses async fs calls for the most efficient approach.
    */
-  public async getTopics(): Promise<Topic[]> {
+  async getTopics(): Promise<Topic[]> {
     const topics: Topic[] = [];
     const topicsDir = this.getTopicsDir();
 
@@ -85,7 +77,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Returns the absolute path to the topics directory. If none found, defaults to `topics`.
    */
-  public getTopicsDir(): string {
+  getTopicsDir(): string {
     const ihp = this.ihpData?.ihp;
     return path.join(
       this.getIhpDir(),
@@ -125,7 +117,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    * Loads instances by reading each instance's .tree file (if present).
    * Uses async fs calls for the most efficient approach.
    */
-  public async loadInstances(): Promise<InstanceConfig[]> {
+  async loadInstances(): Promise<void> {
     const instances: InstanceConfig[] = [];
     const ihp = this.ihpData?.ihp;
     const instancesNodes = Array.isArray(ihp?.instance)
@@ -148,7 +140,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         }
       }
     }
-    return instances;
+    this.instances = instances;
   }
 
   /**
@@ -272,7 +264,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Creates a new document by generating a new .tree file and adding it to the main .ihp data.
    */
-  public async addDocument(newDocument: InstanceConfig): Promise<void> {
+  async addDocument(newDocument: InstanceConfig): Promise<void> {
     this.treeFileName = `${newDocument.id}.tree`;
     const treeFilePath = path.join(this.getIhpDir(), this.treeFileName);
 
@@ -308,7 +300,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Deletes a document by removing its .tree file and associated topics from disk, then updating the main .ihp.
    */
-  public async deleteDocument(docId: string): Promise<void> {
+  async deleteDocument(docId: string): Promise<void> {
     const ihp = this.ihpData.ihp;
     if (ihp.instance) {
       if (!Array.isArray(ihp.instance)) {
@@ -393,7 +385,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Renames a document by updating the `@_name` field in its .tree file.
    */
-  public async renameDocument(docName: string, newName: string): Promise<void> {
+  async renameDocument(docName: string, newName: string): Promise<void> {
     const doc = this.instances.find(d => d.name === docName);
     if (!doc) { return; }
     doc.name = newName;
@@ -403,7 +395,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Returns the array of docs currently loaded in `this.instances`.
    */
-  public getDocuments(): InstanceConfig[] {
+  getDocuments(): InstanceConfig[] {
     return this.instances;
   }
 
@@ -412,7 +404,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Adds a new topic to the specified doc. Also writes a .md file to `topicsDir`.
    */
-  public async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
+  async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
     const doc = this.instances.find(d => d.id === docItem);
     if (!doc) {
       console.error(`Document "${docItem}" not found.`);
@@ -513,7 +505,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Deletes a topic (and its children) by removing the corresponding .md files from disk and updating .tree data.
    */
-  public async deleteTopic(docId: string, topicFileName: string): Promise<void> {
+  async deleteTopic(docId: string, topicFileName: string): Promise<void> {
     const doc = this.instances.find(d => d.id === docId);
     if (!doc) {
       console.error(`Document with id "${docId}" not found.`);
@@ -552,7 +544,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Renames a topic by renaming its .md file and updating the .tree data for that topic.
    */
-  public async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
+  async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
     const doc = this.instances.find(d => d.id === docId);
     if (!doc) { return; }
 
@@ -618,7 +610,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
 
   // -------------------- Async File Handling Helpers -------------------- //
 
-  public async createDirectory(dirPath: string): Promise<void> {
+  async createDirectory(dirPath: string): Promise<void> {
     try {
       await fs.mkdir(dirPath, { recursive: true });
     } catch (err) {
@@ -626,15 +618,15 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  public async writeFile(filePath: string, content: string): Promise<void> {
+  async writeFile(filePath: string, content: string): Promise<void> {
     await fs.writeFile(filePath, content, 'utf-8');
   }
 
-  public async renamePath(oldPath: string, newPath: string): Promise<void> {
+  async renamePath(oldPath: string, newPath: string): Promise<void> {
     await fs.rename(oldPath, newPath);
   }
 
-  public async fileExists(filePath: string): Promise<boolean> {
+  async fileExists(filePath: string): Promise<boolean> {
     try {
       await fs.access(filePath);
       return true;
@@ -646,7 +638,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Moves a folder to a trash directory, merging folders if collisions occur.
    */
-  public async moveFolderToTrash(folderPath: string): Promise<void> {
+  async moveFolderToTrash(folderPath: string): Promise<void> {
     const trashPath = path.join(path.dirname(this.configPath), 'trash');
     try {
       await fs.access(trashPath);
@@ -669,7 +661,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Recursively merges folders, renaming files with timestamps when collisions occur.
    */
-  public async mergeFolders(source: string, destination: string): Promise<void> {
+  async mergeFolders(source: string, destination: string): Promise<void> {
     let sourceFiles: string[] = [];
     try {
       sourceFiles = await fs.readdir(source);
@@ -708,7 +700,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    * Validates the loaded config against a JSON schema using Ajv.
    * Reads the schema file asynchronously for the most efficient approach.
    */
-  public async validateAgainstSchema(schemaPath: string): Promise<void> {
+  async validateAgainstSchema(schemaPath: string): Promise<void> {
     const ihp = this.ihpData.ihp;
     const topicsDir = ihp.topics['@_dir'];
 

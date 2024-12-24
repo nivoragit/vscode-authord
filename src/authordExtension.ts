@@ -4,11 +4,10 @@ import { promises as fs } from 'fs';
 import { DocumentationItem, DocumentationProvider } from "./views/documentationProvider";
 import { TopicsItem, TopicsProvider } from "./views/topicsProvider";
 import { TocTreeItem } from './utils/types';
-import { configFiles, setConfigExists } from './utils/helperFunctions';
+import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
 import { AuthordConfigurationManager } from './config/AuthordConfigurationManager';
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './config/abstractConfigManager';
 import { XMLConfigurationManager } from './config/XMLConfigurationManager';
-import { title } from 'process';
 
 export class Authord {
     private commandsRegistered = false;
@@ -22,7 +21,7 @@ export class Authord {
     private configCode = 0;
     private configManager: AbstractConfigManager | undefined;
     private instances: InstanceConfig[] | undefined;
-    private docsView: vscode.TreeView<DocumentationItem>| undefined;
+    private topicsView: vscode.TreeView<TopicsItem> | undefined;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -43,8 +42,8 @@ export class Authord {
      */
     public async initialize(): Promise<void> {
         try {
-            this.configCode = await this.checkConfigFiles();
-
+            this.registerCreateProjectCommand();
+            await this.checkConfigFiles();
             if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
                 return;
@@ -61,11 +60,14 @@ export class Authord {
             }
             this.registerCommands();
             this.commandsRegistered = true;
-            this.documentationProvider?.refresh();
-            if (this.docsView && this.documentationProvider?.singleInstance){
-                this.docsView.title = this.documentationProvider.singleInstance.name;
-            }else if (this.docsView){
-                this.docsView.title = 'Instances';
+
+            if (this.topicsView && this.documentationProvider?.singleInstance) {
+                this.topicsView.title = this.documentationProvider.singleInstance.name;
+                vscode.commands.executeCommand('setContext', 'authord.singleInstance', true);
+            } else if (this.topicsView) {
+                
+                this.topicsView.title = "table of contents";
+                vscode.commands.executeCommand('setContext', 'authord.singleInstance', false);
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
@@ -78,8 +80,7 @@ export class Authord {
      */
     public async reinitialize(): Promise<void> {
         try {
-            this.configCode = await this.checkConfigFiles();
-
+            await this.checkConfigFiles();
             if (!this.configCode) {
                 vscode.window.showErrorMessage('config file does not exist');
             } else {
@@ -101,11 +102,13 @@ export class Authord {
                     }
                 }
                 this.documentationProvider?.refresh();
-                if (this.docsView && this.documentationProvider?.singleInstance){
-                    this.docsView.title = this.documentationProvider.singleInstance.name;
-                  
-                }else if (this.docsView){
-                    this.docsView.title = 'Instances';
+                if (this.topicsView && this.documentationProvider?.singleInstance) {
+                    this.topicsView.title = this.documentationProvider.singleInstance.name;
+                    vscode.commands.executeCommand('setContext', 'authord.singleInstance', true);
+                } else if (this.topicsView) {
+                    
+                    this.topicsView.title = "table of contents";
+                    vscode.commands.executeCommand('setContext', 'authord.singleInstance', false);
                 }
                 vscode.window.showInformationMessage('extension reinitialized');
             }
@@ -136,19 +139,35 @@ export class Authord {
             this.topicsProvider
         );
 
-        const topicsView = vscode.window.createTreeView('topicsView', {
+        this.topicsView = vscode.window.createTreeView('topicsView', {
             treeDataProvider: this.topicsProvider,
         });
-        this.docsView = vscode.window.createTreeView('documentationsView', {
+        const docView = vscode.window.createTreeView('documentationsView', {
             treeDataProvider: this.documentationProvider,
         });
 
-        this.context.subscriptions.push(topicsView, this.docsView);
+
+        this.context.subscriptions.push(docView, this.topicsView);
+
+        this.context.subscriptions.push(
+            vscode.window.registerTreeDataProvider('emptyProjectView',
+                {
+                    getTreeItem: (element: vscode.TreeItem) => element,
+                    getChildren: () => [new vscode.TreeItem("No projects found")]
+                })
+        );
     }
 
     /**
      * Registers various commands for managing Topics and Documents in the extension.
      */
+    private registerCreateProjectCommand(): void {
+        this.context.subscriptions.push(
+            vscode.commands.registerCommand('extension.createProject', async () => {
+                vscode.window.showInformationMessage('Creating a new project...');
+                await this.createConfigFile();
+            }));
+    }
     private registerCommands(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage(
@@ -180,7 +199,17 @@ export class Authord {
         );
 
         this.context.subscriptions.push(selectInstanceCommand);
-        this.context.subscriptions.push(
+        this.context.subscriptions.push(            
+            vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+                // Open the markdown file in the first column
+                const document = await vscode.workspace.openTextDocument(resourceUri);
+                await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+
+                // Focus the existing preview or open it if it doesn't exist
+                await focusOrShowPreview();
+
+            }),
+
             vscode.commands.registerCommand('extension.addTopic', (item: TopicsItem) => {
                 this.topicsProvider!.addTopic(item);
             }),
@@ -193,8 +222,8 @@ export class Authord {
             vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
                 this.documentationProvider!.deleteDoc(item);
             }),
-            vscode.commands.registerCommand('extension.newTopic', (item: DocumentationItem) => {
-                this.documentationProvider!.newTopic(item);
+            vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
+                this.topicsProvider!.rootTopic(item);
             }),
             vscode.commands.registerCommand('extension.renameTopic', (item: TopicsItem) => {
                 this.topicsProvider!.renameTopic(item);
@@ -204,6 +233,11 @@ export class Authord {
             })
         );
         this.commandsRegistered = true;
+    }
+    private async createConfigFile() {
+        const filePath = path.join(this.workspaceRoot, configFiles[0]);
+        this.configManager = await new AuthordConfigurationManager(filePath).createConfigFile();
+        await this.reinitialize();
     }
 
     /**
@@ -283,6 +317,7 @@ export class Authord {
         this.context.subscriptions.push(configWatcher);
     }
 
+
     /**
      * Asynchronously checks for the presence of known config files (defined in configFiles array).
      * Returns:
@@ -290,13 +325,18 @@ export class Authord {
      *  - 1 if an XML config file is found (configFiles[1])
      *  - 2 if an Authord config file is found (configFiles[0])
      */
-    private async checkConfigFiles(): Promise<number> {
+    private async checkConfigFiles(): Promise<void> {
+        if (this.configManager && this.configCode) {
+            return;
+        }
+        setConfigExists(false);
+        this.configCode = 0;
         for (const fileName of configFiles) {
+            
             const filePath = path.join(this.workspaceRoot, fileName);
             try {
                 // The most efficient approach to check file existence is to use fs.promises.access
                 await fs.access(filePath);
-
                 const schemaPath = path.join(
                     this.context.extensionPath,
                     'schemas',
@@ -306,8 +346,8 @@ export class Authord {
                 if (fileName === configFiles[1]) {
                     // XML config
                     this.configManager = new XMLConfigurationManager(filePath);
-                    // loadInstances is async, so await it
-                    this.instances = await this.configManager.loadInstances();
+                    await this.configManager.refresh();
+                    this.instances = this.configManager.instances;
                     setConfigExists(true);
 
                     if (!this.setupConfigWatchers) {
@@ -319,17 +359,19 @@ export class Authord {
                     try {
                         await this.configManager.validateAgainstSchema(schemaPath);
                     } catch (error: any) {
-                        setConfigExists(false);
+                        
                         vscode.window.showErrorMessage(
                             `Failed to initialize extension: ${error.message}`
                         );
-                        return 0;
+                        break;
                     }
-                    return 1;
+                    this.configCode = 1;
+                    break;
                 } else {
                     // Authord config (default / fallback)
                     this.configManager = new AuthordConfigurationManager(filePath);
-                    this.instances = await this.configManager.loadInstances();
+                    await this.configManager.refresh();
+                    this.instances = this.configManager.instances;
                     setConfigExists(true);
 
                     if (!this.setupConfigWatchers) {
@@ -340,22 +382,24 @@ export class Authord {
                     try {
                         await this.configManager.validateAgainstSchema(schemaPath);
                     } catch (error: any) {
-                        setConfigExists(false);
+                        
                         vscode.window.showErrorMessage(
                             `Failed to initialize extension: ${error.message}`
                         );
-                        return 0;
+                        break;
                     }
-                    return 2;
+                    this.configCode = 2;
+                    break;
                 }
             } catch {
                 // File doesn't exist, move on to the next one
                 continue;
             }
+            
         }
 
         // No valid config found
-        setConfigExists(false);
-        return 0;
+        
+      
     }
 }

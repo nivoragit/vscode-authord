@@ -1,9 +1,10 @@
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
-import { Authord } from '../authordExtension';
+
 import * as vscode from 'vscode';
 import { promises as fs } from 'fs'; // Use fs.promises for async operations
 import * as path from 'path';
 import Ajv from 'ajv';
+import { Authord } from '../authordExtension';
 
 export interface AuthordConfig {
   instances: InstanceConfig[];
@@ -16,17 +17,11 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     throw new Error('Method not implemented.');
   }
 
-  configData: AuthordConfig = { instances: [], topics: { dir: 'topics' } };
+  configData: AuthordConfig | undefined;
   private watchedFile: string = '';
 
   constructor(configPath: string) {
     super(configPath);
-    // Immediately run an async function to load the config in the constructor
-    (async () => {
-      await this.refresh();
-    })().catch(err => {
-      vscode.window.showErrorMessage(`Failed to load AuthordConfig: ${err}`);
-    });
   }
 
   setupWatchers(InitializeExtension: Authord): void {
@@ -39,28 +34,47 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Asynchronously refresh configuration data from disk.
    */
-  public async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     this.configData = await this.readConfig();
+    this.instances = this.configData.instances;
   }
+  async createConfigFile(): Promise<AuthordConfigurationManager> {
+    this.configData = {
+      "schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Authord Settings",
+      "type": "object",
+      "topics": {
+        "dir": "topics"
+      },
+      "images": {
+        "dir": "images",
+        "version": "1.0",
+        "web-path": "images"
+      },
+      "instances": []
+    };
+    this.writeConfig();
+    this.instances = [];
+    return this;
 
+  }
   /**
    * Reads the main config file asynchronously; creates a default if none exists.
    * Returns AuthordConfig object.
    */
   private async readConfig(): Promise<AuthordConfig> {
-    try {
-      await fs.access(this.configPath);
-    } catch {
-      // File does not exist -> create a default config
-      const defaultConfig: AuthordConfig = { instances: [], topics: { dir: 'topics' } };
-      await fs.writeFile(this.configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-      return defaultConfig;
-    }
-
+    // try {
+    await fs.access(this.configPath);
+    // } catch {
+    //   // File does not exist -> create a default config
+    //   const defaultConfig: AuthordConfig = { instances: [], topics: { dir: 'topics' } };
+    //   await fs.writeFile(this.configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+    //   return defaultConfig;
+    // }
     const rawData = await fs.readFile(this.configPath, 'utf-8');
     const data = JSON.parse(rawData);
-    if (!data.instances) {data.instances = [];}
-    if (!data.topics) {data.topics = { dir: 'topics' };}
+    if (!data.instances) { data.instances = []; }
+    if (!data.topics) { data.topics = { dir: 'topics' }; }
     return data;
   }
 
@@ -68,35 +82,37 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
    * Writes current configData to disk asynchronously.
    */
   private async writeConfig(): Promise<void> {
-    if (!this.configData) {return;}
+    if (!this.configData) { return; }
     await fs.writeFile(this.configPath, JSON.stringify(this.configData, null, 2), 'utf-8');
   }
 
   /**
    * Returns the directory path for storing topics.
    */
-  public getTopicsDir(): string {
+  getTopicsDir(): string {
     return path.join(
       path.dirname(this.configPath),
-      this.configData.topics?.dir || 'topics'
+      this.configData?.topics?.dir || 'topics'
     );
   }
 
   /**
    * Asynchronously returns the array of instance configs from the loaded config.
    */
-  public async loadInstances(): Promise<InstanceConfig[]> {
-    // Here, configData is already in memory after refresh(), but we maintain the async signature.
-    return this.configData.instances;
-  }
+  // async loadInstances(): Promise<void> {
+  //   // Here, configData is already in memory after refresh(), but we maintain the async signature.
+  //   this.refresh();
+
+
+  // }
 
   // --------------------------- Documents --------------------------- //
 
   /**
    * Creates a new document by appending to configData.instances. Then writes changes to disk.
    */
-  public async addDocument(newDocument: InstanceConfig): Promise<void> {
-    this.configData.instances.push(newDocument);
+  async addDocument(newDocument: InstanceConfig): Promise<void> {
+    this.configData?.instances.push(newDocument);
     // Setup watchers (if necessary) for the main config file
     this.watchedFile = this.configPath;
     await this.writeConfig();
@@ -105,9 +121,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Deletes the specified document and all its topics from disk.
    */
-  public async deleteDocument(docId: string): Promise<void> {
-    const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+  async deleteDocument(docId: string): Promise<void> {
+    const doc = this.configData?.instances.find(d => d.id === docId);
+    if (!doc) { return; }
 
     // Delete all associated topics from disk
     const topicsDir = this.getTopicsDir();
@@ -122,16 +138,16 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
 
     // Remove the document
-    this.configData.instances = this.configData.instances.filter(d => d.id !== docId);
+    this.configData!.instances = this.configData!.instances.filter(d => d.id !== docId);
     await this.writeConfig();
   }
 
   /**
    * Renames a document by updating its name and writing to disk.
    */
-  public async renameDocument(docId: string, newName: string): Promise<void> {
-    const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+  async renameDocument(docId: string, newName: string): Promise<void> {
+    const doc = this.configData?.instances.find(d => d.id === docId);
+    if (!doc) { return; }
     doc.name = newName;
     await this.writeConfig();
   }
@@ -139,8 +155,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Returns all documents from configData synchronously (already loaded in memory).
    */
-  public getDocuments(): InstanceConfig[] {
-    return this.configData.instances;
+  getDocuments(): InstanceConfig[] {
+
+    return this.configData!.instances;
   }
 
   // --------------------------- Topics --------------------------- //
@@ -148,8 +165,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Adds a new topic to the given document. Creates the topic file asynchronously.
    */
-  public async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
-    const doc = this.configData.instances.find(d => d.id === docItem);
+  async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
+    
+    const doc = this.configData?.instances.find(d => d.id === docItem);
     if (!doc) {
       console.error(`Document "${docItem}" not found.`);
       vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
@@ -212,8 +230,8 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Deletes the specified topic (and its children) from a document, removing files from disk.
    */
-  public async deleteTopic(docId: string, topicFileName: string): Promise<void> {
-    const doc = this.configData.instances.find(d => d.id === docId);
+  async deleteTopic(docId: string, topicFileName: string): Promise<void> {
+    const doc = this.configData?.instances.find(d => d.id === docId);
     if (!doc) {
       console.error(`Document with id "${docId}" not found.`);
       vscode.window.showWarningMessage(`Document with id "${docId}" not found.`);
@@ -246,9 +264,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Renames a topic by renaming the file and updating topic data in config.
    */
-  public async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
-    const doc = this.configData.instances.find(d => d.id === docId);
-    if (!doc) {return;}
+  async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
+    const doc = this.configData?.instances.find(d => d.id === docId);
+    if (!doc) { return; }
 
     const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
     if (topic) {
@@ -278,7 +296,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Returns all Topics (with file path) across all documents. Uses async file checks (fs.access).
    */
-  public async getTopics(): Promise<Topic[]> {
+  async getTopics(): Promise<Topic[]> {
     const topics: Topic[] = [];
     const topicsDir = this.getTopicsDir();
 
@@ -298,7 +316,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     };
 
     // Traverse each doc's toc-elements
-    for (const doc of this.configData.instances) {
+    for (const doc of this.configData!.instances) {
       await traverseElements(doc['toc-elements']);
     }
 
@@ -328,7 +346,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
         return t;
       }
       const found = this.findTopicByFilename(t.children, fileName);
-      if (found) {return found;}
+      if (found) { return found; }
     }
     return undefined;
   }
@@ -341,7 +359,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
     for (const t of topics) {
       const extracted = this.extractTopicByFilename(t.children, fileName);
-      if (extracted) {return extracted;}
+      if (extracted) { return extracted; }
     }
     return null;
   }
@@ -352,19 +370,19 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   // --------------------------- Async File/Directory Operations --------------------------- //
 
-  public async createDirectory(dirPath: string): Promise<void> {
+  async createDirectory(dirPath: string): Promise<void> {
     await fs.mkdir(dirPath, { recursive: true });
   }
 
-  public async writeFile(filePath: string, content: string): Promise<void> {
+  async writeFile(filePath: string, content: string): Promise<void> {
     await fs.writeFile(filePath, content, 'utf-8');
   }
 
-  public async renamePath(oldPath: string, newPath: string): Promise<void> {
+  async renamePath(oldPath: string, newPath: string): Promise<void> {
     await fs.rename(oldPath, newPath);
   }
 
-  public async fileExists(filePath: string): Promise<boolean> {
+  async fileExists(filePath: string): Promise<boolean> {
     try {
       await fs.access(filePath);
       return true;
@@ -376,7 +394,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Moves a folder to a 'trash' directory for safe-keeping. Merges if conflicts exist.
    */
-  public async moveFolderToTrash(folderPath: string): Promise<void> {
+  async moveFolderToTrash(folderPath: string): Promise<void> {
     const trashPath = path.join(path.dirname(this.configPath), 'trash');
     try {
       await fs.access(trashPath);
@@ -399,7 +417,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Recursively merges two folders; if a collision occurs, the source file is renamed with a timestamp.
    */
-  public async mergeFolders(source: string, destination: string): Promise<void> {
+  async mergeFolders(source: string, destination: string): Promise<void> {
     let sourceFiles: string[] = [];
     try {
       sourceFiles = await fs.readdir(source);
@@ -438,7 +456,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Validates the loaded config against a JSON schema using Ajv. Uses an async file read for speed.
    */
-  public async validateAgainstSchema(schemaPath: string): Promise<void> {
+  async validateAgainstSchema(schemaPath: string): Promise<void> {
     const ajv = new Ajv({ allErrors: true });
     const schemaRaw = await fs.readFile(schemaPath, 'utf-8');
     const schema = JSON.parse(schemaRaw);

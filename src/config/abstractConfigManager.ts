@@ -1,17 +1,18 @@
 export abstract class AbstractConfigManager {
   configPath: string;
+    instances: InstanceConfig[] | undefined;
 
   constructor(configPath: string) {
     this.configPath = configPath;
   }
-  abstract validateAgainstSchema(schemaPath: string):void;
+  abstract validateAgainstSchema(schemaPath: string):Promise<void>;
   abstract getTopicsDir(): string;
   // Document-specific methods
   abstract addDocument(newDocument: any):void;
   abstract deleteDocument(docId: string): void;
   abstract renameDocument(docId: string, newName: string): void;
   abstract getDocuments(): any[];
-  abstract loadInstances(): Promise<InstanceConfig[]>;
+  // abstract loadInstances(): Promise<void>;
 
   // Topic-specific methods
   abstract addTopic(docId: string, parentTopicId: string | null, newTopic: any): void;
@@ -21,7 +22,7 @@ export abstract class AbstractConfigManager {
   abstract getTopics():  Promise<Topic[]>;
 
   // Refresh configuration
-  abstract refresh(): void;
+  abstract refresh(): Promise<void>;
 
   // New file and directory operations
   abstract createDirectory(dirPath: string): void;
