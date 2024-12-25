@@ -7,6 +7,7 @@ export abstract class AbstractConfigManager {
   }
   abstract validateAgainstSchema(schemaPath: string):Promise<void>;
   abstract getTopicsDir(): string;
+  abstract getImageDir(): string;
   // Document-specific methods
   abstract addDocument(newDocument: any):void;
   abstract deleteDocument(docId: string): void;

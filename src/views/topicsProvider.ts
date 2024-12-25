@@ -260,4 +260,5 @@ export class TopicsItem extends vscode.TreeItem {
     this.contextValue = 'topic';
     this.topic = topic;
   }
+
 }

@@ -92,7 +92,13 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   getTopicsDir(): string {
     return path.join(
       path.dirname(this.configPath),
-      this.configData?.topics?.dir || 'topics'
+      this.configData?.topics?.dir!
+    );
+  }
+  getImageDir(): string {
+    return path.join(
+      path.dirname(this.configPath),
+      this.configData?.images?.dir!
     );
   }
 

@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
         ) {
           return self.renderToken(tokens, idx, options);
         };
-      md.renderer.rules.image = createCustomImageRenderer(defaultImageRenderer);
+      md.renderer.rules.image = createCustomImageRenderer(defaultImageRenderer, initializer?.configManager);
 
       // 2) Override HTML block rendering to fix <img> tags
       const defaultHtmlBlock =
@@ -53,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
         ) {
           return self.renderToken(tokens, idx, options);
         };
-      md.renderer.rules.html_block = createCustomHtmlRenderer(defaultHtmlBlock);
+      md.renderer.rules.html_block = createCustomHtmlRenderer(defaultHtmlBlock, initializer?.configManager);
 
       // 3) Override HTML inline rendering to fix <img> tags inside inline HTML
       const defaultHtmlInline =
@@ -67,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
         ) {
           return self.renderToken(tokens, idx, options);
         };
-      md.renderer.rules.html_inline = createCustomHtmlRenderer(defaultHtmlInline);
+      md.renderer.rules.html_inline = createCustomHtmlRenderer(defaultHtmlInline, initializer?.configManager!);
 
       const defaultRender =
         md.renderer.rules.image ||
@@ -78,7 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
           _env: any,
           self: any
         ) { return self.renderToken(tokens, idx, options); };
-      md.renderer.rules.image = createCustomImageRenderer(defaultRender);
+      md.renderer.rules.image = createCustomImageRenderer(defaultRender, initializer?.configManager!);
       // Apply your custom markdown-it plugins or rules here
       // For example, adding PlantUML support:
       return md

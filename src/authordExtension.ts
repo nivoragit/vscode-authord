@@ -19,7 +19,7 @@ export class Authord {
     private topics: Topic[] = [];
     private instanceId: string | undefined;
     private configCode = 0;
-    private configManager: AbstractConfigManager | undefined;
+    configManager: AbstractConfigManager | undefined;
     private instances: InstanceConfig[] | undefined;
     private topicsView: vscode.TreeView<TopicsItem> | undefined;
 

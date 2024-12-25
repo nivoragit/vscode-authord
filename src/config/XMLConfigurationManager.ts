@@ -84,6 +84,13 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       ihp?.topics && ihp.topics['@_dir'] ? ihp.topics['@_dir'] : 'topics'
     );
   }
+  getImageDir(): string {
+    const ihp = this.ihpData?.ihp;
+    return path.join(
+      this.getIhpDir(),
+      ihp?.images && ihp.images['@_dir'] ? ihp.images['@_dir'] : 'images'
+    );
+  }
 
   /**
    * Reads and parses the main .ihp file asynchronously. If the file doesn't exist, writes a default template.
