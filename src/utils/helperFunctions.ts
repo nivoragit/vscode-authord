@@ -5,6 +5,8 @@ import { parseTreeFile } from '../parsers/treeParser';
 import { Config } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { Token } from 'markdown-it';
+import { Authord } from '../authordExtension';
+import { AbstractConfigManager } from '../config/abstractConfigManager';
 
 
 // Initial state
@@ -37,7 +39,7 @@ export async function generateJson(ihpFilePath: string): Promise<Config> {
 }
 
 // Setter function
-export function setConfigExists(value: boolean): void{
+export function setConfigExists(value: boolean): void {
   configExists = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
 }
@@ -107,7 +109,8 @@ export function createCustomImageRenderer(
     options: any,
     env: any,
     self: any
-  ) => string
+  ) => string,
+  configManager: AbstractConfigManager | undefined
 ) {
   return function (
     tokens: Token[],
@@ -116,19 +119,24 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) {
+    if(!configManager){
+      return defaultRender(tokens, idx, options, env, self);
+    }
     const token = tokens[idx];
     const srcIndex = token.attrIndex('src');
-    const path = env.currentDocument.path;
+    const currentDocumentPath = env.currentDocument.path;
+    const imageFolder = path.basename(configManager.getImageDir()); 
+    const topicsFolder = path.basename(configManager.getTopicsDir());
     // Prefix markdown image paths if missing "images/"
     // todo topics hard coded
-    if (path.includes("topics") && srcIndex >= 0) {
+    if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
       if (
         srcValue &&
-        !srcValue.startsWith('../images/') &&
+        !srcValue.startsWith(`../${imageFolder}/`) &&
         !srcValue.startsWith('http') // skip web images
       ) {
-        token.attrs![srcIndex][1] = '../images/' + srcValue;
+        token.attrs![srcIndex][1] = `../${imageFolder}/` + srcValue;
       }
     }
 
@@ -144,7 +152,8 @@ export function createCustomHtmlRenderer(
     options: any,
     env: any,
     self: any
-  ) => string
+  ) => string,
+  configManager: AbstractConfigManager | undefined
 ) {
   return function (
     tokens: Token[],
@@ -153,8 +162,13 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) {
-    const path = env.currentDocument.path;
+    if(!configManager){
+      return defaultRender(tokens, idx, options, env, self);
+    }
+    const currentDocumentPath = env.currentDocument.path;
     let content = tokens[idx].content;
+    const imageFolder = path.basename(configManager.getImageDir()); 
+    const topicsFolder = path.basename(configManager.getTopicsDir()); 
     // Look for <img ...> tags inside HTML blocks or inline HTML
     // E.g., <img src="images/example.png" alt="Example" width="300">
     // We'll prefix any src that doesn't start with http or 'images/'.
@@ -163,12 +177,12 @@ export function createCustomHtmlRenderer(
       (match, beforeSrc, srcValue, afterSrc) => {
         // Only prefix if missing 'images/' and not a URL
         if (
-          path.includes("topics") &&
+          currentDocumentPath.includes(topicsFolder) &&
           srcValue &&
-          !srcValue.startsWith('../images/') &&
+          !srcValue.startsWith(`../${imageFolder}/`) &&
           !/^https?:\/\//i.test(srcValue)
         ) {
-          return `<img ${beforeSrc}../images/${srcValue}${afterSrc}>`;
+          return `<img ${beforeSrc}../${imageFolder}/${srcValue}${afterSrc}>`;
         }
         return match;
       }
