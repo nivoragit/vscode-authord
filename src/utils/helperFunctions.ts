@@ -118,9 +118,10 @@ export function createCustomImageRenderer(
   ) {
     const token = tokens[idx];
     const srcIndex = token.attrIndex('src');
-
+    const path = env.currentDocument.path;
     // Prefix markdown image paths if missing "images/"
-    if (srcIndex >= 0) {
+    // todo topics hard coded
+    if (path.includes("topics") && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
       if (
         srcValue &&
@@ -152,6 +153,7 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) {
+    const path = env.currentDocument.path;
     let content = tokens[idx].content;
     // Look for <img ...> tags inside HTML blocks or inline HTML
     // E.g., <img src="images/example.png" alt="Example" width="300">
@@ -161,6 +163,7 @@ export function createCustomHtmlRenderer(
       (match, beforeSrc, srcValue, afterSrc) => {
         // Only prefix if missing 'images/' and not a URL
         if (
+          path.includes("topics") &&
           srcValue &&
           !srcValue.startsWith('../images/') &&
           !/^https?:\/\//i.test(srcValue)
