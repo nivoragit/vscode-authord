@@ -24,7 +24,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     super(configPath);
   }
 
-  setupWatchers(InitializeExtension: Authord): void {
+  setupWatchers(InitializeExtension: Authord): void { // todo remove
     if (this.watchedFile) {
       InitializeExtension.setupWatchers(this.watchedFile);
       this.watchedFile = '';
@@ -121,7 +121,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     this.configData?.instances.push(newDocument);
     // Setup watchers (if necessary) for the main config file
     this.watchedFile = this.configPath;
-    await this.writeConfig();
+    this.writeConfig();
+    await this.writeTopicFile(newDocument['toc-elements'][0]);
+    
   }
 
   /**
@@ -171,15 +173,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Adds a new topic to the given document. Creates the topic file asynchronously.
    */
-  async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
-    
-    const doc = this.configData?.instances.find(d => d.id === docItem);
-    if (!doc) {
-      console.error(`Document "${docItem}" not found.`);
-      vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
-      return;
-    }
-
+  private async writeTopicFile(newTopic: TocElement): Promise<void> {
     const topicsDir = this.getTopicsDir();
     try {
       await this.createDirectory(topicsDir);
@@ -203,6 +197,19 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}".`);
       return;
     }
+
+    
+  }
+  async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
+    
+    const doc = this.configData?.instances.find(d => d.id === docItem);
+    if (!doc) {
+      console.error(`Document "${docItem}" not found.`);
+      vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
+      return;
+    }
+    
+    this.writeTopicFile(newTopic);  
 
     if (!doc['start-page']) {
       doc['start-page'] = newTopic.topic;
@@ -230,7 +237,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
 
     await this.writeConfig();
-    vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+    vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`); 
   }
 
   /**

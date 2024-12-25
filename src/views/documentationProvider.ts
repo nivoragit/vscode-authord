@@ -111,37 +111,66 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
    * Uses asynchronous checks (fs.promises.access) to verify if a similarly named directory already exists.
    * This is the most efficient approach to avoid blocking the main thread.
    */
-  async addDoc(): Promise<void> {
-    const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
-    if (!title) {
-      vscode.window.showWarningMessage('Document creation canceled.');
-      return;
+    /**
+   * Creates a new documentation entry. 
+   * Uses asynchronous checks (fs.promises.access) to verify if a similarly named directory already exists.
+   * This is the most efficient approach to avoid blocking the main thread.
+   */
+    /**
+   * Creates a new documentation entry. 
+   * Uses asynchronous checks (fs.promises.access) to verify if a similarly named directory already exists.
+   * This is the most efficient approach to avoid blocking the main thread.
+   */
+    async addDoc(): Promise<void> {
+      // Prompt for documentation title
+      const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
+      if (!title) {
+        vscode.window.showWarningMessage('Document creation canceled.');
+        return;
+      }
+  
+      // Generate a default ID by taking the first letter of each word in the title and lowercasing it
+      const defaultId = title
+        .split(/\s+/)
+        .map(word => word[0]?.toLowerCase() || '')
+        .join('');
+  
+      // Prompt for the file ID with the default value
+      const docId = await vscode.window.showInputBox({
+        prompt: 'Enter Document ID',
+        value: defaultId
+      });
+      if (!docId) {
+        vscode.window.showWarningMessage('Document creation canceled.');
+        return;
+      }
+  
+      // Automatically generate the start page file name and "About ..." title
+      const startPageFileName = title.replace(/\s+/g, '-').toLowerCase() + '.md';
+      const aboutTitle = `About ${title}`;
+  
+      // Ensure the topics directory exists
+      this.configManager.createDirectory(this.configManager.getTopicsDir());
+  
+      const newDocument: InstanceConfig = {
+        id: docId,
+        name: title,
+        "start-page": startPageFileName,
+        "toc-elements": [
+          {
+            topic: startPageFileName,
+            title: aboutTitle,
+            sortChildren: "none",
+            children: []
+          }
+        ]
+      };
+  
+      this.configManager.addDocument(newDocument);
+      this.refresh();
     }
-
-    // Example of how you might check if a doc folder already exists (if you want per-doc directories):
-    // const docDir = path.join(this.configManager.getTopicsDir(), title.toLowerCase().replace(/\s+/g, '-'));
-    // try {
-    //   await fs.access(docDir);
-    //   vscode.window.showInformationMessage(`Document "${title}" already exists.`);
-    //   return;
-    // } catch {
-    //   // Directory doesn't exist, safe to create
-    // }
-
-    // Ensure the topics directory exists
-    this.configManager.createDirectory(this.configManager.getTopicsDir());
-
-    const newDocument: InstanceConfig = {
-      id: title,
-      name: title,
-      "start-page": "",
-      "toc-elements": []
-    };
-
-    this.configManager.addDocument(newDocument);
-    this.refresh();
-  }
-
+  
+  
   async newTopic(element: DocumentationItem): Promise<void> {
     const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
     if (!topicTitle) {

@@ -1,3 +1,5 @@
+import { TocElement } from "../config/abstractConfigManager";
+
 export interface Config {
   "topics": Topics;
   images: ImagesConfig;
@@ -17,13 +19,13 @@ export interface InstanceConfig {
   "toc-elements": TocElement[];
 }
 
-export interface TocElement {
-  id: string;
-  topic: string;
-  "toc-title": string;
-  "sort-children": "ascending" | "descending" | "none";
-  children?: TocElement[];
-}
+// export interface TocElement {
+//   id: string;
+//   topic: string;
+//   "toc-title": string;
+//   "sort-children": "ascending" | "descending" | "none";
+//   children?: TocElement[];
+// }
 export interface Topic {
   name: string;
   path: string;
