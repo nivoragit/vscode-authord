@@ -302,6 +302,8 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     this.ihpData.ihp.instance.push({ '@_src': this.treeFileName });
     await this.writeIhpFile();
     this.instances.push(newDocument);
+    await this.writeTopicFile(newDocument['toc-elements'][0]);
+
   }
 
   /**
@@ -418,30 +420,8 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
       return;
     }
-
-    const topicsDir = this.getTopicsDir();
-    try {
-      await this.createDirectory(topicsDir);
-    } catch (err) {
-      console.error(`Failed to create topics directory: ${err}`);
-      vscode.window.showErrorMessage(`Failed to create topics directory.`);
-      return;
-    }
-
-    const mainFilePath = path.join(topicsDir, newTopic.topic);
-    if (await this.fileExists(mainFilePath)) {
-      console.error(`Topic file "${newTopic.topic}" already exists.`);
-      vscode.window.showWarningMessage(`Topic file "${newTopic.topic}" already exists.`);
-      return;
-    }
-
-    try {
-      await this.writeFile(mainFilePath, `# ${newTopic.title}\n\nContent goes here...`);
-    } catch (err) {
-      console.error(`Failed to write topic file "${newTopic.topic}": ${err}`);
-      vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}".`);
-      return;
-    }
+    this.writeTopicFile(newTopic);
+    
 
     if (!doc['start-page']) {
       doc['start-page'] = newTopic.topic;
@@ -490,6 +470,31 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
 
     vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+  }
+  private async writeTopicFile(newTopic: TocElement) {
+    const topicsDir = this.getTopicsDir();
+    try {
+      await this.createDirectory(topicsDir);
+    } catch (err) {
+      console.error(`Failed to create topics directory: ${err}`);
+      vscode.window.showErrorMessage(`Failed to create topics directory.`);
+      return;
+    }
+
+    const mainFilePath = path.join(topicsDir, newTopic.topic);
+    if (await this.fileExists(mainFilePath)) {
+      console.error(`Topic file "${newTopic.topic}" already exists.`);
+      vscode.window.showWarningMessage(`Topic file "${newTopic.topic}" already exists.`);
+      return;
+    }
+
+    try {
+      await this.writeFile(mainFilePath, `# ${newTopic.title}\n\nContent goes here...`);
+    } catch (err) {
+      console.error(`Failed to write topic file "${newTopic.topic}": ${err}`);
+      vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}".`);
+      return;
+    }
   }
 
   /**
