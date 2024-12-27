@@ -1,0 +1,87 @@
+{
+  "name": "vscode-writerjet",
+  "displayName": "vscode-writerjet",
+  "description": "**`vscode-writerjet`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+            "type": "object",
+            "title": "Your Extension Settings",
+            "properties": {
+                "writerjet.topics": {
+                    "type": "array",
+                    "default": [],
+                    "description": "List of topics to display in the Tree View."
+                }
+            }
+        },
+    "commands": [
+      {
+        "command": "vs-code.sayHello",
+        "title": "Say Hello"
+      },
+      {
+        "command": "writerjet.refreshTopics",
+        "title": "Refresh Topics"
+    },
+    {
+      "command": "writerjet.openTopic",
+      "title": "Open Topic"
+    }
+    ],
+    "views": {
+          "explorer": [
+              {
+                  "id": "writerjet.topicTreeView",
+                  "name": "Topics"
+              }
+          ]
+      },
+      "menus": {
+          "view/item/context": [
+              {
+                  "command": "writerjet.openTopic",
+                  "when": "view == writerjet.topicTreeView && viewItem == topicItem",
+                  "group": "navigation"
+              }
+          ]
+      }
+  },
+   "repository": {
+        "type": "git",
+        "url": "https://github.com/nivoragit/writerjet-writerjet.git"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.95.0",
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
