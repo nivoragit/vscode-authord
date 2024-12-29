@@ -21,8 +21,7 @@ export class Authord {
     private configCode = 0;
     configManager: AbstractConfigManager | undefined;
     private instances: InstanceConfig[] | undefined;
-    private topicsView: vscode.TreeView<TopicsItem> | undefined;
-
+    
     constructor(
         private context: vscode.ExtensionContext,
         private workspaceRoot: string
@@ -49,26 +48,18 @@ export class Authord {
                 return;
             }
 
-            if (this.instances) {
+            if (this.configManager) {
                 this.topicsProvider = new TopicsProvider(this.configManager!);
                 this.documentationProvider = new DocumentationProvider(
                     this.configManager!,
                     this.topicsProvider
                 );
                 this.registerProviders();
+                this.documentationProvider.refresh();
                 this.providersRegistered = true;
             }
             this.registerCommands();
             this.commandsRegistered = true;
-
-            if (this.topicsView && this.documentationProvider?.singleInstance) {
-                this.topicsView.title = this.documentationProvider.singleInstance.name;
-                vscode.commands.executeCommand('setContext', 'authord.singleInstance', true);
-            } else if (this.topicsView) {
-                
-                this.topicsView.title = "table of contents";
-                vscode.commands.executeCommand('setContext', 'authord.singleInstance', false);
-            }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false);
@@ -91,7 +82,7 @@ export class Authord {
                         this.topicsProvider
                     );
                 }
-                if (this.instances) {
+                if (this.configManager) {
                     if (!this.providersRegistered) {
                         this.registerProviders();
                         this.providersRegistered = true;
@@ -102,14 +93,6 @@ export class Authord {
                     }
                 }
                 this.documentationProvider?.refresh();
-                if (this.topicsView && this.documentationProvider?.singleInstance) {
-                    this.topicsView.title = this.documentationProvider.singleInstance.name;
-                    vscode.commands.executeCommand('setContext', 'authord.singleInstance', true);
-                } else if (this.topicsView) {
-                    
-                    this.topicsView.title = "table of contents";
-                    vscode.commands.executeCommand('setContext', 'authord.singleInstance', false);
-                }
                 vscode.window.showInformationMessage('extension reinitialized');
             }
         } catch (error: any) {
@@ -139,7 +122,7 @@ export class Authord {
             this.topicsProvider
         );
 
-        this.topicsView = vscode.window.createTreeView('topicsView', {
+        const topicsView = vscode.window.createTreeView('topicsView', {
             treeDataProvider: this.topicsProvider,
         });
         const docView = vscode.window.createTreeView('documentationsView', {
@@ -147,7 +130,7 @@ export class Authord {
         });
 
 
-        this.context.subscriptions.push(docView, this.topicsView);
+        this.context.subscriptions.push(docView, topicsView);
 
         this.context.subscriptions.push(
             vscode.window.registerTreeDataProvider('emptyProjectView',
@@ -347,7 +330,6 @@ export class Authord {
                     // XML config
                     this.configManager = new XMLConfigurationManager(filePath);
                     await this.configManager.refresh();
-                    this.instances = this.configManager.instances;
                     setConfigExists(true);
 
                     if (!this.setupConfigWatchers) {
@@ -371,7 +353,6 @@ export class Authord {
                     // Authord config (default / fallback)
                     this.configManager = new AuthordConfigurationManager(filePath);
                     await this.configManager.refresh();
-                    this.instances = this.configManager.instances;
                     setConfigExists(true);
 
                     if (!this.setupConfigWatchers) {

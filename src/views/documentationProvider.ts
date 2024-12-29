@@ -11,8 +11,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   private configManager: AbstractConfigManager;
   private instances: InstanceConfig[] = [];
   private topicsProvider: TopicsProvider;
-  singleInstance: InstanceConfig | undefined;
-
   constructor(configManager: AbstractConfigManager, topicsProvider: TopicsProvider) {
     this.configManager = configManager;
     this.topicsProvider = topicsProvider;
@@ -20,22 +18,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   refresh(): void {
-    const ins = this.configManager.getDocuments();
-    if (ins.length === 1) {
-      const tocTreeItems = ins[0]["toc-elements"].map((e: TocElement) => ({
-        topic: e.topic,
-        title: e.title,
-        sortChildren: e.sortChildren,
-        children: this.parseTocElements(e.children),
-      }));
-      this.topicsProvider!.refresh(tocTreeItems,ins[0].id);
-      this.singleInstance = ins[0];
-      this.instances = [];
-
-    } else {
-      this.instances = ins;
-      this.singleInstance = undefined;
-    }
+    this.instances = this.configManager.getDocuments();
     this._onDidChangeTreeData.fire();
   }
 
@@ -44,9 +27,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
   }
 
   getChildren(): Thenable<DocumentationItem[]> {
-    if(this.singleInstance){
-      return Promise.resolve([]);
-    }
     // For multiple instances, use Collapsed state
     const items = this.instances.map(instance => {
       const item = new DocumentationItem(
@@ -122,53 +102,83 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
    * This is the most efficient approach to avoid blocking the main thread.
    */
     async addDoc(): Promise<void> {
-      // Prompt for documentation title
-      const title = await vscode.window.showInputBox({ prompt: 'Enter Documentation Name' });
+      // Step 1: Prompt for the documentation title
+      const title = await vscode.window.showInputBox({
+        prompt: 'Enter Documentation Name',
+        placeHolder: 'e.g., My Documentation',
+      });
+    
       if (!title) {
         vscode.window.showWarningMessage('Document creation canceled.');
         return;
       }
-  
-      // Generate a default ID by taking the first letter of each word in the title and lowercasing it
-      const defaultId = title
+    
+      // Step 2: Generate a default ID based on the title
+      let defaultId = title
         .split(/\s+/)
         .map(word => word[0]?.toLowerCase() || '')
         .join('');
-  
-      // Prompt for the file ID with the default value
-      const docId = await vscode.window.showInputBox({
+    
+      // Step 3: Prompt for the instance ID with the default placeholder
+      let docId = await vscode.window.showInputBox({
         prompt: 'Enter Document ID',
-        value: defaultId
+        value: defaultId, // Auto-generated default ID
+        placeHolder: 'e.g., doc1',
       });
       if (!docId) {
         vscode.window.showWarningMessage('Document creation canceled.');
         return;
       }
-  
-      // Automatically generate the start page file name and "About ..." title
+      let counter = 1;
+      // Check for existing IDs and adjust if necessary
+      const existingIds = this.configManager.getDocuments().map(doc => doc.id);
+      while (existingIds.includes(docId)) {
+        defaultId = title
+        .split(/\s+/)
+        .map(word => word[counter]?.toLowerCase() || '')
+        .join('');
+        counter++;
+
+        docId = await vscode.window.showInputBox({
+          prompt: 'Enter different Document ID',
+          value: defaultId, // Auto-generated default ID
+          placeHolder: 'e.g., doc2',
+        });
+        if (!docId) {
+          vscode.window.showWarningMessage('Document creation canceled.');
+          return;
+        }
+      }
+    
+      // Step 4: Automatically generate the start page file name and "About ..." title
       const startPageFileName = title.replace(/\s+/g, '-').toLowerCase() + '.md';
       const aboutTitle = `About ${title}`;
-  
-      // Ensure the topics directory exists
-      this.configManager.createDirectory(this.configManager.getTopicsDir());
-  
+    
+      // Step 5: Ensure the topics directory exists
+      await this.configManager.createDirectory(this.configManager.getTopicsDir());
+    
+      // Step 6: Create the new document object
       const newDocument: InstanceConfig = {
         id: docId,
         name: title,
-        "start-page": startPageFileName,
-        "toc-elements": [
+        'start-page': startPageFileName,
+        'toc-elements': [
           {
             topic: startPageFileName,
             title: aboutTitle,
-            sortChildren: "none",
-            children: []
-          }
-        ]
+            sortChildren: 'none',
+            children: [],
+          },
+        ],
       };
-  
+    
+      // Step 7: Add the document to the config manager and refresh
       this.configManager.addDocument(newDocument);
       this.refresh();
+      vscode.window.showInformationMessage(`Documentation "${title}" created successfully with ID "${docId}".`);
     }
+    
+    
   
   
   async newTopic(element: DocumentationItem): Promise<void> {

@@ -1,6 +1,5 @@
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
 import * as vscode from 'vscode';
-import { promises as fs } from 'fs'; // Use fs.promises for async operations
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import Ajv from 'ajv';
@@ -20,7 +19,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * If a .tree file name is set (via addDocument), we set up watchers for it.
+   * If a .tree file name is set (via addDocument), set up watchers for it.
    */
   setupWatchers(InitializeExtension: Authord): void {
     if (this.treeFileName) {
@@ -30,7 +29,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Re-loads ihpData from XML file and refreshes local state, including `this.instances`.
+   * Reload ihpData from XML file and refresh local state, including this.instances.
    */
   async refresh(): Promise<void> {
     this.ihpData = await this.readIhpFile();
@@ -38,21 +37,21 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Returns all topics across all instances by scanning their toc-elements and checking the file system.
-   * Uses async fs calls for the most efficient approach.
+   * Returns all topics by scanning each doc’s toc-elements and checking actual file existence on disk.
    */
   async getTopics(): Promise<Topic[]> {
     const topics: Topic[] = [];
     const topicsDir = this.getTopicsDir();
 
+    // Recursively traverse elements
     const traverseElements = async (elements: TocElement[]) => {
       for (const e of elements) {
         const filePath = path.join(topicsDir, e.topic);
         try {
-          await fs.access(filePath);
+          await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
           topics.push({ name: path.basename(filePath), path: filePath });
         } catch {
-          // File doesn't exist, ignore
+          // If missing, ignore
         }
         if (e.children && e.children.length > 0) {
           await traverseElements(e.children);
@@ -63,19 +62,18 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     for (const doc of this.instances) {
       await traverseElements(doc['toc-elements']);
     }
-
     return topics;
   }
 
   /**
-   * Returns the directory of the .ihp file.
+   * Returns the directory path of the .ihp file.
    */
   private getIhpDir(): string {
     return path.dirname(this.configPath);
   }
 
   /**
-   * Returns the absolute path to the topics directory. If none found, defaults to `topics`.
+   * Returns absolute path to the topics directory, or 'topics' if not set.
    */
   getTopicsDir(): string {
     const ihp = this.ihpData?.ihp;
@@ -84,6 +82,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       ihp?.topics && ihp.topics['@_dir'] ? ihp.topics['@_dir'] : 'topics'
     );
   }
+
   getImageDir(): string {
     const ihp = this.ihpData?.ihp;
     return path.join(
@@ -93,69 +92,65 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Reads and parses the main .ihp file asynchronously. If the file doesn't exist, writes a default template.
+   * Reads the .ihp file as XML. If missing, create a minimal default.
    */
   private async readIhpFile(): Promise<any> {
-    const parser = new XMLParser({ ignoreAttributes: false });
-    try {
-      await fs.access(this.configPath);
-    } catch {
-      // File does not exist, create a default IHP file
+    const fileExists = await this.fileExists(this.configPath);
+    if (!fileExists) {
       const defaultIhp = `<?xml version="1.0" encoding="UTF-8"?>
 <ihp version="2.0">
   <topics dir="topics"/>
 </ihp>`;
-      await fs.writeFile(this.configPath, defaultIhp, 'utf-8');
+      await this.writeNewFile(this.configPath, defaultIhp);
     }
-    const raw = await fs.readFile(this.configPath, 'utf-8');
+    const raw = await this.readFileAsString(this.configPath);
+    const parser = new XMLParser({ ignoreAttributes: false });
     return parser.parse(raw);
   }
 
   /**
-   * Writes the updated ihpData back to the .ihp file asynchronously.
+   * Writes updated ihpData back to the main .ihp file, preserving indentation.
    */
   private async writeIhpFile(): Promise<void> {
-    const builder = new XMLBuilder({ ignoreAttributes: false });
-    const xmlContent = builder.build(this.ihpData);
-    await fs.writeFile(this.configPath, xmlContent, 'utf-8');
+    await this.updateXmlFile(this.configPath, () => {
+      // Return the mutated this.ihpData to be re-serialized
+      return this.ihpData;
+    });
   }
 
+  // ------------------------------------------------------------------------------------
+  // LOADING INSTANCES + .tree FILES
+  // ------------------------------------------------------------------------------------
+
   /**
-   * Loads instances by reading each instance's .tree file (if present).
-   * Uses async fs calls for the most efficient approach.
+   * Reads each instance’s .tree file (if any) to build this.instances.
    */
   async loadInstances(): Promise<void> {
-    const instances: InstanceConfig[] = [];
     const ihp = this.ihpData?.ihp;
-    const instancesNodes = Array.isArray(ihp?.instance)
-      ? ihp.instance
-      : ihp?.instance
-        ? [ihp.instance]
-        : [];
+    const array = Array.isArray(ihp?.instance) ? ihp.instance : ihp?.instance ? [ihp.instance] : [];
+    const result: InstanceConfig[] = [];
 
-    for (const inst of instancesNodes) {
+    for (const inst of array) {
       if (inst['@_src']) {
         const treeFile = path.join(this.getIhpDir(), inst['@_src']);
-        try {
-          await fs.access(treeFile);
+        // If .tree is missing or unreadable, skip
+        if (await this.fileExists(treeFile)) {
           const instanceProfile = await this.readInstanceProfile(treeFile);
           if (instanceProfile) {
-            instances.push(instanceProfile);
+            result.push(instanceProfile);
           }
-        } catch {
-          // .tree file doesn't exist or is unreadable; skip
         }
       }
     }
-    this.instances = instances;
+    this.instances = result;
   }
 
   /**
-   * Reads a single .tree file, extracts instance-profile data, and returns an `InstanceConfig`.
+   * Reads a single .tree file -> returns an InstanceConfig if valid, else null.
    */
   private async readInstanceProfile(treeFile: string): Promise<InstanceConfig | null> {
+    const raw = await this.readFileAsString(treeFile);
     const parser = new XMLParser({ ignoreAttributes: false });
-    const raw = await fs.readFile(treeFile, 'utf-8');
     const data = parser.parse(raw);
     const profile = data['instance-profile'];
     if (!profile) { return null; }
@@ -174,8 +169,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Converts XML toc-elements into our TocElement interface recursively.
-   * (Uses a sync approach to map child elements, but reading .tree file is async.)
+   * Converts <toc-element> structures into our TocElement interface recursively.
    */
   private loadTocElements(xmlElements: any): TocElement[] {
     if (!Array.isArray(xmlElements)) {
@@ -194,17 +188,14 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Writes updated instance-profile data to the .tree file for a specific doc.
+   * Writes updated instance-profile data to the .tree file for a doc, preserving indentation.
    */
-  private async writeInstanceProfile(doc: InstanceConfig): Promise<void> {
-    const builder = new XMLBuilder({ ignoreAttributes: false });
-    const treeFile = this.getTreeFileForDoc(doc.id);
+  private async writeInstanceProfile(doc: InstanceConfig, filePath: string | null): Promise<void> {
+    if(!filePath){ filePath = await this.getFilePathForDoc(doc.id);}
+    // Determine startPage based on TOC elements
+    const startPage = doc['toc-elements'].length > 0 ? doc['start-page'] : '';
 
-    let startPage = '';
-    if (doc['toc-elements'].length !== 0) {
-      startPage = doc['start-page'];
-    }
-
+    // Build the profile object
     const profileObj = {
       'instance-profile': {
         '@_id': doc.id,
@@ -214,49 +205,64 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       }
     };
 
-    let xmlContent = builder.build(profileObj);
-    const doctype = `<?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE instance-profile SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">\n\n`;
-    xmlContent = doctype + xmlContent;
+    // Configure the XMLBuilder with VS Code settings
+    const builder = new XMLBuilder({
+      ignoreAttributes: false,
+      format: true, // Enable pretty formatting
+      indentBy: await this.getIndentationSetting(),
+      suppressEmptyNode: true
 
-    await fs.writeFile(treeFile, xmlContent, 'utf-8');
+    });
+
+    // Build XML content
+    const xmlContent = builder.build(profileObj);
+
+    // Insert the Writerside doctype
+    const doctype = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE instance-profile SYSTEM \"https://resources.jetbrains.com/writerside/1.0/product-profile.dtd\">\n\n`;
+    const fullContent = doctype + xmlContent;
+    this.writeNewFile(filePath,fullContent);
   }
 
   /**
-   * Recursively builds XML elements from our TocElement data.
+   * Helper method to fetch the indentation settings from VS Code configuration.
+   */
+  private async getIndentationSetting(): Promise<string> {
+    const config = vscode.workspace.getConfiguration('editor');
+    const tabSize = config.get<number>('tabSize', 4);
+    const insertSpaces = config.get<boolean>('insertSpaces', true);
+    return insertSpaces ? ' '.repeat(tabSize) : '\t';
+
+  }
+  /**
+   * Recursively builds XML toc-element from our TocElement[].
    */
   private buildTocElements(elements: TocElement[]): any[] {
     return elements.map(e => {
-      const result: any = { '@_topic': e.topic };
+      const node: any = { '@_topic': e.topic };
       if (e.children && e.children.length > 0) {
-        result['toc-element'] = this.buildTocElements(e.children);
+        node['toc-element'] = this.buildTocElements(e.children);
       }
-      return result;
+      return node;
     });
   }
 
   /**
-   * Finds the .tree file corresponding to a given docId by reading each instance in ihpData.
-   * Here we still do a synchronous file check (`fs.existsSync`) to locate the correct .tree.
+   * Finds the .tree file for a given docId by reading each instance’s .tree to confirm @id matches.
+   * Replaces old synchronous logic with a new async approach.
    */
-  private getTreeFileForDoc(docId: string): string {
-    const ihp = this.ihpData.ihp;
-    const instancesNodes = Array.isArray(ihp.instance)
-      ? ihp.instance
-      : ihp.instance
-        ? [ihp.instance]
-        : [];
+  private async getFilePathForDoc(docId: string): Promise<string> {
+    const ihp = this.ihpData?.ihp;
+    const array = Array.isArray(ihp?.instance) ? ihp.instance : ihp?.instance ? [ihp.instance] : [];
+    const parser = new XMLParser({ ignoreAttributes: false });
 
-    for (const inst of instancesNodes) {
+    for (const inst of array) {
       const treeSrc = inst['@_src'];
       if (!treeSrc) { continue; }
+
       const treeFile = path.join(this.getIhpDir(), treeSrc);
+      if (!(await this.fileExists(treeFile))) { continue; }
 
-      // If it doesn't exist, skip
-      if (!require('fs').existsSync(treeFile)) { continue; }
-
-      const parser = new XMLParser({ ignoreAttributes: false });
-      const raw = require('fs').readFileSync(treeFile, 'utf-8');
+      const raw = await this.readFileAsString(treeFile);
       const data = parser.parse(raw);
       const profile = data['instance-profile'];
       if (profile && profile['@_id'] === docId) {
@@ -266,98 +272,120 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     throw new Error(`No .tree file found for docId ${docId}`);
   }
 
-  // ----------------- Document Methods ----------------- //
+  // ------------------------------------------------------------------------------------
+  // DOCUMENT METHODS
+  // ------------------------------------------------------------------------------------
 
   /**
-   * Creates a new document by generating a new .tree file and adding it to the main .ihp data.
+   * Creates a new document -> writes a new .tree file -> updates .ihp -> ensures watchers.
    */
   async addDocument(newDocument: InstanceConfig): Promise<void> {
     this.treeFileName = `${newDocument.id}.tree`;
     const treeFilePath = path.join(this.getIhpDir(), this.treeFileName);
 
-    const profileObj = {
-      'instance-profile': {
-        '@_id': newDocument.id,
-        '@_name': newDocument.name,
-        '@_start-page': newDocument['start-page'],
-        'toc-element': []
-      }
-    };
+    // Build instance-profile
+    // const profileObj = {
+    //   'instance-profile': {
+    //     '@_id': newDocument.id,
+    //     '@_name': newDocument.name,
+    //     '@_start-page': newDocument['start-page'],
+    //     'toc-element': []
+    //   }
+    // };
 
-    const builder = new XMLBuilder({ ignoreAttributes: false });
-    let xmlContent = builder.build(profileObj);
-    const doctype = `<?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE instance-profile SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">\n\n`;
-    xmlContent = doctype + xmlContent;
+    // // Writerside doctype
+    // const builder = new XMLBuilder({
+    //   ignoreAttributes: false,
+    //   format: true, // Enable pretty formatting
+    //   indentBy: await this.getIndentationSetting()
+    // });
 
-    await fs.writeFile(treeFilePath, xmlContent, 'utf-8');
-
-    // Make sure the `instance` property is an array
+    // // Build XML content
+    // const xmlContent = builder.build(profileObj);
+    // const doctype = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE instance-profile SYSTEM \"https://resources.jetbrains.com/writerside/1.0/product-profile.dtd\">\n\n`;
+    // const fullContent =  doctype + xmlContent;
+    // // Write to disk
+    // await this.writeNewFile(treeFilePath, fullContent);
+    await this.writeInstanceProfile(newDocument, treeFilePath);
+    // Update .ihp
     if (!this.ihpData.ihp.instance) {
       this.ihpData.ihp.instance = [];
     } else if (!Array.isArray(this.ihpData.ihp.instance)) {
       this.ihpData.ihp.instance = [this.ihpData.ihp.instance];
     }
-
     this.ihpData.ihp.instance.push({ '@_src': this.treeFileName });
     await this.writeIhpFile();
+
+    // Update in memory
     this.instances.push(newDocument);
-    await this.writeTopicFile(newDocument['toc-elements'][0]);
 
+    // Create an initial .md file if the doc has a first TOC element
+    if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
+      await this.writeTopicFile(newDocument['toc-elements'][0]);
+    }
   }
-
-  /**
-   * Deletes a document by removing its .tree file and associated topics from disk, then updating the main .ihp.
-   */
-  async deleteDocument(docId: string): Promise<void> {
-    const ihp = this.ihpData.ihp;
-    if (ihp.instance) {
-      if (!Array.isArray(ihp.instance)) {
-        ihp.instance = [ihp.instance];
-      }
-
-      const idx = await this.findDocumentIndex(ihp.instance, docId);
-      if (idx > -1) {
-        const treeSrc = ihp.instance[idx]['@_src'];
-
-        // Find the doc in memory
-        const doc = this.instances.find(d => d.id === docId);
-        if (doc) {
-          // Delete all topics associated with this doc
-          const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
-          const topicsDir = this.getTopicsDir();
-          for (const topicFileName of allTopics) {
-            const topicFilePath = path.join(topicsDir, topicFileName);
-            try {
-              await fs.unlink(topicFilePath);
-            } catch {
-              // If topic file doesn't exist or can't be removed, ignore
-            }
-          }
-        }
-
-        ihp.instance.splice(idx, 1);
-        await this.writeIhpFile();
-
-        const treeFilePath = path.join(this.getIhpDir(), treeSrc);
-        try {
-          await fs.unlink(treeFilePath);
-        } catch {
-          // If it doesn't exist or can't be removed, ignore
-        }
-
-        this.instances = this.instances.filter(d => d.id !== docId);
-      }
+  async createDirectory(dirPath: string): Promise<void> {
+    const dirUri = vscode.Uri.file(dirPath);
+  
+    try {
+      // Check if the directory exists
+      await vscode.workspace.fs.stat(dirUri);
+      // If it doesn't throw, the directory is already there
+    } catch {
+      // If stat failed, create the directory
+      await vscode.workspace.fs.createDirectory(dirUri);
     }
   }
 
+  /**
+   * Deletes a document -> removes associated topics -> updates .ihp -> removes .tree file.
+   */
+  async deleteDocument(docId: string): Promise<void> {
+    const ihp = this.ihpData?.ihp;
+    if (!ihp.instance) { return; }
+
+    let arr = Array.isArray(ihp.instance) ? ihp.instance : [ihp.instance];
+    const idx = await this.findDocumentIndex(arr, docId);
+    if (idx > -1) {
+      const treeSrc = arr[idx]['@_src'];
+
+      // Find doc in memory
+      const doc = this.instances.find(d => d.id === docId);
+      if (doc) {
+        // Remove all topics from disk
+        const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
+        const topicsDir = this.getTopicsDir();
+        for (const tFile of allTopics) {
+          const p = path.join(topicsDir, tFile);
+          await this.deleteFileIfExists(p);
+        }
+      }
+
+      // Remove from .ihp
+      arr.splice(idx, 1);
+      if (arr.length === 1) { ihp.instance = arr[0]; }
+      else { ihp.instance = arr; }
+      await this.writeIhpFile();
+
+      // Remove .tree
+      const treeFilePath = path.join(this.getIhpDir(), treeSrc);
+      await this.deleteFileIfExists(treeFilePath);
+
+      // Remove from instances
+      this.instances = this.instances.filter(d => d.id !== docId);
+    }
+  }
+
+  /**
+   * Gathers all .md filenames from a TocElement[] recursively.
+   */
   private getAllTopicsFromDoc(tocElements: TocElement[]): string[] {
     const result: string[] = [];
     const traverse = (elements: TocElement[]) => {
       for (const e of elements) {
-        result.push(e.topic); // Add the current topic file name
+        result.push(e.topic);
         if (e.children && e.children.length > 0) {
-          traverse(e.children); // Recursively traverse child elements
+          traverse(e.children);
         }
       }
     };
@@ -366,195 +394,145 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Helper function to find document index by docId inside the .ihp instance array.
-   * Uses async file reads to parse each .tree file and check if it matches the docId.
+   * Finds the doc index by docId in the .ihp instance array by reading each .tree file to confirm match.
    */
   private async findDocumentIndex(instances: any[], docId: string): Promise<number> {
     const parser = new XMLParser({ ignoreAttributes: false });
     for (let i = 0; i < instances.length; i++) {
       const src = instances[i]['@_src'];
       if (!src) { continue; }
-
       const treeFile = path.join(this.getIhpDir(), src);
-      try {
-        await fs.access(treeFile);
-        const raw = await fs.readFile(treeFile, 'utf-8');
-        const data = parser.parse(raw);
-        const profile = data['instance-profile'];
-        if (profile && profile['@_id'] === docId) {
-          return i;
-        }
-      } catch {
-        // If file doesn't exist or can't be read, skip
+      if (!(await this.fileExists(treeFile))) { continue; }
+
+      const raw = await this.readFileAsString(treeFile);
+      const data = parser.parse(raw);
+      const profile = data['instance-profile'];
+      if (profile && profile['@_id'] === docId) {
+        return i;
       }
     }
     return -1;
   }
 
   /**
-   * Renames a document by updating the `@_name` field in its .tree file.
+   * Renames a document by updating `@_name` in its .tree file.
    */
   async renameDocument(docName: string, newName: string): Promise<void> {
     const doc = this.instances.find(d => d.name === docName);
     if (!doc) { return; }
     doc.name = newName;
-    await this.writeInstanceProfile(doc);
+    await this.writeInstanceProfile(doc,null);
   }
 
   /**
-   * Returns the array of docs currently loaded in `this.instances`.
+   * Returns the loaded documents in memory.
    */
   getDocuments(): InstanceConfig[] {
+    // this.refresh();
     return this.instances;
   }
 
-  // ----------------- Topics Methods ----------------- //
+  // ------------------------------------------------------------------------------------
+  // TOPIC METHODS
+  // ------------------------------------------------------------------------------------
 
   /**
-   * Adds a new topic to the specified doc. Also writes a .md file to `topicsDir`.
+   * Adds a new topic -> writes .md -> updates .tree.
    */
   async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
     const doc = this.instances.find(d => d.id === docItem);
     if (!doc) {
-      console.error(`Document "${docItem}" not found.`);
       vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
       return;
     }
-    this.writeTopicFile(newTopic);
-    
 
+    // Write the .md file
+    await this.writeTopicFile(newTopic);
+
+    // If doc lacks start-page, set it
     if (!doc['start-page']) {
       doc['start-page'] = newTopic.topic;
     }
 
+    // Identify parent or root
     let parentArray = doc['toc-elements'];
     if (parentTopic) {
       const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
-      if (parent) {
-        parentArray = parent.children;
-      } else {
-        console.error(`Parent topic "${parentTopic}" not found.`);
+      if (!parent) {
         vscode.window.showWarningMessage(`Parent topic "${parentTopic}" not found.`);
         return;
       }
+      parentArray = parent.children;
     }
 
-    // Check for duplicate titles within the parent
+    // Check for duplicates
     if (parentArray.some(t => t.title === newTopic.title)) {
-      // Attempt to confirm if it's truly a duplicate inside the .tree file
-      const treeFilePath = this.getTreeFileForDoc(docItem);
-      try {
-        await fs.access(treeFilePath);
-        const parser = new XMLParser({ ignoreAttributes: false });
-        const rawTreeData = await fs.readFile(treeFilePath, 'utf-8');
-        const treeData = parser.parse(rawTreeData);
-        const topicInTree = this.findTopicInTree(treeData['instance-profile']['toc-element'], newTopic.title);
-        if (topicInTree) {
-          console.error(`Duplicate topic title "${newTopic.title}" in parent.`);
-          vscode.window.showWarningMessage(`Duplicate topic title "${newTopic.title}" in parent.`);
-          return;
-        }
-      } catch {
-        // If treeFile missing or no duplication found, proceed
-      }
+      vscode.window.showWarningMessage(`Duplicate topic title "${newTopic.title}" in parent.`);
+      return;
     } else {
       parentArray.push(newTopic);
     }
 
+    // Update .tree
     try {
-      await this.writeInstanceProfile(doc);
+      await this.writeInstanceProfile(doc, null);
     } catch (err) {
-      console.error(`Failed to update .tree file for "${doc.id}": ${err}`);
       vscode.window.showErrorMessage(`Failed to update document tree.`);
       return;
     }
 
     vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
   }
-  private async writeTopicFile(newTopic: TocElement) {
-    const topicsDir = this.getTopicsDir();
-    try {
-      await this.createDirectory(topicsDir);
-    } catch (err) {
-      console.error(`Failed to create topics directory: ${err}`);
-      vscode.window.showErrorMessage(`Failed to create topics directory.`);
-      return;
-    }
 
-    const mainFilePath = path.join(topicsDir, newTopic.topic);
-    if (await this.fileExists(mainFilePath)) {
-      console.error(`Topic file "${newTopic.topic}" already exists.`);
+  /**
+   * Writes a new .md file for the topic, if it doesn’t exist.
+   */
+  private async writeTopicFile(newTopic: TocElement): Promise<void> {
+    const topicsDir = this.getTopicsDir();
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(topicsDir));
+
+    const filePath = path.join(topicsDir, newTopic.topic);
+    if (await this.fileExists(filePath)) {
       vscode.window.showWarningMessage(`Topic file "${newTopic.topic}" already exists.`);
       return;
     }
 
-    try {
-      await this.writeFile(mainFilePath, `# ${newTopic.title}\n\nContent goes here...`);
-    } catch (err) {
-      console.error(`Failed to write topic file "${newTopic.topic}": ${err}`);
-      vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}".`);
-      return;
-    }
+    await this.writeNewFile(filePath, `# ${newTopic.title}\n\nContent goes here...`);
   }
 
   /**
-   * Recursively checks if a topic with the given `title` exists in the parsed XML tree.
-   */
-  private findTopicInTree(treeElements: any[], title: string): boolean {
-    for (const element of treeElements) {
-      if (element['@_title'] === title) {
-        return true;
-      }
-      if (element['toc-element'] && Array.isArray(element['toc-element'])) {
-        if (this.findTopicInTree(element['toc-element'], title)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Deletes a topic (and its children) by removing the corresponding .md files from disk and updating .tree data.
+   * Deletes a topic (and children) -> removes from disk -> updates .tree.
    */
   async deleteTopic(docId: string, topicFileName: string): Promise<void> {
     const doc = this.instances.find(d => d.id === docId);
     if (!doc) {
-      console.error(`Document with id "${docId}" not found.`);
-      vscode.window.showWarningMessage(`Document with id "${docId}" not found.`);
+      vscode.window.showWarningMessage(`Document "${docId}" not found.`);
       return;
     }
 
+    // Extract the topic
     const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
     if (!extractedTopic) {
-      console.error(`Topic "${topicFileName}" not found in document "${docId}".`);
       vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
       return;
     }
 
-    // Gather all topic files (this topic + children)
+    // Gather all .md files for this topic + children
     const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
     const topicsDir = this.getTopicsDir();
-
     for (const tFile of allTopics) {
-      const topicFilePath = path.join(topicsDir, tFile);
-      try {
-        await fs.unlink(topicFilePath);
-      } catch {
-        // It's okay if the file didn't exist
-      }
+      await this.deleteFileIfExists(path.join(topicsDir, tFile));
     }
 
     try {
-      await this.writeInstanceProfile(doc);
-    } catch (err) {
-      console.error(`Failed to update .tree file for "${doc.id}": ${err}`);
+      await this.writeInstanceProfile(doc, null);
+    } catch {
       vscode.window.showErrorMessage(`Failed to update document tree.`);
     }
   }
 
   /**
-   * Renames a topic by renaming its .md file and updating the .tree data for that topic.
+   * Renames a topic’s file on disk and updates .tree data accordingly.
    */
   async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
     const doc = this.instances.find(d => d.id === docId);
@@ -567,24 +545,24 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       const oldFilePath = path.join(topicsDir, oldTopicFile);
       const newFilePath = path.join(topicsDir, newTopicFile);
 
-      if (!(await this.fileExists(oldFilePath))) {
-        console.log(`Original file ${oldTopicFile} not found.`);
-        return;
-      }
-      if (await this.fileExists(newFilePath)) {
-        console.log('already exists');
-        return;
-      }
+      if (!(await this.fileExists(oldFilePath))) { return; }
+      if (await this.fileExists(newFilePath)) { return; }
 
-      await this.renamePath(oldFilePath, newFilePath);
+      // Rename
+      await vscode.workspace.fs.rename(
+        vscode.Uri.file(oldFilePath),
+        vscode.Uri.file(newFilePath)
+      );
+
+      // Update .tree
       topic.topic = newTopicFile;
       topic.title = newName;
-      await this.writeInstanceProfile(doc);
+      await this.writeInstanceProfile(doc, null);
     }
   }
 
   /**
-   * Recursively searches toc-elements by `t.title` for a match with `fileName`.
+   * Recursively searches `toc-elements` for a match by `t.title === fileName`.
    */
   private findTopicByFilename(topics: TocElement[], fileName: string): TocElement | undefined {
     for (const t of topics) {
@@ -598,7 +576,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Extracts a topic from the doc's `toc-elements` array and returns it. If not found, returns null.
+   * Extracts a topic by `t.topic === fileName` and returns it, or null if not found.
    */
   private extractTopicByFilename(topics: TocElement[], fileName: string): TocElement | null {
     const idx = topics.findIndex(t => t.topic === fileName);
@@ -613,34 +591,65 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     return null;
   }
 
-  /**
-   * Formats a title into a safe filename by lowercasing and replacing spaces with hyphens.
-   */
   private formatTitleAsFilename(title: string): string {
     return title.toLowerCase().replace(/\s+/g, '-') + '.md';
   }
 
-  // -------------------- Async File Handling Helpers -------------------- //
+  // ------------------------------------------------------------------------------------
+  // FILE + FOLDER UTILITIES
+  // ------------------------------------------------------------------------------------
 
-  async createDirectory(dirPath: string): Promise<void> {
+  /**
+   * Creates a directory if it doesn't exist, writing a fresh file.
+   */
+  private async writeNewFile(filePath: string, fullContent: string): Promise<void> {
+
+    // Open the tree file as a text document
+    const fileUri = vscode.Uri.file(filePath);
     try {
-      await fs.mkdir(dirPath, { recursive: true });
-    } catch (err) {
-      throw new Error(`Failed to create directory "${dirPath}": ${err}`);
+      await vscode.workspace.fs.stat(fileUri);
+    } catch {
+      // File doesn't exist — either create it
+      const dirUri = fileUri.with({ path: path.dirname(fileUri.fsPath) });
+      await vscode.workspace.fs.createDirectory(dirUri);
+      await vscode.workspace.fs.writeFile(fileUri, Buffer.from(fullContent, 'utf-8'));
+      return;
     }
+    
+
+
+    
+    const document = await vscode.workspace.openTextDocument(fileUri);
+
+    // Apply changes using WorkspaceEdit
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(
+      document.uri,
+      new vscode.Range(
+        document.positionAt(0),
+        document.positionAt(document.getText().length)
+      ),
+      fullContent
+    );
+
+    await vscode.workspace.applyEdit(edit);
+    try{
+      await vscode.commands.executeCommand('editor.action.formatDocument', document.uri);
+    }
+    catch{
+
+    }
+
+    // Save the changes
+    await document.save();
   }
 
-  async writeFile(filePath: string, content: string): Promise<void> {
-    await fs.writeFile(filePath, content, 'utf-8');
-  }
-
-  async renamePath(oldPath: string, newPath: string): Promise<void> {
-    await fs.rename(oldPath, newPath);
-  }
-
-  async fileExists(filePath: string): Promise<boolean> {
+  /**
+   * Checks if a file exists using workspace.fs.stat.
+   */
+  private async fileExists(filePath: string): Promise<boolean> {
     try {
-      await fs.access(filePath);
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
       return true;
     } catch {
       return false;
@@ -648,76 +657,159 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   /**
-   * Moves a folder to a trash directory, merging folders if collisions occur.
+   * Reads a file as string using workspace.fs.
    */
-  async moveFolderToTrash(folderPath: string): Promise<void> {
-    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+  private async readFileAsString(filePath: string): Promise<string> {
     try {
-      await fs.access(trashPath);
-    } catch {
-      await fs.mkdir(trashPath, { recursive: true });
+      // Check if the file exists
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+  
+      // Read the file and return its contents as a UTF-8 string
+      const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+      return Buffer.from(data).toString('utf-8');
+    } catch (error: any) {
+      console.error(`Error reading file "${filePath}": ${error.message}`);
+      throw new Error(`File "${filePath}" does not exist or cannot be read.`);
     }
-    const destinationPath = path.join(trashPath, path.basename(folderPath));
+  }
+  
 
+  /**
+   * Deletes a file if it exists.
+   */
+  private async deleteFileIfExists(filePath: string): Promise<void> {
     try {
-      await fs.access(destinationPath);
-      await this.mergeFolders(folderPath, destinationPath);
-      // Remove source folder once merged
-      await fs.rm(folderPath, { recursive: true, force: true });
+      await vscode.workspace.fs.delete(vscode.Uri.file(filePath));
     } catch {
-      // If the destination does not exist, rename
-      await fs.rename(folderPath, destinationPath);
+      // ignore
     }
   }
 
   /**
-   * Recursively merges folders, renaming files with timestamps when collisions occur.
+   * Utility to open an XML file, parse, mutate, replace content, and run `editor.action.formatDocument`.
    */
-  async mergeFolders(source: string, destination: string): Promise<void> {
-    let sourceFiles: string[] = [];
+  private async updateXmlFile(
+    filePath: string, 
+    mutateFn: (parsedXml: any) => any
+  ): Promise<void> {
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    const originalText = doc.getText();
+
+    const parser = new XMLParser({ ignoreAttributes: false, preserveOrder: true });
+    let xmlObj = parser.parse(originalText);
+
+    // Apply your changes
+    xmlObj = mutateFn(xmlObj);
+
+    // Rebuild
+    const builder = new XMLBuilder({
+      ignoreAttributes: false,
+      format: true, // Enable pretty formatting
+      indentBy: await this.getIndentationSetting(),
+      suppressEmptyNode: true
+    });
+    
+    const newXml = builder.build(xmlObj);
+
+    // Replace content
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(
+      doc.uri,
+      new vscode.Range(doc.positionAt(0), doc.positionAt(originalText.length)),
+      newXml
+    );
+    await vscode.workspace.applyEdit(edit);
+
+    // Format + Save
+    try{
+      await vscode.commands.executeCommand('editor.action.formatDocument', doc.uri);
+    }
+    catch{
+
+    }
+    
+    await doc.save();
+  }
+
+  // ------------------------------------------------------------------------------------
+  // moveFolderToTrash + mergeFolders
+  // ------------------------------------------------------------------------------------
+
+  /**
+   * Moves a folder to "trash", merging if conflicts occur.
+   */
+  async moveFolderToTrash(folderPath: string): Promise<void> {
+    const trashPath = path.join(path.dirname(this.configPath), 'trash');
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(trashPath));
+    const destPath = path.join(trashPath, path.basename(folderPath));
+
     try {
-      sourceFiles = await fs.readdir(source);
+      // If folder already in trash => merge
+      await vscode.workspace.fs.stat(vscode.Uri.file(destPath));
+      await this.mergeFolders(folderPath, destPath);
+      await vscode.workspace.fs.delete(vscode.Uri.file(folderPath), { recursive: true });
     } catch {
-      // If the source can't be read, skip
+      // If not found => rename
+      await vscode.workspace.fs.rename(
+        vscode.Uri.file(folderPath),
+        vscode.Uri.file(destPath)
+      );
+    }
+  }
+
+  async mergeFolders(source: string, destination: string): Promise<void> {
+    let entries: [string, vscode.FileType][] = [];
+    try {
+      entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(source));
+    } catch {
       return;
     }
-    for (const file of sourceFiles) {
-      const sourceFilePath = path.join(source, file);
-      const destinationFilePath = path.join(destination, file);
-      const stat = await fs.lstat(sourceFilePath);
+    for (const [fileName, fileType] of entries) {
+      const srcPath = path.join(source, fileName);
+      const dstPath = path.join(destination, fileName);
 
-      if (stat.isDirectory()) {
+      if (fileType === vscode.FileType.Directory) {
         try {
-          await fs.access(destinationFilePath);
+          await vscode.workspace.fs.stat(vscode.Uri.file(dstPath));
         } catch {
-          await fs.mkdir(destinationFilePath);
+          await vscode.workspace.fs.createDirectory(vscode.Uri.file(dstPath));
         }
-        await this.mergeFolders(sourceFilePath, destinationFilePath);
+        await this.mergeFolders(srcPath, dstPath);
       } else {
         try {
-          await fs.access(destinationFilePath);
-          // If file exists, rename with a unique timestamp
-          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
-          const newDestinationFilePath = path.join(destination, newFileName);
-          await fs.rename(sourceFilePath, newDestinationFilePath);
+          await vscode.workspace.fs.stat(vscode.Uri.file(dstPath));
+          // If collision => rename with timestamp
+          const ext = path.extname(fileName);
+          const base = path.basename(fileName, ext);
+          const newName = `${base}-${Date.now()}${ext}`;
+          const newPath = path.join(destination, newName);
+          await vscode.workspace.fs.rename(
+            vscode.Uri.file(srcPath),
+            vscode.Uri.file(newPath)
+          );
         } catch {
-          // If destination doesn't exist, rename directly
-          await fs.rename(sourceFilePath, destinationFilePath);
+          // If no collision => rename
+          await vscode.workspace.fs.rename(
+            vscode.Uri.file(srcPath),
+            vscode.Uri.file(dstPath)
+          );
         }
       }
     }
   }
 
-  /**
-   * Validates the loaded config against a JSON schema using Ajv.
-   * Reads the schema file asynchronously for the most efficient approach.
-   */
+  // ------------------------------------------------------------------------------------
+  // VALIDATION WITH AJV
+  // ------------------------------------------------------------------------------------
   async validateAgainstSchema(schemaPath: string): Promise<void> {
-    const ihp = this.ihpData.ihp;
-    const topicsDir = ihp.topics['@_dir'];
+    const ajv = new Ajv({ allErrors: true });
+    const rawSchema = await vscode.workspace.fs.readFile(vscode.Uri.file(schemaPath));
+    const schema = JSON.parse(Buffer.from(rawSchema).toString('utf-8'));
 
+    const ihp = this.ihpData?.ihp;
+    const topicsDir = ihp?.topics?.['@_dir'] || 'topics';
     let imagesObj: any;
-    if (ihp.images) {
+    if (ihp?.images) {
       imagesObj = {
         dir: ihp.images['@_dir'],
         version: ihp.images['@_version'],
@@ -726,33 +818,32 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
 
     const configJson = {
-      schema: this.ihpData.schema,
-      title: this.ihpData.title,
-      type: this.ihpData.type,
+      schema: this.ihpData?.schema,
+      title: this.ihpData?.title,
+      type: this.ihpData?.type,
       topics: { dir: topicsDir },
       images: imagesObj,
       instances: this.instances.map(inst => ({
         id: inst.id,
         name: inst.name,
         'start-page': inst['start-page'],
-        'toc-elements': this.convertTocElements(inst['toc-elements'])
+        'toc-elements': inst['toc-elements'].map(te => ({
+          topic: te.topic,
+          title: te.title,
+          'sort-children': te.sortChildren,
+          children: te.children
+        }))
       }))
     };
 
-    const ajv = new Ajv({ allErrors: true });
-    const schemaRaw = await fs.readFile(schemaPath, 'utf-8');
-    const schema = JSON.parse(schemaRaw);
     const validate = ajv.compile(schema);
-    const valid = validate(configJson);
-
-    if (!valid) {
-      const errors = validate.errors || [];
-      throw new Error(`Schema validation failed: ${JSON.stringify(errors, null, 2)}`);
+    if (!validate(configJson)) {
+      throw new Error(`Schema validation failed: ${JSON.stringify(validate.errors, null, 2)}`);
     }
   }
 
   /**
-   * Recursively converts our TocElement[] into a JSON structure for writing back to .tree/.ihp.
+   * Recursively converts our TocElement[] into JSON for writing back to .tree/.ihp.
    */
   private convertTocElements(elements: TocElement[]): any[] {
     return elements.map(e => ({

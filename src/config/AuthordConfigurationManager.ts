@@ -1,9 +1,7 @@
-import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
-
 import * as vscode from 'vscode';
-import { promises as fs } from 'fs'; // Use fs.promises for async operations
 import * as path from 'path';
 import Ajv from 'ajv';
+import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
 import { Authord } from '../authordExtension';
 
 export interface AuthordConfig {
@@ -31,70 +29,128 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
+  // ------------------------------------------------------------------------------------
+  // FILE HELPERS
+  // ------------------------------------------------------------------------------------
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async readJsonFile(filePath: string): Promise<any> {
+    const fileData = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+    return JSON.parse(Buffer.from(fileData).toString('utf-8'));
+  }
+
+  private async writeNewFile(filePath: string, content: string): Promise<void> {
+    const fileUri = vscode.Uri.file(filePath);
+    const directoryUri = fileUri.with({ path: path.dirname(fileUri.fsPath) });
+    await vscode.workspace.fs.createDirectory(directoryUri);
+    await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content, 'utf-8'));
+  }
+
   /**
-   * Asynchronously refresh configuration data from disk.
+   * Utility to open JSON, mutate, preserve indentation with formatDocument.
    */
+  private async updateJsonFile(filePath: string, mutateFn: (jsonData: any) => any): Promise<void> {
+    const fileUri = vscode.Uri.file(filePath);
+
+    // Open the file as a text document
+    const doc = await vscode.workspace.openTextDocument(fileUri);
+    const originalText = doc.getText();
+
+    // Parse JSON and apply the mutation function
+    let jsonData = JSON.parse(originalText);
+    jsonData = mutateFn(jsonData);
+
+    // Fetch VS Code indentation settings
+    const config = vscode.workspace.getConfiguration('editor');
+    const tabSize = config.get<number>('tabSize', 4);
+    const insertSpaces = config.get<boolean>('insertSpaces', true);
+    const indentation = insertSpaces ? ' '.repeat(tabSize) : '\t';
+
+    // Convert JSON back to string with proper indentation
+    const newJsonString = JSON.stringify(jsonData, null, indentation);
+
+    // Apply changes using WorkspaceEdit
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(
+        doc.uri,
+        new vscode.Range(
+            doc.positionAt(0),
+            doc.positionAt(originalText.length)
+        ),
+        newJsonString
+    );
+
+    await vscode.workspace.applyEdit(edit);
+
+    // Save the updated document
+    await doc.save();
+}
+
+
+  // ------------------------------------------------------------------------------------
+  // CONFIG READ/WRITE
+  // ------------------------------------------------------------------------------------
+
+  private async readConfig(): Promise<AuthordConfig> {
+    if (!(await this.fileExists(this.configPath))) {
+      const defaultConfig = {
+        schema: 'https://json-schema.org/draft/2020-12/schema',
+        title: 'Authord Settings',
+        type: 'object',
+        topics: { dir: 'topics' },
+        images: { dir: 'images', version: '1.0', 'web-path': 'images' },
+        instances: []
+      };
+      await this.writeNewFile(this.configPath, JSON.stringify(defaultConfig, null, 2));
+    }
+    return this.readJsonFile(this.configPath);
+  }
+
+  private async writeConfig(): Promise<void> {
+    if (!this.configData) {return;}
+    await this.updateJsonFile(this.configPath, () => {
+      return this.configData!;
+    });
+  }
+
+  // ------------------------------------------------------------------------------------
+  // TOP-LEVEL METHODS
+  // ------------------------------------------------------------------------------------
+
   async refresh(): Promise<void> {
     this.configData = await this.readConfig();
     this.instances = this.configData.instances;
   }
+
   async createConfigFile(): Promise<AuthordConfigurationManager> {
     this.configData = {
-      "schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "Authord Settings",
-      "type": "object",
-      "topics": {
-        "dir": "topics"
-      },
-      "images": {
-        "dir": "images",
-        "version": "1.0",
-        "web-path": "images"
-      },
-      "instances": []
+      schema: 'https://json-schema.org/draft/2020-12/schema',
+      title: 'Authord Settings',
+      type: 'object',
+      topics: { dir: 'topics' },
+      images: { dir: 'images', version: '1.0', 'web-path': 'images' },
+      instances: []
     };
-    this.writeConfig();
+    await this.writeConfig();
     this.instances = [];
     return this;
-
-  }
-  /**
-   * Reads the main config file asynchronously; creates a default if none exists.
-   * Returns AuthordConfig object.
-   */
-  private async readConfig(): Promise<AuthordConfig> {
-    // try {
-    await fs.access(this.configPath);
-    // } catch {
-    //   // File does not exist -> create a default config
-    //   const defaultConfig: AuthordConfig = { instances: [], topics: { dir: 'topics' } };
-    //   await fs.writeFile(this.configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-    //   return defaultConfig;
-    // }
-    const rawData = await fs.readFile(this.configPath, 'utf-8');
-    const data = JSON.parse(rawData);
-    if (!data.instances) { data.instances = []; }
-    if (!data.topics) { data.topics = { dir: 'topics' }; }
-    return data;
   }
 
-  /**
-   * Writes current configData to disk asynchronously.
-   */
-  private async writeConfig(): Promise<void> {
-    if (!this.configData) { return; }
-    await fs.writeFile(this.configPath, JSON.stringify(this.configData, null, 2), 'utf-8');
-  }
-
-  /**
-   * Returns the directory path for storing topics.
-   */
   getTopicsDir(): string {
     return path.join(
       path.dirname(this.configPath),
       this.configData?.topics?.dir!
     );
   }
+
   getImageDir(): string {
     return path.join(
       path.dirname(this.configPath),
@@ -102,114 +158,97 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     );
   }
 
-  /**
-   * Asynchronously returns the array of instance configs from the loaded config.
-   */
-  // async loadInstances(): Promise<void> {
-  //   // Here, configData is already in memory after refresh(), but we maintain the async signature.
-  //   this.refresh();
-
-
-  // }
-
-  // --------------------------- Documents --------------------------- //
-
-  /**
-   * Creates a new document by appending to configData.instances. Then writes changes to disk.
-   */
   async addDocument(newDocument: InstanceConfig): Promise<void> {
     this.configData?.instances.push(newDocument);
-    // Setup watchers (if necessary) for the main config file
     this.watchedFile = this.configPath;
-    this.writeConfig();
-    await this.writeTopicFile(newDocument['toc-elements'][0]);
-    
+    await this.writeConfig();
+
+    if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
+      await this.writeTopicFile(newDocument['toc-elements'][0]);
+    }
   }
 
   /**
-   * Deletes the specified document and all its topics from disk.
-   */
+ * Ensures the directory at `dirPath` is created.
+ * Uses VS Code's workspace.fs API.
+ */
+async createDirectory(dirPath: string): Promise<void> {
+  const dirUri = vscode.Uri.file(dirPath);
+
+  try {
+    // Check if the directory exists
+    await vscode.workspace.fs.stat(dirUri);
+    // If it doesn't throw, the directory is already there
+  } catch {
+    // If stat failed, create the directory
+    await vscode.workspace.fs.createDirectory(dirUri);
+  }
+}
+
   async deleteDocument(docId: string): Promise<void> {
     const doc = this.configData?.instances.find(d => d.id === docId);
-    if (!doc) { return; }
+    if (!doc) {return;}
 
-    // Delete all associated topics from disk
+    // Remove topics
     const topicsDir = this.getTopicsDir();
     const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
     for (const topicFileName of allTopics) {
-      const topicFilePath = path.join(topicsDir, topicFileName);
       try {
-        await fs.unlink(topicFilePath);
+        await vscode.workspace.fs.delete(vscode.Uri.file(path.join(topicsDir, topicFileName)));
       } catch {
-        // If file doesn't exist or can't be removed, ignore
+        // Ignore if doesn't exist
       }
     }
 
-    // Remove the document
+    // Remove doc from config
     this.configData!.instances = this.configData!.instances.filter(d => d.id !== docId);
     await this.writeConfig();
   }
 
-  /**
-   * Renames a document by updating its name and writing to disk.
-   */
   async renameDocument(docId: string, newName: string): Promise<void> {
     const doc = this.configData?.instances.find(d => d.id === docId);
-    if (!doc) { return; }
+    if (!doc) {return;}
     doc.name = newName;
     await this.writeConfig();
   }
 
-  /**
-   * Returns all documents from configData synchronously (already loaded in memory).
-   */
   getDocuments(): InstanceConfig[] {
-
     return this.configData!.instances;
   }
 
-  // --------------------------- Topics --------------------------- //
+  // ------------------------------------------------------------------------------------
+  // TOPIC METHODS
+  // ------------------------------------------------------------------------------------
 
-  /**
-   * Adds a new topic to the given document. Creates the topic file asynchronously.
-   */
   private async writeTopicFile(newTopic: TocElement): Promise<void> {
     const topicsDir = this.getTopicsDir();
-    try {
-      await this.createDirectory(topicsDir);
-    } catch (err) {
-      console.error(`Failed to create topics directory: ${err}`);
-      vscode.window.showErrorMessage('Failed to create topics directory.');
-      return;
-    }
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(topicsDir));
 
     const mainFilePath = path.join(topicsDir, newTopic.topic);
-    if (await this.fileExists(mainFilePath)) {
-      console.error(`Topic file "${newTopic.topic}" already exists.`);
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(mainFilePath));
+      // File exists
       vscode.window.showWarningMessage(`Topic file "${newTopic.topic}" already exists.`);
       return;
+    } catch {
+      // Not found, proceed
     }
 
-    try {
-      await this.writeFile(mainFilePath, `# ${newTopic.title}\n\nContent goes here...`);
-    } catch (err) {
-      console.error(`Failed to write topic file "${newTopic.topic}": ${err}`);
-      vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}".`);
-      return;
-    }
-
-    
+    // Write a minimal .md
+    await vscode.workspace.fs.writeFile(
+      vscode.Uri.file(mainFilePath),
+      Buffer.from(`# ${newTopic.title}\n\nContent goes here...`, 'utf-8')
+    );
   }
+
   async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<void> {
-    
     const doc = this.configData?.instances.find(d => d.id === docItem);
     if (!doc) {
-      console.error(`Document "${docItem}" not found.`);
       vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
       return;
     }
-    
-    this.writeTopicFile(newTopic);  
+
+    await this.writeTopicFile(newTopic);
 
     if (!doc['start-page']) {
       doc['start-page'] = newTopic.topic;
@@ -221,39 +260,31 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       if (parent) {
         parentArray = parent.children;
       } else {
-        console.error(`Parent topic "${parentTopic}" not found.`);
         vscode.window.showWarningMessage(`Parent topic "${parentTopic}" not found.`);
         return;
       }
     }
 
-    // Check for duplicate topic title under the same parent
+    // Check duplicates
     if (parentArray.some(t => t.title === newTopic.title)) {
-      console.error(`Duplicate topic title "${newTopic.title}" in parent.`);
       vscode.window.showWarningMessage(`Duplicate topic title "${newTopic.title}" in parent.`);
       return;
-    } else {
-      parentArray.push(newTopic);
     }
+    parentArray.push(newTopic);
 
     await this.writeConfig();
-    vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`); 
+    vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
   }
 
-  /**
-   * Deletes the specified topic (and its children) from a document, removing files from disk.
-   */
   async deleteTopic(docId: string, topicFileName: string): Promise<void> {
     const doc = this.configData?.instances.find(d => d.id === docId);
     if (!doc) {
-      console.error(`Document with id "${docId}" not found.`);
       vscode.window.showWarningMessage(`Document with id "${docId}" not found.`);
       return;
     }
 
     const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
     if (!extractedTopic) {
-      console.error(`Topic "${topicFileName}" not found in document "${docId}".`);
       vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
       return;
     }
@@ -262,24 +293,19 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     const topicsDir = this.getTopicsDir();
 
     for (const tFile of allTopics) {
-      const topicFilePath = path.join(topicsDir, tFile);
       try {
-        await fs.unlink(topicFilePath);
+        await vscode.workspace.fs.delete(vscode.Uri.file(path.join(topicsDir, tFile)));
       } catch (err) {
-        console.error(`Failed to delete file "${topicFilePath}": ${err}`);
-        vscode.window.showErrorMessage(`Failed to delete topic file "${topicFilePath}".`);
+        vscode.window.showErrorMessage(`Failed to delete topic file "${tFile}".`);
       }
     }
 
     await this.writeConfig();
   }
 
-  /**
-   * Renames a topic by renaming the file and updating topic data in config.
-   */
   async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<void> {
     const doc = this.configData?.instances.find(d => d.id === docId);
-    if (!doc) { return; }
+    if (!doc) {return;}
 
     const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
     if (topic) {
@@ -288,27 +314,34 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       const oldFilePath = path.join(topicsDir, oldTopicFile);
       const newFilePath = path.join(topicsDir, newTopicFile);
 
-      if (!(await this.fileExists(oldFilePath))) {
-        console.log(`Original file "${oldTopicFile}" not found.`);
+      // Check if old path exists and new path does not
+      try {
+        await vscode.workspace.fs.stat(vscode.Uri.file(oldFilePath));
+      } catch {
+        // Old file doesn't exist
         return;
       }
-      if (await this.fileExists(newFilePath)) {
-        console.log('File with the new name already exists.');
+      try {
+        await vscode.workspace.fs.stat(vscode.Uri.file(newFilePath));
+        // New file already exists
         return;
-      }
+      } catch { /**/ }
 
-      await this.renamePath(oldFilePath, newFilePath);
+      // Rename on disk
+      await vscode.workspace.fs.rename(
+        vscode.Uri.file(oldFilePath),
+        vscode.Uri.file(newFilePath)
+      );
+
       topic.topic = newTopicFile;
       topic.title = newName;
       await this.writeConfig();
     }
   }
 
-  // --------------------------- Topic Utility Methods --------------------------- //
-
-  /**
-   * Returns all Topics (with file path) across all documents. Uses async file checks (fs.access).
-   */
+  // ------------------------------------------------------------------------------------
+  // getTopics - physically present
+  // ------------------------------------------------------------------------------------
   async getTopics(): Promise<Topic[]> {
     const topics: Topic[] = [];
     const topicsDir = this.getTopicsDir();
@@ -317,18 +350,18 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       for (const e of elements) {
         const filePath = path.join(topicsDir, e.topic);
         try {
-          await fs.access(filePath);
+          // Check physical file existence
+          await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
           topics.push({ name: path.basename(filePath), path: filePath });
         } catch {
-          // File does not exist, ignore
+          // Does not exist, ignore
         }
-        if (e.children && e.children.length > 0) {
+        if (e.children && e.children.length) {
           await traverseElements(e.children);
         }
       }
     };
 
-    // Traverse each doc's toc-elements
     for (const doc of this.configData!.instances) {
       await traverseElements(doc['toc-elements']);
     }
@@ -336,23 +369,9 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     return topics;
   }
 
-  /**
-   * Recursively collects all .md file names (topics) from a set of TocElements.
-   */
-  private getAllTopicsFromDoc(tocElements: TocElement[]): string[] {
-    const result: string[] = [];
-    const traverse = (elements: TocElement[]) => {
-      for (const e of elements) {
-        result.push(e.topic);
-        if (e.children && e.children.length > 0) {
-          traverse(e.children);
-        }
-      }
-    };
-    traverse(tocElements);
-    return result;
-  }
-
+  // ------------------------------------------------------------------------------------
+  // Utility Methods
+  // ------------------------------------------------------------------------------------
   private findTopicByFilename(topics: TocElement[], fileName: string): TocElement | undefined {
     for (const t of topics) {
       if (t.title === fileName) {
@@ -377,105 +396,88 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     return null;
   }
 
+  private getAllTopicsFromDoc(tocElements: TocElement[]): string[] {
+    const result: string[] = [];
+    const traverse = (elements: TocElement[]) => {
+      for (const e of elements) {
+        result.push(e.topic);
+        if (e.children && e.children.length) {
+          traverse(e.children);
+        }
+      }
+    };
+    traverse(tocElements);
+    return result;
+  }
+
   private formatTitleAsFilename(title: string): string {
     return title.toLowerCase().replace(/\s+/g, '-') + '.md';
   }
 
-  // --------------------------- Async File/Directory Operations --------------------------- //
-
-  async createDirectory(dirPath: string): Promise<void> {
-    await fs.mkdir(dirPath, { recursive: true });
-  }
-
-  async writeFile(filePath: string, content: string): Promise<void> {
-    await fs.writeFile(filePath, content, 'utf-8');
-  }
-
-  async renamePath(oldPath: string, newPath: string): Promise<void> {
-    await fs.rename(oldPath, newPath);
-  }
-
-  async fileExists(filePath: string): Promise<boolean> {
-    try {
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Moves a folder to a 'trash' directory for safe-keeping. Merges if conflicts exist.
-   */
   async moveFolderToTrash(folderPath: string): Promise<void> {
     const trashPath = path.join(path.dirname(this.configPath), 'trash');
-    try {
-      await fs.access(trashPath);
-    } catch {
-      await fs.mkdir(trashPath, { recursive: true });
-    }
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(trashPath));
     const destinationPath = path.join(trashPath, path.basename(folderPath));
 
     try {
-      await fs.access(destinationPath);
+      await vscode.workspace.fs.stat(vscode.Uri.file(destinationPath));
       await this.mergeFolders(folderPath, destinationPath);
-      // Remove source folder after merging
-      await fs.rm(folderPath, { recursive: true, force: true });
+      await vscode.workspace.fs.delete(vscode.Uri.file(folderPath), { recursive: true });
     } catch {
-      // If destination doesn't exist, rename directly
-      await fs.rename(folderPath, destinationPath);
+      await vscode.workspace.fs.rename(
+        vscode.Uri.file(folderPath),
+        vscode.Uri.file(destinationPath)
+      );
     }
   }
 
-  /**
-   * Recursively merges two folders; if a collision occurs, the source file is renamed with a timestamp.
-   */
   async mergeFolders(source: string, destination: string): Promise<void> {
-    let sourceFiles: string[] = [];
+    let sourceEntries: [string, vscode.FileType][] = [];
     try {
-      sourceFiles = await fs.readdir(source);
+      sourceEntries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(source));
     } catch {
-      // If source doesn't exist or can't be read, just return
       return;
     }
 
-    for (const file of sourceFiles) {
-      const sourceFilePath = path.join(source, file);
-      const destinationFilePath = path.join(destination, file);
+    for (const [entryName, entryType] of sourceEntries) {
+      const sourcePath = path.join(source, entryName);
+      const destinationPath = path.join(destination, entryName);
 
-      const stat = await fs.lstat(sourceFilePath);
-      if (stat.isDirectory()) {
+      if (entryType === vscode.FileType.Directory) {
         try {
-          await fs.access(destinationFilePath);
+          await vscode.workspace.fs.stat(vscode.Uri.file(destinationPath));
         } catch {
-          await fs.mkdir(destinationFilePath);
+          await vscode.workspace.fs.createDirectory(vscode.Uri.file(destinationPath));
         }
-        await this.mergeFolders(sourceFilePath, destinationFilePath);
+        await this.mergeFolders(sourcePath, destinationPath);
       } else {
         try {
-          await fs.access(destinationFilePath);
-          // If it exists, rename with timestamp
-          const newFileName = `${path.basename(file, path.extname(file))}-${Date.now()}${path.extname(file)}`;
-          const newDestinationFilePath = path.join(destination, newFileName);
-          await fs.rename(sourceFilePath, newDestinationFilePath);
+          await vscode.workspace.fs.stat(vscode.Uri.file(destinationPath));
+          const ext = path.extname(entryName);
+          const base = path.basename(entryName, ext);
+          const newFileName = `${base}-${Date.now()}${ext}`;
+          const newDestPath = path.join(destination, newFileName);
+          await vscode.workspace.fs.rename(
+            vscode.Uri.file(sourcePath),
+            vscode.Uri.file(newDestPath)
+          );
         } catch {
-          // If the destination file doesn't exist
-          await fs.rename(sourceFilePath, destinationFilePath);
+          await vscode.workspace.fs.rename(
+            vscode.Uri.file(sourcePath),
+            vscode.Uri.file(destinationPath)
+          );
         }
       }
     }
   }
 
-  /**
-   * Validates the loaded config against a JSON schema using Ajv. Uses an async file read for speed.
-   */
   async validateAgainstSchema(schemaPath: string): Promise<void> {
     const ajv = new Ajv({ allErrors: true });
-    const schemaRaw = await fs.readFile(schemaPath, 'utf-8');
-    const schema = JSON.parse(schemaRaw);
+    const schemaData = await vscode.workspace.fs.readFile(vscode.Uri.file(schemaPath));
+    const schema = JSON.parse(Buffer.from(schemaData).toString('utf-8'));
+
     const validate = ajv.compile(schema);
     const valid = validate(this.configData);
-
     if (!valid) {
       const errors = validate.errors || [];
       throw new Error(`Schema validation failed: ${JSON.stringify(errors, null, 2)}`);

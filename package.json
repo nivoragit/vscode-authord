@@ -134,7 +134,7 @@
         {
           "id": "documentationsView",
           "name": "instances",
-          "when": "authord.configExists && !authord.singleInstance"
+          "when": "authord.configExists"
         },
         {
           "id": "topicsView",
@@ -184,14 +184,9 @@
         },
         {
           "command": "extension.addDocumentation",
-          "when": "view == documentationsView && !authord.singleInstance",
+          "when": "view == documentationsView",
           "group": "navigation"
-        },
-        {
-          "command": "extension.addDocumentation",
-          "when": "view == topicsView && authord.singleInstance",
-          "group": "navigation"
-        }
+        }        
       ]
     }
   },

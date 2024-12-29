@@ -15,8 +15,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[]| null, docId: string | undefined): void {
-    if(tocTree){this.tocTree = tocTree;} 
+  refresh(tocTree: TocTreeItem[] | null, docId: string | undefined): void {
+    if (tocTree) { this.tocTree = tocTree; }
     this.currentDocId = docId;
     this._onDidChangeTreeData.fire();
   }
@@ -69,7 +69,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
 
     // Prompt the user for the file name, pre-populated with the default
-    const enteredFileName = await vscode.window.showInputBox({
+    let enteredFileName = await vscode.window.showInputBox({
       prompt: 'Enter file name',
       value: defaultFileName
     });
@@ -78,16 +78,20 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return;
     }
 
-    const docDir = this.configManager.getTopicsDir();
-    const topicPath = path.join(docDir, enteredFileName);
+    let counter = 1;
+    while (await this.topicExists(enteredFileName)) {
 
-    // Check if the file already exists
-    try {
-      await fs.access(topicPath);
-      vscode.window.showInformationMessage(`File "${enteredFileName}" already exists. Please choose a different file name.`);
-      return;
-    } catch {
-      // File does not exist; safe to proceed
+      // Prompt the user for the file name, pre-populated with the default
+      enteredFileName = await vscode.window.showInputBox({
+        prompt: 'Enter different file name',
+        value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
+      });
+      if (!enteredFileName){
+        vscode.window.showWarningMessage('Topic creation canceled.');
+        return;
+      }
+      counter++;
+
     }
 
     // Create the new root topic
@@ -114,64 +118,82 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       };
     });
   }
-    // This is the most efficient approach for prompting the title first, then letting the user edit the default file name.
-    async addTopic(parent?: TopicsItem): Promise<void> {
-      if (!this.currentDocId) {
-        vscode.window.showWarningMessage('No active document to add a topic to.');
-        return;
-      }
-  
-      // Prompt for the topic title
-      const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-      if (!topicTitle) {
-        vscode.window.showWarningMessage('Topic creation canceled.');
-        return;
-      }
-  
-      // Generate the default file name (lowercase with hyphens)
-      const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
-  
+  private async topicExists(enteredFileName: string): Promise<boolean> {
+    const docDir = this.configManager.getTopicsDir();
+    const topicPath = path.join(docDir, enteredFileName);
+
+    // Check if the file already exists
+    try {
+      await fs.access(topicPath);
+      vscode.window.showInformationMessage(`File "${enteredFileName}" already exists. Please choose a different file name.`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  // This is the most efficient approach for prompting the title first, then letting the user edit the default file name.
+  async addTopic(parent?: TopicsItem): Promise<void> {
+    if (!this.currentDocId) {
+      vscode.window.showWarningMessage('No active document to add a topic to.');
+      return;
+    }
+
+    // Prompt for the topic title
+    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!topicTitle) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return;
+    }
+
+    // Generate the default file name (lowercase with hyphens)
+    const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+
+    // Prompt the user for the file name, pre-populated with the default
+    let enteredFileName = await vscode.window.showInputBox({
+      prompt: 'Enter file name',
+      value: defaultFileName
+    });
+    if (!enteredFileName) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return;
+    }
+    let counter = 1;
+    while (await this.topicExists(enteredFileName)) {
+      vscode.window.showWarningMessage(`A topic with filename "${enteredFileName}" already exists.`);
       // Prompt the user for the file name, pre-populated with the default
-      const enteredFileName = await vscode.window.showInputBox({
-        prompt: 'Enter file name',
-        value: defaultFileName
+      enteredFileName = await vscode.window.showInputBox({
+        prompt: 'Enter different file name',
+        value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
       });
       if (!enteredFileName) {
         vscode.window.showWarningMessage('Topic creation canceled.');
         return;
       }
-  
-      const docDir = this.configManager.getTopicsDir();
-      const topicPath = path.join(docDir, enteredFileName);
-  
-      // Check if the file already exists
-      try {
-        await fs.access(topicPath);
-        vscode.window.showInformationMessage(`File "${enteredFileName}" already exists. Please choose a different file name.`);
-        return;
-      } catch {
-        // File does not exist; safe to proceed
-      }
-  
-      // Create the new topic
-      const newTopic: TocTreeItem = {
-        topic: enteredFileName,
-        title: topicTitle,
-        sortChildren: "none",
-        children: []
-      };
-  
-      // Add to either the parent or root
-      if (parent) {
-        parent.children.push(newTopic);
-      } else {
-        this.tocTree.push(newTopic);
-      }
-  
-      this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
-      this._onDidChangeTreeData.fire();
+      counter++;
+
     }
-  
+
+
+
+    // Create the new topic
+    const newTopic: TocTreeItem = {
+      topic: enteredFileName,
+      title: topicTitle,
+      sortChildren: "none",
+      children: []
+    };
+
+    // Add to either the parent or root
+    if (parent) {
+      parent.children.push(newTopic);
+    } else {
+      this.tocTree.push(newTopic);
+    }
+
+    this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
+    this._onDidChangeTreeData.fire();
+  }
+
   async deleteTopic(item: TopicsItem): Promise<void> {
     if (!this.currentDocId || !item.topic) {
       vscode.window.showWarningMessage('No topic selected or invalid document state.');
