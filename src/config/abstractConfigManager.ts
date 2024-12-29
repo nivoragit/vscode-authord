@@ -26,10 +26,7 @@ export abstract class AbstractConfigManager {
   abstract refresh(): Promise<void>;
 
   // New file and directory operations
-  abstract createDirectory(dirPath: string): void;
-  abstract writeFile(filePath: string, content: string): void;
-  abstract renamePath(oldPath: string, newPath: string): void;
-  abstract fileExists(filePath: string):Promise<boolean>
+  abstract createDirectory(dirPath: string): Promise<void>;
   abstract moveFolderToTrash(folderPath: string): void;
   abstract mergeFolders(source: string, destination: string): void;
 }
