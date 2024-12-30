@@ -16,8 +16,8 @@ export abstract class AbstractConfigManager {
   // abstract loadInstances(): Promise<void>;
 
   // Topic-specific methods
-  abstract addTopic(docId: string, parentTopicId: string | null, newTopic: any): void;
-  abstract deleteTopic(docId: string, topicId: string): void;
+  abstract addTopic(docId: string, parentTopicId: string | null, newTopic: any):  Promise<void>;
+  abstract deleteTopic(docId: string, topicId: string): Promise<void>;
   abstract renameTopic(docId: string, topicId: string, newName: string): void;
   abstract moveTopic(docId: string, topicId: string, newParentId: string | null): void;
   abstract getTopics():  Promise<Topic[]>;

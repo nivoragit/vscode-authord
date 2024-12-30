@@ -1,42 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { parseIhpFile } from '../parsers/ihpParser';
-import { parseTreeFile } from '../parsers/treeParser';
-import { Config } from './types';
-import { v4 as uuidv4 } from 'uuid';
 import { Token } from 'markdown-it';
-import { Authord } from '../authordExtension';
-import { AbstractConfigManager } from '../config/abstractConfigManager';
 
+import { AbstractConfigManager } from '../config/abstractConfigManager';
 
 // Initial state
 export let configExists = true;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
-
-export function generateUniqueId(): string {
-  return uuidv4();
-}
-
-
-export async function generateJson(ihpFilePath: string): Promise<Config> {
-  const { topics, images, instanceFiles } = await parseIhpFile(ihpFilePath);
-
-  const instances = [];
-  for (const file of instanceFiles) {
-    const filePath = path.resolve(path.dirname(ihpFilePath), file);
-    const instanceData = await parseTreeFile(filePath);
-    instances.push(instanceData);
-  }
-
-  return {
-    schema: 'https://json-schema.org/draft/2020-12/schema',
-    title: 'Authord Settings',
-    type: 'object',
-    topics,
-    images,
-    instances
-  } as any;
-}
 
 // Setter function
 export function setConfigExists(value: boolean): void {
@@ -63,7 +33,6 @@ export async function showPreviewInColumnTwo() {
   // Ensure that only one preview is open
   await closeExtraPreviews();
 }
-
 
 
 // Helper function to close any extra preview panes
@@ -100,6 +69,7 @@ export async function focusOrShowPreview() {
   }
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 }
+
 
 // 1) Helper to handle standard Markdown images: ![Alt text](path)
 export function createCustomImageRenderer(
@@ -143,6 +113,7 @@ export function createCustomImageRenderer(
     return defaultRender(tokens, idx, options, env, self);
   };
 }
+
 
 // 2) Helper to handle HTML-based images: <img src="..." width=".." height="..">
 export function createCustomHtmlRenderer(
