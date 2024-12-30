@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { DocumentationItem, DocumentationProvider } from "./views/documentationProvider";
-import { TopicsItem, TopicsProvider } from "./views/topicsProvider";
+import { DocumentationItem, DocumentationProvider } from "./services/documentationProvider";
+import { TopicsItem, TopicsProvider } from "./services/topicsProvider";
 import { TocTreeItem } from './utils/types';
 import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
-import { AuthordConfigurationManager } from './config/AuthordConfigurationManager';
-import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './config/abstractConfigManager';
-import { XMLConfigurationManager } from './config/XMLConfigurationManager';
+import { AuthordConfigurationManager } from './configurationManagers/AuthordConfigurationManager';
+import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './configurationManagers/abstractConfigurationManager';
+import { XMLConfigurationManager } from './configurationManagers/XMLConfigurationManager';
 
 export class Authord {
     private commandsRegistered = false;

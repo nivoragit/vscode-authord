@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { InstanceConfig, TocTreeItem } from '../utils/types';
-import { TocElement, AbstractConfigManager } from '../config/abstractConfigManager';
+import { TocElement, AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 import { TopicsProvider } from './topicsProvider';
 
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {

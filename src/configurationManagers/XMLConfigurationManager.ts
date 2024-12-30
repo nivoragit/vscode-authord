@@ -1,4 +1,4 @@
-import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigManager';
+import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigurationManager';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';

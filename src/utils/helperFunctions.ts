@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
 
-import { AbstractConfigManager } from '../config/abstractConfigManager';
+import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 
 // Initial state
 export let configExists = true;

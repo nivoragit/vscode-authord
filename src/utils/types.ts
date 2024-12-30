@@ -1,4 +1,4 @@
-import { TocElement } from "../config/abstractConfigManager";
+import { TocElement } from "../configurationManagers/abstractConfigurationManager";
 
 export interface InstanceConfig {
   id: string;
