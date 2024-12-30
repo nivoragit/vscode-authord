@@ -86,7 +86,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         prompt: 'Enter different file name',
         value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
       });
-      if (!enteredFileName){
+      if (!enteredFileName) {
         vscode.window.showWarningMessage('Topic creation canceled.');
         return;
       }
@@ -182,16 +182,18 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       sortChildren: "none",
       children: []
     };
+    if (enteredFileName) {
 
-    // Add to either the parent or root
-    if (parent) {
-      parent.children.push(newTopic);
-    } else {
-      this.tocTree.push(newTopic);
+      // Add to either the parent or root
+      if (parent) {
+        parent.children.push(newTopic);
+      } else {
+        this.tocTree.push(newTopic);
+      }
+
+      await this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
+      this._onDidChangeTreeData.fire();
     }
-
-    this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
-    this._onDidChangeTreeData.fire();
   }
 
   async deleteTopic(item: TopicsItem): Promise<void> {

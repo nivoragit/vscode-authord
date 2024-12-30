@@ -13,17 +13,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   initializer = new Authord(context, workspaceRoot);
 
-  // Listen for when the active editor changes
-  // context.subscriptions.push(
-  //   vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-  //     if (editor && editor.document.languageId === 'markdown') {
-  //       // Focus the existing preview if it's open
-  //       await focusExistingPreview();
-  //     }
-  //   })
-  // );
-
-
   // Return the extendMarkdownIt function
   return {
     extendMarkdownIt(md: any) {

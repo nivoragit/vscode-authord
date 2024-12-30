@@ -283,29 +283,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     this.treeFileName = `${newDocument.id}.tree`;
     const treeFilePath = path.join(this.getIhpDir(), this.treeFileName);
 
-    // Build instance-profile
-    // const profileObj = {
-    //   'instance-profile': {
-    //     '@_id': newDocument.id,
-    //     '@_name': newDocument.name,
-    //     '@_start-page': newDocument['start-page'],
-    //     'toc-element': []
-    //   }
-    // };
-
-    // // Writerside doctype
-    // const builder = new XMLBuilder({
-    //   ignoreAttributes: false,
-    //   format: true, // Enable pretty formatting
-    //   indentBy: await this.getIndentationSetting()
-    // });
-
-    // // Build XML content
-    // const xmlContent = builder.build(profileObj);
-    // const doctype = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE instance-profile SYSTEM \"https://resources.jetbrains.com/writerside/1.0/product-profile.dtd\">\n\n`;
-    // const fullContent =  doctype + xmlContent;
-    // // Write to disk
-    // await this.writeNewFile(treeFilePath, fullContent);
     await this.writeInstanceProfile(newDocument, treeFilePath);
     // Update .ihp
     if (!this.ihpData.ihp.instance) {
@@ -466,13 +443,9 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
 
     // Check for duplicates
-    if (parentArray.some(t => t.title === newTopic.title)) {
-      vscode.window.showWarningMessage(`Duplicate topic title "${newTopic.title}" in parent.`);
-      return;
-    } else {
+    if (!parentArray.some(t => t.title === newTopic.title)) {
       parentArray.push(newTopic);
-    }
-
+    } 
     // Update .tree
     try {
       await this.writeInstanceProfile(doc, null);
