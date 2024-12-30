@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
 import { TocTreeItem } from '../utils/types';
-import { AbstractConfigManager, TocElement } from '../config/abstractConfigManager';
+import { AbstractConfigManager, TocElement } from '../configurationManagers/abstractConfigurationManager';
 import { DocumentationItem } from './documentationProvider';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {

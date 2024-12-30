@@ -186,7 +186,7 @@
           "command": "extension.addDocumentation",
           "when": "view == documentationsView",
           "group": "navigation"
-        }        
+        }
       ]
     }
   },
@@ -213,6 +213,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.9",
     "@types/vscode": "^1.70.0",
@@ -221,8 +222,15 @@
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "esbuild-loader": "^4.2.2",
-    "eslint": "^9.13.0",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4"
   },

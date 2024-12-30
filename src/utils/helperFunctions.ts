@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
 
-import { AbstractConfigManager } from '../config/abstractConfigManager';
+import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 
 // Initial state
 export let configExists = true;
@@ -12,6 +12,7 @@ export const configFiles = ['authord.config.json', 'writerside.cfg'];
 export function setConfigExists(value: boolean): void {
   configExists = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
+  
 }
 
 // Helper function to show the preview in column two
