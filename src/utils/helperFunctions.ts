@@ -12,6 +12,7 @@ export const configFiles = ['authord.config.json', 'writerside.cfg'];
 export function setConfigExists(value: boolean): void {
   configExists = value;
   vscode.commands.executeCommand('setContext', 'authord.configExists', value);
+  
 }
 
 // Helper function to show the preview in column two

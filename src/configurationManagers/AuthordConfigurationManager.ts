@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import * as path from 'path';
 import Ajv from 'ajv';
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigurationManager';
-import { Authord } from '../authordExtension';
 
 export interface AuthordConfig {
   instances: InstanceConfig[];
@@ -11,24 +11,13 @@ export interface AuthordConfig {
 }
 
 export class AuthordConfigurationManager extends AbstractConfigManager {
-  moveTopic(_docId: string, _topicId: string, _newParentId: string | null): void {
-    throw new Error('Method not implemented.');
-  }
 
   configData: AuthordConfig | undefined;
-  private watchedFile: string = '';
-
   constructor(configPath: string) {
     super(configPath);
   }
 
-  setupWatchers(InitializeExtension: Authord): void {
-    if (this.watchedFile) {
-      InitializeExtension.setupWatchers(this.watchedFile);
-      this.watchedFile = '';
-    }
-  }
-
+  
   // ------------------------------------------------------------------------------------
   // FILE/JSON HELPERS
   // ------------------------------------------------------------------------------------
@@ -95,7 +84,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   // CONFIG READ/WRITE
   // ------------------------------------------------------------------------------------
 
-  private createDefaultConfig(): AuthordConfig {
+  private defaultConfigJson(): AuthordConfig {
     return {
       schema: 'https://json-schema.org/draft/2020-12/schema',
       title: 'Authord Settings',
@@ -108,7 +97,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   private async readConfig(): Promise<AuthordConfig> {
     if (!(await this.fileExists(this.configPath))) {
-      const defaultConfig = this.createDefaultConfig();
+      const defaultConfig = this.defaultConfigJson();
       await this.writeNewFile(this.configPath, JSON.stringify(defaultConfig, null, 2));
     }
     return this.readJsonFile(this.configPath);
@@ -129,7 +118,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   async createConfigFile(): Promise<AuthordConfigurationManager> {
-    this.configData = this.createDefaultConfig();
+    this.configData = this.defaultConfigJson();
     await this.writeConfig();
     this.instances = [];
     return this;
@@ -165,7 +154,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
 
     this.configData.instances.push(newDocument);
-    this.watchedFile = this.configPath;
     await this.writeConfig();
 
     if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {

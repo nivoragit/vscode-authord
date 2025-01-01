@@ -9,17 +9,16 @@ export abstract class AbstractConfigManager {
   abstract getTopicsDir(): string;
   abstract getImageDir(): string;
   // Document-specific methods
-  abstract addDocument(newDocument: any):void;
+  abstract addDocument(newDocument: InstanceConfig):void;
   abstract deleteDocument(docId: string): void;
   abstract renameDocument(docId: string, newName: string): void;
-  abstract getDocuments(): any[];
+  abstract getDocuments(): InstanceConfig[];
   // abstract loadInstances(): Promise<void>;
 
   // Topic-specific methods
-  abstract addTopic(docId: string, parentTopicId: string | null, newTopic: any):  Promise<void>;
+  abstract addTopic(docId: string, parentTopicId: string | null, newTopic: TocElement):  Promise<void>;
   abstract deleteTopic(docId: string, topicId: string): Promise<void>;
   abstract renameTopic(docId: string, topicId: string, newName: string): void;
-  abstract moveTopic(docId: string, topicId: string, newParentId: string | null): void;
   abstract getTopics():  Promise<Topic[]>;
 
   // Refresh configuration
@@ -27,8 +26,6 @@ export abstract class AbstractConfigManager {
 
   // New file and directory operations
   abstract createDirectory(dirPath: string): Promise<void>;
-  abstract moveFolderToTrash(folderPath: string): void;
-  abstract mergeFolders(source: string, destination: string): void;
 }
 
 

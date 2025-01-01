@@ -3,29 +3,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import Ajv from 'ajv';
-import { Authord } from '../authordExtension';
 
 export class XMLConfigurationManager extends AbstractConfigManager {
-  moveTopic(_docId: string, _topicId: string, _newParentId: string | null): void {
-    throw new Error('Method not implemented.');
-  }
-
   private treeFileName: string = '';
   instances: InstanceConfig[] = [];
   private ihpData: any;
 
   constructor(configPath: string) {
     super(configPath);
-  }
-
-  /**
-   * If a .tree file name is set (via addDocument), set up watchers for it.
-   */
-  setupWatchers(InitializeExtension: Authord): void {
-    if (this.treeFileName) {
-      InitializeExtension.setupWatchers(this.treeFileName);
-      this.treeFileName = '';
-    }
   }
 
   /**
@@ -191,7 +176,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    * Writes updated instance-profile data to the .tree file for a doc, preserving indentation.
    */
   private async writeInstanceProfile(doc: InstanceConfig, filePath: string | null): Promise<void> {
-    if(!filePath){ filePath = await this.getFilePathForDoc(doc.id);}
+    if (!filePath) { filePath = await this.getFilePathForDoc(doc.id); }
     // Determine startPage based on TOC elements
     const startPage = doc['toc-elements'].length > 0 ? doc['start-page'] : '';
 
@@ -220,7 +205,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     // Insert the Writerside doctype
     const doctype = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE instance-profile SYSTEM \"https://resources.jetbrains.com/writerside/1.0/product-profile.dtd\">\n\n`;
     const fullContent = doctype + xmlContent;
-    this.writeNewFile(filePath,fullContent);
+    this.writeNewFile(filePath, fullContent);
   }
 
   /**
@@ -303,7 +288,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
   async createDirectory(dirPath: string): Promise<void> {
     const dirUri = vscode.Uri.file(dirPath);
-  
+
     try {
       // Check if the directory exists
       await vscode.workspace.fs.stat(dirUri);
@@ -321,7 +306,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     const ihp = this.ihpData?.ihp;
     if (!ihp.instance) { return; }
 
-    let arr = Array.isArray(ihp.instance) ? ihp.instance : [ihp.instance];
+    const arr = Array.isArray(ihp.instance) ? ihp.instance : [ihp.instance];
     const idx = await this.findDocumentIndex(arr, docId);
     if (idx > -1) {
       const treeSrc = arr[idx]['@_src'];
@@ -398,7 +383,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     const doc = this.instances.find(d => d.name === docName);
     if (!doc) { return; }
     doc.name = newName;
-    await this.writeInstanceProfile(doc,null);
+    await this.writeInstanceProfile(doc, null);
   }
 
   /**
@@ -445,12 +430,12 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     // Check for duplicates
     if (!parentArray.some(t => t.title === newTopic.title)) {
       parentArray.push(newTopic);
-    } 
+    }
     // Update .tree
     try {
       await this.writeInstanceProfile(doc, null);
     } catch (err) {
-      vscode.window.showErrorMessage(`Failed to update document tree.`);
+      vscode.window.showErrorMessage(`Failed to update document tree:${err}`);
       return;
     }
 
@@ -588,10 +573,10 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       await vscode.workspace.fs.writeFile(fileUri, Buffer.from(fullContent, 'utf-8'));
       return;
     }
-    
 
 
-    
+
+
     const document = await vscode.workspace.openTextDocument(fileUri);
 
     // Apply changes using WorkspaceEdit
@@ -606,11 +591,11 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     );
 
     await vscode.workspace.applyEdit(edit);
-    try{
+    try {
       await vscode.commands.executeCommand('editor.action.formatDocument', document.uri);
     }
-    catch{
-
+    catch {
+      // do nothing
     }
 
     // Save the changes
@@ -636,7 +621,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     try {
       // Check if the file exists
       await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-  
+
       // Read the file and return its contents as a UTF-8 string
       const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
       return Buffer.from(data).toString('utf-8');
@@ -645,7 +630,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       throw new Error(`File "${filePath}" does not exist or cannot be read.`);
     }
   }
-  
+
 
   /**
    * Deletes a file if it exists.
@@ -662,7 +647,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    * Utility to open an XML file, parse, mutate, replace content, and run `editor.action.formatDocument`.
    */
   private async updateXmlFile(
-    filePath: string, 
+    filePath: string,
     mutateFn: (parsedXml: any) => any
   ): Promise<void> {
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
@@ -681,7 +666,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       indentBy: await this.getIndentationSetting(),
       suppressEmptyNode: true
     });
-    
+
     const newXml = builder.build(xmlObj);
 
     // Replace content
@@ -694,13 +679,13 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     await vscode.workspace.applyEdit(edit);
 
     // Format + Save
-    try{
+    try {
       await vscode.commands.executeCommand('editor.action.formatDocument', doc.uri);
     }
-    catch{
+    catch {
 
     }
-    
+
     await doc.save();
   }
 

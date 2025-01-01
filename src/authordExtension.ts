@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { DocumentationItem, DocumentationProvider } from "./services/documentationProvider";
-import { TopicsItem, TopicsProvider } from "./services/topicsProvider";
 import { TocTreeItem } from './utils/types';
 import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
 import { AuthordConfigurationManager } from './configurationManagers/AuthordConfigurationManager';
 import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './configurationManagers/abstractConfigurationManager';
 import { XMLConfigurationManager } from './configurationManagers/XMLConfigurationManager';
+import { DocumentationProvider, DocumentationItem } from './services/documentationProvider';
+import { TopicsProvider, TopicsItem } from './services/topicsProvider';
 
 export class Authord {
     private commandsRegistered = false;
@@ -289,12 +289,17 @@ export class Authord {
 
         configWatcher.onDidCreate(async () => {
             await this.reinitialize();
+            setConfigExists(true);
             vscode.window.showInformationMessage('config file has been created.');
+            
         });
 
         configWatcher.onDidDelete(async () => {
             await this.reinitialize();
+            setConfigExists(false);
+            vscode.commands.executeCommand('workbench.action.reloadWindow');
             vscode.window.showInformationMessage('config file has been deleted.');
+            
         });
 
         this.context.subscriptions.push(configWatcher);
@@ -341,9 +346,10 @@ export class Authord {
                     try {
                         await this.configManager.validateAgainstSchema(schemaPath);
                     } catch (error: any) {
-                        
+                        vscode.commands.executeCommand('workbench.action.reloadWindow');
+                        vscode.window.showErrorMessage('Failed to initialize extension');
                         vscode.window.showErrorMessage(
-                            `Failed to initialize extension: ${error.message}`
+                            `Invalid configuration file: ${error.message}`
                         );
                         break;
                     }
