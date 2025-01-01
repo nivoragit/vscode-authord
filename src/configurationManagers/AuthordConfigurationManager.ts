@@ -295,7 +295,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       vscode.window.showWarningMessage(`Cannot rename topic. File "${newTopicFile}" already exists.`);
       return;
     }
-
     await vscode.workspace.fs.rename(vscode.Uri.file(oldFilePath), vscode.Uri.file(newFilePath));
     topic.topic = newTopicFile;
     topic.title = newName;
@@ -335,7 +334,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   private findTopicByFilename(topics: TocElement[], fileName: string): TocElement | undefined {
     for (const t of topics) {
-      if (t.title === fileName) {
+      if (t.topic === fileName) {
         return t;
       }
       const found = this.findTopicByFilename(t.children, fileName);

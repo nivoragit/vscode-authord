@@ -11,6 +11,7 @@ import { TopicsProvider, TopicsItem } from './services/topicsProvider';
 
 export class Authord {
     private commandsRegistered = false;
+    private listenersSubscribed = false;
     private providersRegistered = false;
     private setupConfigWatchers = false;
     private documentationProvider: DocumentationProvider | undefined;
@@ -20,8 +21,6 @@ export class Authord {
     private instanceId: string | undefined;
     private configCode = 0;
     configManager: AbstractConfigManager | undefined;
-    private instances: InstanceConfig[] | undefined;
-    
     constructor(
         private context: vscode.ExtensionContext,
         private workspaceRoot: string
@@ -60,6 +59,8 @@ export class Authord {
             }
             this.registerCommands();
             this.commandsRegistered = true;
+            this.subscribeListeners();
+            this.listenersSubscribed = true;
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
             vscode.commands.executeCommand('setContext', 'authord.configExists', false);
@@ -91,6 +92,10 @@ export class Authord {
                         this.registerCommands();
                         this.commandsRegistered = true;
                     }
+                    if (!this.listenersSubscribed) {
+                        this.subscribeListeners();
+                        this.listenersSubscribed = true;
+                    }
                 }
                 this.documentationProvider?.refresh();
                 vscode.window.showInformationMessage('extension reinitialized');
@@ -105,6 +110,35 @@ export class Authord {
      * Registers the DocumentationProvider and TopicsProvider as tree data providers,
      * and creates their corresponding Tree Views.
      */
+    private subscribeListeners(): void {
+        // Listen for saves of Markdown files
+        this.context.subscriptions.push(
+            vscode.workspace.onDidSaveTextDocument(async (doc) => {
+                if (doc.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
+                    const topicTitle = doc.lineAt(0).text.trim().substring(1).trim();
+                    const fileName = path.basename(doc.fileName);
+                    const newFileName = topicTitle.toLowerCase().replace(/\s+/g, '-') + '.md';
+                    if (!topicTitle || fileName === newFileName) {
+                        return;
+                    }
+                    // 1. Find the corresponding tree item by comparing 'topic' with the saved filename
+                    const matchingItem = this.topicsProvider.findTopicItemByFilename(fileName);
+                    // 2. Read the title from the first line (or parse frontmatter, if you prefer)
+                    if (!matchingItem) {
+                        return;
+                    }
+                    // 3. Update the in-memory model
+                    matchingItem.title = topicTitle;
+                    this.topicsProvider!.renameTopic(
+                        //todo optimize this pass matchingItem
+                        matchingItem.topic,
+                        topicTitle
+                    );
+
+                }
+            })
+        );
+    }
     private registerProviders(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage(
@@ -182,7 +216,7 @@ export class Authord {
         );
 
         this.context.subscriptions.push(selectInstanceCommand);
-        this.context.subscriptions.push(            
+        this.context.subscriptions.push(
             vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
                 // Open the markdown file in the first column
                 const document = await vscode.workspace.openTextDocument(resourceUri);
@@ -207,9 +241,6 @@ export class Authord {
             }),
             vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
                 this.topicsProvider!.rootTopic(item);
-            }),
-            vscode.commands.registerCommand('extension.renameTopic', (item: TopicsItem) => {
-                this.topicsProvider!.renameTopic(item);
             }),
             vscode.commands.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
                 this.documentationProvider!.renameDoc(item);
@@ -291,7 +322,7 @@ export class Authord {
             await this.reinitialize();
             setConfigExists(true);
             vscode.window.showInformationMessage('config file has been created.');
-            
+
         });
 
         configWatcher.onDidDelete(async () => {
@@ -299,7 +330,7 @@ export class Authord {
             setConfigExists(false);
             vscode.commands.executeCommand('workbench.action.reloadWindow');
             vscode.window.showInformationMessage('config file has been deleted.');
-            
+
         });
 
         this.context.subscriptions.push(configWatcher);
@@ -320,7 +351,7 @@ export class Authord {
         setConfigExists(false);
         this.configCode = 0;
         for (const fileName of configFiles) {
-            
+
             const filePath = path.join(this.workspaceRoot, fileName);
             try {
                 // The most efficient approach to check file existence is to use fs.promises.access
@@ -369,7 +400,7 @@ export class Authord {
                     try {
                         await this.configManager.validateAgainstSchema(schemaPath);
                     } catch (error: any) {
-                        
+
                         vscode.window.showErrorMessage(
                             `Failed to initialize extension: ${error.message}`
                         );
@@ -382,11 +413,11 @@ export class Authord {
                 // File doesn't exist, move on to the next one
                 continue;
             }
-            
+
         }
 
         // No valid config found
-        
-      
+
+
     }
 }

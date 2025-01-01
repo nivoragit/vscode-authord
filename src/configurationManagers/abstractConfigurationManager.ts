@@ -18,7 +18,7 @@ export abstract class AbstractConfigManager {
   // Topic-specific methods
   abstract addTopic(docId: string, parentTopicId: string | null, newTopic: TocElement):  Promise<void>;
   abstract deleteTopic(docId: string, topicId: string): Promise<void>;
-  abstract renameTopic(docId: string, topicId: string, newName: string): void;
+  abstract renameTopic(docId: string, topicId: string, newName: string): Promise<void>;
   abstract getTopics():  Promise<Topic[]>;
 
   // Refresh configuration
