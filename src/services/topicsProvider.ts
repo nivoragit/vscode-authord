@@ -216,23 +216,19 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.refresh(this.tocTree, this.currentDocId);
   }
 
-  async renameTopic(item: TopicsItem): Promise<void> {
-    if (!this.currentDocId || !item.topic) {
-      vscode.window.showWarningMessage('No topic selected or invalid document state.');
+  async renameTopic(topic: string, newName: string): Promise<void> {
+    if (!this.currentDocId || !topic) {
+      vscode.window.showWarningMessage('rename failed, invalid document state.');
       return;
     }
-
-    const newName = await vscode.window.showInputBox({
-      prompt: 'Enter new topic title',
-      value: item.label as string
-    });
-    if (!newName) {
-      vscode.window.showWarningMessage('Topic rename canceled.');
+    try {
+      await this.configManager.renameTopic(this.currentDocId, topic, newName);
+    }catch{
+      vscode.window.showWarningMessage('rename failed');
       return;
     }
-
-    this.configManager.renameTopic(this.currentDocId, item.topic, newName);
-    this.renameTopicInTree(item.topic, newName, this.tocTree);
+    
+    this.renameTopicInTree(topic, newName, this.tocTree);
     this.refresh(this.tocTree, this.currentDocId);
   }
 
@@ -252,21 +248,40 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return false;
   }
 
-  private renameTopicInTree(topicId: string, newName: string, tree: TocTreeItem[]): boolean {
-    for (let i = 0; i < tree.length; i++) {
-      if (tree[i].topic === topicId) {
-        tree[i].title = newName;
-        return true;
+  findTopicItemByFilename(fileName: string): TocTreeItem | undefined {
+    return this._findTopicItemByFilename(this.tocTree, fileName);
+
+  }
+  private _findTopicItemByFilename(tocTree: TocTreeItem[], fileName: string): TocTreeItem | undefined {
+    for (const item of tocTree) {
+      if (item.topic === fileName) {
+        return item;
       }
-      if (tree[i].children && tree[i].children.length > 0) {
-        const found = this.renameTopicInTree(topicId, newName, tree[i].children);
+      if (item.children && item.children.length > 0) {
+        const found = this._findTopicItemByFilename(item.children, fileName);
         if (found) {
-          return true;
+          return found;
         }
       }
     }
-    return false;
+    return undefined;
   }
+
+  private renameTopicInTree(topicId: string, newName: string, tree: TocTreeItem[]): void {
+    for (let i = 0; i < tree.length; i++) {
+      if (tree[i].topic === topicId) {
+        tree[i].topic = newName.toLowerCase().replace(/\s+/g, '-') + '.md';
+        return; // Exit once the topic is updated
+      }
+      if (tree[i].children && tree[i].children.length > 0) {
+        this.renameTopicInTree(topicId, newName, tree[i].children);
+        return; // Exit after the recursive call if the topic is found
+      }
+    }
+  }
+  
+
+
 }
 
 export class TopicsItem extends vscode.TreeItem {
