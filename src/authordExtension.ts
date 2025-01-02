@@ -409,15 +409,10 @@ export class Authord {
                     this.configCode = 2;
                     break;
                 }
-            } catch (error: any) {
-                vscode.window.showWarningMessage(`Failed to check configurations: ${error.message}`);
+            } catch {
                 continue;
             }
 
         }
-
-        // No valid config found
-
-
     }
 }
