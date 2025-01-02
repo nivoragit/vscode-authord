@@ -402,15 +402,15 @@ export class Authord {
                     } catch (error: any) {
 
                         vscode.window.showErrorMessage(
-                            `Failed to initialize extension: ${error.message}`
+                            `Failed to validate: ${error.message}`
                         );
                         break;
                     }
                     this.configCode = 2;
                     break;
                 }
-            } catch {
-                // File doesn't exist, move on to the next one
+            } catch (error: any) {
+                vscode.window.showWarningMessage(`Failed to check configurations: ${error.message}`);
                 continue;
             }
 
