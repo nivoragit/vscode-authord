@@ -11,12 +11,15 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private tocTree: TocTreeItem[] = [];
   private configManager: AbstractConfigManager;
   currentDocId: string | undefined;
+
   constructor(configManager: AbstractConfigManager) {
     this.configManager = configManager;
   }
 
   refresh(tocTree: TocTreeItem[] | null, docId: string | undefined): void {
-    if (tocTree) { this.tocTree = tocTree; }
+    if (tocTree) {
+      this.tocTree = tocTree;
+    }
     this.currentDocId = docId;
     this._onDidChangeTreeData.fire();
   }
@@ -49,62 +52,71 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   }
 
   async rootTopic(element: DocumentationItem): Promise<void> {
-    if (element && !this.currentDocId) {
-      this.currentDocId = element.id;
-    }
+    try {
+      if (element && !this.currentDocId) {
+        this.currentDocId = element.id;
+      }
 
-    if (!this.currentDocId) {
-      vscode.window.showWarningMessage('No active document to add a root topic to.');
-      return;
-    }
-
-    // Prompt for the topic title
-    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!topicTitle) {
-      vscode.window.showWarningMessage('Root topic creation canceled.');
-      return;
-    }
-
-    // Generate the default file name (lowercase with hyphens)
-    const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
-
-    // Prompt the user for the file name, pre-populated with the default
-    let enteredFileName = await vscode.window.showInputBox({
-      prompt: 'Enter file name',
-      value: defaultFileName
-    });
-    if (!enteredFileName) {
-      vscode.window.showWarningMessage('Root topic creation canceled.');
-      return;
-    }
-
-    let counter = 1;
-    while (await this.topicExists(enteredFileName)) {
-
-      // Prompt the user for the file name, pre-populated with the default
-      enteredFileName = await vscode.window.showInputBox({
-        prompt: 'Enter different file name',
-        value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
-      });
-      if (!enteredFileName) {
-        vscode.window.showWarningMessage('Topic creation canceled.');
+      if (!this.currentDocId) {
+        vscode.window.showWarningMessage('No active document to add a root topic to.');
         return;
       }
-      counter++;
 
+      // Prompt for the topic title
+      const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+      if (!topicTitle) {
+        vscode.window.showWarningMessage('Root topic creation canceled.');
+        return;
+      }
+
+      // Generate the default file name (lowercase with hyphens)
+      const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+
+      // Prompt the user for the file name, pre-populated with the default
+      let enteredFileName = await vscode.window.showInputBox({
+        prompt: 'Enter file name',
+        value: defaultFileName
+      });
+      if (!enteredFileName) {
+        vscode.window.showWarningMessage('Root topic creation canceled.');
+        return;
+      }
+
+      let counter = 1;
+      while (await this.topicExists(enteredFileName)) {
+        // Prompt the user for the file name, pre-populated with the default
+        enteredFileName = await vscode.window.showInputBox({
+          prompt: 'Enter different file name',
+          value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
+        });
+        if (!enteredFileName) {
+          vscode.window.showWarningMessage('Topic creation canceled.');
+          return;
+        }
+        counter++;
+      }
+
+      // Create the new root topic
+      const newTopic: TocElement = {
+        topic: enteredFileName,
+        title: topicTitle,
+        sortChildren: "none",
+        children: []
+      };
+
+      // Attempt to add to config (returns Promise<boolean>)
+      const success = await this.configManager.addTopic(this.currentDocId as string, null, newTopic);
+      if (!success) {
+        vscode.window.showWarningMessage('Failed to add root topic via config manager.');
+        return;
+      }
+
+      // Update local tocTree
+      this.tocTree.push(newTopic);
+      this._onDidChangeTreeData.fire();
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to create root topic: ${error.message}`);
     }
-
-    // Create the new root topic
-    const newTopic: TocElement = {
-      topic: enteredFileName,
-      title: topicTitle,
-      sortChildren: "none",
-      children: []
-    };
-
-    this.configManager.addTopic(this.currentDocId as string, null, newTopic);
-    this.tocTree.push(newTopic);
-    this._onDidChangeTreeData.fire();
   }
 
   private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
@@ -118,6 +130,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       };
     });
   }
+
   private async topicExists(enteredFileName: string): Promise<boolean> {
     const docDir = this.configManager.getTopicsDir();
     const topicPath = path.join(docDir, enteredFileName);
@@ -128,61 +141,72 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       vscode.window.showInformationMessage(`File "${enteredFileName}" already exists. Please choose a different file name.`);
       return true;
     } catch {
+      // If fs.access throws, the file does not exist
       return false;
     }
   }
+
   // This is the most efficient approach for prompting the title first, then letting the user edit the default file name.
   async addTopic(parent?: TopicsItem): Promise<void> {
-    if (!this.currentDocId) {
-      vscode.window.showWarningMessage('No active document to add a topic to.');
-      return;
-    }
+    try {
+      if (!this.currentDocId) {
+        vscode.window.showWarningMessage('No active document to add a topic to.');
+        return;
+      }
 
-    // Prompt for the topic title
-    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!topicTitle) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return;
-    }
+      // Prompt for the topic title
+      const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+      if (!topicTitle) {
+        vscode.window.showWarningMessage('Topic creation canceled.');
+        return;
+      }
 
-    // Generate the default file name (lowercase with hyphens)
-    const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+      // Generate the default file name (lowercase with hyphens)
+      const defaultFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
 
-    // Prompt the user for the file name, pre-populated with the default
-    let enteredFileName = await vscode.window.showInputBox({
-      prompt: 'Enter file name',
-      value: defaultFileName
-    });
-    if (!enteredFileName) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return;
-    }
-    let counter = 1;
-    while (await this.topicExists(enteredFileName)) {
-      vscode.window.showWarningMessage(`A topic with filename "${enteredFileName}" already exists.`);
       // Prompt the user for the file name, pre-populated with the default
-      enteredFileName = await vscode.window.showInputBox({
-        prompt: 'Enter different file name',
-        value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
+      let enteredFileName = await vscode.window.showInputBox({
+        prompt: 'Enter file name',
+        value: defaultFileName
       });
       if (!enteredFileName) {
         vscode.window.showWarningMessage('Topic creation canceled.');
         return;
       }
-      counter++;
 
-    }
+      let counter = 1;
+      while (await this.topicExists(enteredFileName)) {
+        vscode.window.showWarningMessage(`A topic with filename "${enteredFileName}" already exists.`);
+        // Prompt the user for a different file name
+        enteredFileName = await vscode.window.showInputBox({
+          prompt: 'Enter different file name',
+          value: `${topicTitle.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
+        });
+        if (!enteredFileName) {
+          vscode.window.showWarningMessage('Topic creation canceled.');
+          return;
+        }
+        counter++;
+      }
 
+      // Create the new topic
+      const newTopic: TocTreeItem = {
+        topic: enteredFileName,
+        title: topicTitle,
+        sortChildren: "none",
+        children: []
+      };
 
-
-    // Create the new topic
-    const newTopic: TocTreeItem = {
-      topic: enteredFileName,
-      title: topicTitle,
-      sortChildren: "none",
-      children: []
-    };
-    if (enteredFileName) {
+      // Attempt to add to config (returns Promise<boolean>)
+      const success = await this.configManager.addTopic(
+        this.currentDocId,
+        parent?.label as string || null,
+        newTopic
+      );
+      if (!success) {
+        vscode.window.showWarningMessage('Failed to add topic via config manager.');
+        return;
+      }
 
       // Add to either the parent or root
       if (parent) {
@@ -191,45 +215,61 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         this.tocTree.push(newTopic);
       }
 
-      await this.configManager.addTopic(this.currentDocId, parent?.label as string || null, newTopic);
       this._onDidChangeTreeData.fire();
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to add a new topic: ${error.message}`);
     }
   }
 
   async deleteTopic(item: TopicsItem): Promise<void> {
-    if (!this.currentDocId || !item.topic) {
-      vscode.window.showWarningMessage('No topic selected or invalid document state.');
-      return;
-    }
+    try {
+      if (!this.currentDocId || !item.topic) {
+        vscode.window.showWarningMessage('No topic selected or invalid document state.');
+        return;
+      }
 
-    const confirm = await vscode.window.showWarningMessage(
-      `Are you sure you want to delete topic "${item.label}"?`,
-      { modal: true },
-      'Yes'
-    );
-    if (confirm !== 'Yes') {
-      return;
-    }
+      const confirm = await vscode.window.showWarningMessage(
+        `Are you sure you want to delete topic "${item.label}"?`,
+        { modal: true },
+        'Yes'
+      );
+      if (confirm !== 'Yes') {
+        return;
+      }
 
-    this.configManager.deleteTopic(this.currentDocId, item.topic);
-    this.removeTopicFromTree(item.topic, this.tocTree);
-    this.refresh(this.tocTree, this.currentDocId);
+      // Attempt to delete from config (returns Promise<boolean>)
+      const success = await this.configManager.deleteTopic(this.currentDocId, item.topic);
+      if (!success) {
+        vscode.window.showWarningMessage(`Failed to delete topic "${item.label}" via config manager.`);
+        return;
+      }
+
+      this.removeTopicFromTree(item.topic, this.tocTree);
+      this.refresh(this.tocTree, this.currentDocId);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to delete topic: ${error.message}`);
+    }
   }
 
   async renameTopic(topic: string, newName: string): Promise<void> {
-    if (!this.currentDocId || !topic) {
-      vscode.window.showWarningMessage('rename failed, invalid document state.');
-      return;
-    }
     try {
-      await this.configManager.renameTopic(this.currentDocId, topic, newName);
-    }catch{
-      vscode.window.showWarningMessage('rename failed');
-      return;
+      if (!this.currentDocId || !topic) {
+        vscode.window.showWarningMessage('Rename failed, invalid document state.');
+        return;
+      }
+
+      // Attempt to rename in config (returns Promise<boolean>)
+      const renameSuccess = await this.configManager.renameTopic(this.currentDocId, topic, newName);
+      if (!renameSuccess) {
+        vscode.window.showWarningMessage('Failed to rename topic via config manager.');
+        return;
+      }
+
+      this.renameTopicInTree(topic, newName, this.tocTree);
+      this.refresh(this.tocTree, this.currentDocId);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
     }
-    
-    this.renameTopicInTree(topic, newName, this.tocTree);
-    this.refresh(this.tocTree, this.currentDocId);
   }
 
   private removeTopicFromTree(topicId: string, tree: TocTreeItem[]): boolean {
@@ -250,8 +290,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 
   findTopicItemByFilename(fileName: string): TocTreeItem | undefined {
     return this._findTopicItemByFilename(this.tocTree, fileName);
-
   }
+
   private _findTopicItemByFilename(tocTree: TocTreeItem[], fileName: string): TocTreeItem | undefined {
     for (const item of tocTree) {
       if (item.topic === fileName) {
@@ -279,9 +319,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
     }
   }
-  
-
-
 }
 
 export class TopicsItem extends vscode.TreeItem {
@@ -299,5 +336,4 @@ export class TopicsItem extends vscode.TreeItem {
     this.contextValue = 'topic';
     this.topic = topic;
   }
-
 }
