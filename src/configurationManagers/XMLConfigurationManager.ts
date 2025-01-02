@@ -457,7 +457,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    */
   async renameDocument(docName: string, newName: string): Promise<boolean> {
     try {
-      const doc = this.instances.find(d => d.name === docName);
+      const doc = this.instances.find(d => d.id === docName);
       if (!doc) {
         vscode.window.showErrorMessage(`Document "${docName}" not found for rename.`);
         return false;

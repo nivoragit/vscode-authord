@@ -147,6 +147,26 @@
           "group": "navigation"
         },
         {
+          "command": "extension.addTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "inline"
+        },
+        {
+          "command": "extension.deleteTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "inline"
+        },
+        {
+          "command": "extension.renameDoc",
+          "when": "view == documentationsView && viewItem == documentation",
+          "group": "inline"
+        },
+        {
+          "command": "extension.deleteDocumentation",
+          "when": "view == documentationsView && viewItem == documentation",
+          "group": "inline"
+        },
+        {
           "command": "extension.deleteTopic",
           "when": "view == topicsView && viewItem == topic",
           "group": "navigation"
@@ -170,11 +190,6 @@
       "view/title": [
         {
           "command": "extension.rootTopic",
-          "when": "view == topicsView",
-          "group": "navigation"
-        },
-        {
-          "command": "extension.addTopic",
           "when": "view == topicsView",
           "group": "navigation"
         },
