@@ -90,10 +90,6 @@
         "title": "Delete"
       },
       {
-        "command": "extension.renameTopic",
-        "title": "Rename"
-      },
-      {
         "command": "extension.renameDoc",
         "title": "Rename"
       },
@@ -153,22 +149,22 @@
         {
           "command": "extension.deleteTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "inline"
-        },
-        {
-          "command": "extension.renameTopic",
-          "when": "view == topicsView && viewItem == topic",
-          "group": "inline"
+          "group": "navigation"
         },
         {
           "command": "extension.renameDoc",
           "when": "view == documentationsView && viewItem == documentation",
-          "group": "inline"
+          "group": "navigation"
         },
         {
           "command": "extension.deleteDocumentation",
           "when": "view == documentationsView && viewItem == documentation",
-          "group": "inline"
+          "group": "navigation"
+        },
+        {
+          "command": "extension.addDocumentation",
+          "when": "view == documentationsView",
+          "group": "navigation"
         }
       ],
       "view/title": [

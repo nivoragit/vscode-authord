@@ -304,7 +304,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
         return false;
       }
 
-      await this.writeTopicFile(newTopic);
+      
 
       if (!doc['start-page']) {
         doc['start-page'] = newTopic.topic;
@@ -325,6 +325,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       }
 
       try {
+        await this.writeTopicFile(newTopic);
         await this.writeConfig();
       } catch (error: any) {
         vscode.window.showErrorMessage(`Failed to update document tree: ${error.message}`);
@@ -381,7 +382,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       if (!doc) { 
         return false; 
       }
-      
+    
       const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
       if (!topic) { 
         return false; 
@@ -459,7 +460,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   private findTopicByFilename(topics: TocElement[], fileName: string): TocElement | undefined {
     for (const t of topics) {
-      if (t.topic === fileName) {
+      if (t.title === fileName) {
         return t;
       }
       const found = this.findTopicByFilename(t.children, fileName);

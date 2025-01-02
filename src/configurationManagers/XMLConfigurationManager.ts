@@ -494,8 +494,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         return false;
       }
 
-      // Write the .md file
-      await this.writeTopicFile(newTopic);
+      
 
       // If doc lacks start-page, set it
       if (!doc['start-page']) {
@@ -518,6 +517,8 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         parentArray.push(newTopic);
       }
 
+      // Write the .md file
+      await this.writeTopicFile(newTopic);
       // Update .tree
       await this.writeInstanceProfile(doc, null);
 
