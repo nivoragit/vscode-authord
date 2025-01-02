@@ -197,6 +197,13 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         children: []
       };
 
+      // Add to either the parent or root
+      if (parent) {
+        parent.children.push(newTopic);
+      } else {
+        this.tocTree.push(newTopic);
+      }
+
       // Attempt to add to config (returns Promise<boolean>)
       const success = await this.configManager.addTopic(
         this.currentDocId,
@@ -208,12 +215,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         return;
       }
 
-      // Add to either the parent or root
-      if (parent) {
-        parent.children.push(newTopic);
-      } else {
-        this.tocTree.push(newTopic);
-      }
+
 
       this._onDidChangeTreeData.fire();
     } catch (error: any) {
