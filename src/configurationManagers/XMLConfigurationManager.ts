@@ -504,7 +504,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       // Identify parent or root
       let parentArray = doc['toc-elements'];
       if (parentTopic) {
-        const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
+        const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic.toLowerCase().replace(/\s+/g, '-') + '.md');
         if (!parent) {
           vscode.window.showWarningMessage(`Parent topic "${parentTopic}" not found.`);
           return false;
