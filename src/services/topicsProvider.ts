@@ -16,11 +16,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[] | null, docId: string | undefined): void {
+  refresh(tocTree: TocTreeItem[] | null, docId: string | null): void {
     if (tocTree) {
       this.tocTree = tocTree;
     }
-    this.currentDocId = docId;
+    if (docId) {
+      this.currentDocId = docId;
+    }
+    
     this._onDidChangeTreeData.fire();
   }
 
@@ -49,6 +52,18 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       arguments: [path.join(this.configManager.getTopicsDir(), item.topic)]
     };
     return treeItem;
+  }
+  async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
+    const newTocTree = await this.configManager?.moveTopics(
+      this.currentDocId as string,
+      sourceTopicId,
+      targetTopicId
+    );
+
+    if (!newTocTree) {
+      return; // Target not found
+    }
+    this.refresh(this.parseTocElements(newTocTree),null);
   }
 
   async rootTopic(element: DocumentationItem): Promise<void> {
@@ -130,6 +145,16 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       };
     });
   }
+  // private parseTocElement(tocElement: TocElement): TocTreeItem {
+  //   const children = tocElement.children ? tocElement.children.map(child => this.parseTocElement(child)) : [];
+  //   return {
+  //     title: tocElement.title,
+  //     topic: tocElement.topic,
+  //     sortChildren: tocElement.sortChildren,
+  //     children,
+  //   };
+  // } // todo
+
 
   private async topicExists(enteredFileName: string): Promise<boolean> {
     const docDir = this.configManager.getTopicsDir();
@@ -290,17 +315,16 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return false;
   }
 
-  findTopicItemByFilename(fileName: string): TocTreeItem | undefined {
-    return this._findTopicItemByFilename(this.tocTree, fileName);
-  }
-
-  private _findTopicItemByFilename(tocTree: TocTreeItem[], fileName: string): TocTreeItem | undefined {
+  findTopicItemByFilename(fileName: string, tocTree?: TocTreeItem[]): TocTreeItem | undefined {
+    if(!tocTree){
+      tocTree = this.tocTree;
+    }
     for (const item of tocTree) {
       if (item.topic === fileName) {
         return item;
       }
       if (item.children && item.children.length > 0) {
-        const found = this._findTopicItemByFilename(item.children, fileName);
+        const found = this.findTopicItemByFilename(fileName, item.children);
         if (found) {
           return found;
         }
