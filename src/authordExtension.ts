@@ -4,10 +4,11 @@ import { promises as fs } from 'fs';
 import { TocTreeItem } from './utils/types';
 import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
 import { AuthordConfigurationManager } from './configurationManagers/AuthordConfigurationManager';
-import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager, TocElement, Topic } from './configurationManagers/abstractConfigurationManager';
 import { XMLConfigurationManager } from './configurationManagers/XMLConfigurationManager';
 import { DocumentationProvider, DocumentationItem } from './services/documentationProvider';
 import { TopicsProvider, TopicsItem } from './services/topicsProvider';
+import { TopicsDragAndDropController } from './services/topicsDragAndDropController';
 
 export class Authord {
     private commandsRegistered = false;
@@ -158,6 +159,7 @@ export class Authord {
 
         const topicsView = vscode.window.createTreeView('topicsView', {
             treeDataProvider: this.topicsProvider,
+            dragAndDropController: new TopicsDragAndDropController(this.topicsProvider)
         });
         const docView = vscode.window.createTreeView('documentationsView', {
             treeDataProvider: this.documentationProvider,
@@ -185,6 +187,7 @@ export class Authord {
                 await this.createConfigFile();
             }));
     }
+
     private registerCommands(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage(
@@ -214,8 +217,16 @@ export class Authord {
                 this.topicsProvider!.refresh(tocTreeItems, docId);
             }
         );
+        //command that calls moveTopic
+        const moveTopicCommand = vscode.commands.registerCommand(
+            'extension.moveTopic',
+            async (sourceTopicId: string, targetTopicId: string) => {
+                await this.topicsProvider!.moveTopic(sourceTopicId, targetTopicId);
+            }
+        );
 
         this.context.subscriptions.push(selectInstanceCommand);
+        this.context.subscriptions.push(moveTopicCommand);
         this.context.subscriptions.push(
             vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
                 // Open the markdown file in the first column

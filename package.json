@@ -70,6 +70,10 @@
         "when": "!authord.configExists"
       },
       {
+        "command": "extension.moveTopic",
+        "title": "Move Topic"
+      },
+      {
         "command": "extension.addDocumentation",
         "title": "Doc"
       },
@@ -135,7 +139,8 @@
         {
           "id": "topicsView",
           "name": "table of contents",
-          "when": "authord.configExists"
+          "when": "authord.configExists",
+          "dragAndDrop": true
         }
       ]
     },

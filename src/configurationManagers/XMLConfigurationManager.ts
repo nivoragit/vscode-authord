@@ -124,7 +124,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   // ------------------------------------------------------------------------------------
-  // LOADING INSTANCES + .tree FILES
+  // LOADING INSTANCES .tree FILES
   // ------------------------------------------------------------------------------------
 
   /**
@@ -570,7 +570,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         return false;
       }
 
-      // Gather all .md files for this topic + children
+      // Gather all .md files for this topic children
       const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
       const topicsDir = this.getTopicsDir();
       for (const tFile of allTopics) {
@@ -670,7 +670,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   }
 
   // ------------------------------------------------------------------------------------
-  // FILE + FOLDER UTILITIES
+  // FILE FOLDER UTILITIES
   // ------------------------------------------------------------------------------------
 
   /**
@@ -823,7 +823,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     );
     try {
       await vscode.workspace.applyEdit(edit);
-      // Format + Save
+      // Format Save
       await vscode.commands.executeCommand('editor.action.formatDocument', doc.uri);
       await doc.save();
     } catch (err: any) {
@@ -892,4 +892,63 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       children: this.convertTocElements(e.children)
     }));
   }
+
+  async moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise< [TocElement, TocElement] | undefined> {
+      // 1) Find the document by ID
+      const doc = this.instances.find(d => d.id === docId);
+      if (!doc) {
+        throw new Error(`Document "${docId}" not found for moveTopicInDoc.`);
+      }
+      // 2) Find the target node
+      const targetTopic = await this.findTopicInDoc(doc['toc-elements'], targetTopicId, sourceTopicId);
+      if (!targetTopic) {
+        return; // Target not found
+      }
+      // Ensure targetTopic has children
+      if (!(targetTopic as TocElement).children) {
+        (targetTopic as TocElement).children = [];
+      }
+
+      // 3) Remove the source topic from doc’s toc-elements
+      const sourceTopic = await this.removeTopicFromDoc(doc['toc-elements'], sourceTopicId);
+      if (!sourceTopic) {
+        return; // Source not found
+      }
+
+      
+      
+      (targetTopic as TocElement).children.push(sourceTopic);
+
+      // 4) Write updates to the .tree file
+      await this.writeInstanceProfile(doc, null);
+      return [(targetTopic as TocElement), sourceTopic];
+  }
+
+  private async removeTopicFromDoc(topics: TocElement[], topicId: string): Promise<TocElement | undefined> {
+    for (let i = 0; i < topics.length; i++) {
+      if (topics[i].topic === topicId) {
+        return topics.splice(i, 1)[0];
+      }
+      const childRemoved = await this.removeTopicFromDoc(topics[i].children, topicId);
+      if (childRemoved) {
+        return childRemoved;
+      }
+    }
+    return undefined;
+  }
+  private async findTopicInDoc(topics: TocElement[], targetTopicId: string, sourceTopicId: string): Promise<TocElement | boolean | undefined>{
+    for (const t of topics) {
+      
+      if (t.topic === targetTopicId) {
+        if (t.children.some(child => child.topic === sourceTopicId)) { return false; }
+        return t;
+       }
+      const childFound = await this.findTopicInDoc(t.children, targetTopicId,sourceTopicId);
+      if (childFound || childFound === false) {
+        return childFound;
+      }
+    }
+    return undefined;
+  }
+    
 }

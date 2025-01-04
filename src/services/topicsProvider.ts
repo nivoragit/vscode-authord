@@ -50,6 +50,74 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     };
     return treeItem;
   }
+  async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
+    const item = await this.configManager?.moveTopics(
+      this.currentDocId as string,
+      sourceTopicId,
+      targetTopicId
+    );
+
+    if (!item) {
+      return; // Target not found
+    }
+    const [newTargetNode, newSourceNode] = item;
+    const [targetNode, sourceNode] = this.updateTopicById(this.parseTocElement(newTargetNode), this.parseTocElement(newSourceNode),targetTopicId, sourceTopicId, this.tocTree);
+
+    if (targetNode &&  sourceNode) {
+      this._onDidChangeTreeData.fire();
+    }
+
+  }
+
+  private updateTopicById(
+    newTargetNode: TocTreeItem,
+    newSourceNode: TocTreeItem,
+    targetTopicId: string,
+    sourceTopicId: string,
+    tree: TocTreeItem[]
+  ): [boolean, boolean] {
+    let targetUpdated = false;
+    let sourceUpdated = false;
+  
+    for (let i = 0; i < tree.length; i++) {
+      const node = tree[i];
+  
+      // If this node is the target...
+      if (node.topic === targetTopicId) {
+        tree[i] = newTargetNode;
+        targetUpdated = true;
+      }
+      // If this node is the source...
+      else if (node.topic === sourceTopicId) {
+        tree[i] = newSourceNode;
+        sourceUpdated = true;
+      }
+  
+      // If we've updated both, stop immediately
+      if (targetUpdated && sourceUpdated) {
+        return [true, true];
+      }
+  
+      // Recurse into children if present
+      if (node.children && node.children.length > 0) {
+        [targetUpdated, sourceUpdated] = this.updateTopicById(
+          newTargetNode,
+          newSourceNode,
+          targetTopicId,
+          sourceTopicId,
+          node.children
+        );
+        // Early exit if both are updated
+        if (targetUpdated && sourceUpdated) {
+          return [true, true];
+        }
+      }
+    }
+  
+    // Return whatever was found/updated at this level
+    return [targetUpdated, sourceUpdated];
+  }
+  
 
   async rootTopic(element: DocumentationItem): Promise<void> {
     try {
@@ -130,6 +198,16 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       };
     });
   }
+  private parseTocElement(tocElement: TocElement): TocTreeItem {
+    const children = tocElement.children ? tocElement.children.map(child => this.parseTocElement(child)) : [];
+    return {
+      title: tocElement.title,
+      topic: tocElement.topic,
+      sortChildren: tocElement.sortChildren,
+      children,
+    };
+  }
+
 
   private async topicExists(enteredFileName: string): Promise<boolean> {
     const docDir = this.configManager.getTopicsDir();

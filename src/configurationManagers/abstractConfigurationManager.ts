@@ -1,10 +1,12 @@
 export abstract class AbstractConfigManager {
+ 
   configPath: string;
   instances: InstanceConfig[] | undefined;
 
   constructor(configPath: string) {
     this.configPath = configPath;
   }
+  abstract moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise< [TocElement, TocElement] | undefined>;
   abstract validateAgainstSchema(schemaPath: string): Promise<void>;
   abstract getTopicsDir(): string;
   abstract getImageDir(): string;
