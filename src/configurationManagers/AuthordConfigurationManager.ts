@@ -195,9 +195,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     return doc;
   }
 
-  // ------------------------------------------------------------------------------------
-  // Updated to return Promise<boolean>
-  // ------------------------------------------------------------------------------------
   async addDocument(newDocument: InstanceConfig): Promise<boolean> {
     try {
       if (!this.configData) {
@@ -217,9 +214,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  // ------------------------------------------------------------------------------------
-  // Updated to return Promise<boolean>
-  // ------------------------------------------------------------------------------------
   async deleteDocument(docId: string): Promise<boolean> {
     try {
       const doc = this.findDocById(docId, false);
@@ -248,9 +242,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  // ------------------------------------------------------------------------------------
-  // Updated to return Promise<boolean>
-  // ------------------------------------------------------------------------------------
   async renameDocument(docId: string, newName: string): Promise<boolean> {
     try {
       const doc = this.findDocById(docId);
@@ -293,10 +284,48 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       throw error;
     }
   }
+  async moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise<TocElement[] | undefined> {
+    // Find the document by ID
+    const doc = this.findDocById(docId);
+    if (!doc) {
+        vscode.window.showErrorMessage(`Document "${docId}" not found.`);
+        return;
+    }
 
-  // ------------------------------------------------------------------------------------
-  // Updated to return Promise<boolean>
-  // ------------------------------------------------------------------------------------
+    // Find the target topic
+    const targetTopic = this.findTopicByFilename(doc['toc-elements'], targetTopicId);
+    if (!targetTopic) {
+        vscode.window.showWarningMessage(`Target topic "${targetTopicId}" not found in document "${docId}".`);
+        return;
+    }
+
+    // Ensure the target topic has a children array
+    if (!targetTopic.children) {
+        targetTopic.children = [];
+    }
+
+    // Remove the source topic from the document's toc-elements
+    const sourceTopic = this.extractTopicByFilename(doc['toc-elements'], sourceTopicId);
+    if (!sourceTopic) {
+        vscode.window.showWarningMessage(`Source topic "${sourceTopicId}" not found in document "${docId}".`);
+        return;
+    }
+
+    // Add the source topic to the target topic's children
+    targetTopic.children.push(sourceTopic);
+
+    // Write updates to the configuration
+    try {
+        await this.writeConfig();
+    } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to save changes while moving topics: ${error.message}`);
+        throw error;
+    }
+
+    return doc['toc-elements'];
+}
+
+  
   async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<boolean> {
     try {
       const doc = this.findDocById(docItem);
@@ -340,9 +369,6 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  // ------------------------------------------------------------------------------------
-  // Updated to return Promise<boolean>
-  // ------------------------------------------------------------------------------------
   async deleteTopic(docId: string, topicFileName: string): Promise<boolean> {
     try {
       const doc = this.findDocById(docId);

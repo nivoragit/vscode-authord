@@ -1,3 +1,5 @@
+import { TocTreeItem } from "../utils/types";
+
 export abstract class AbstractConfigManager {
  
   configPath: string;
@@ -6,7 +8,7 @@ export abstract class AbstractConfigManager {
   constructor(configPath: string) {
     this.configPath = configPath;
   }
-  abstract moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise< [TocElement, TocElement] | undefined>;
+  abstract moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise< TocTreeItem[] | undefined>;
   abstract validateAgainstSchema(schemaPath: string): Promise<void>;
   abstract getTopicsDir(): string;
   abstract getImageDir(): string;

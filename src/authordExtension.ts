@@ -376,7 +376,7 @@ export class Authord {
                 if (fileName === configFiles[1]) {
                     // XML config
                     this.configManager = new XMLConfigurationManager(filePath);
-                    await this.configManager.refresh();
+                    await this.configManager!.refresh();
                     setConfigExists(true);
 
                     if (!this.setupConfigWatchers) {
@@ -386,7 +386,7 @@ export class Authord {
 
                     // validateAgainstSchema is also async in updated managers
                     try {
-                        await this.configManager.validateAgainstSchema(schemaPath);
+                        await this.configManager!.validateAgainstSchema(schemaPath);
                     } catch (error: any) {
                         vscode.commands.executeCommand('workbench.action.reloadWindow');
                         vscode.window.showErrorMessage('Failed to initialize extension');

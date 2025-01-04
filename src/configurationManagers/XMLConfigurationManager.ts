@@ -208,8 +208,8 @@ export class XMLConfigurationManager extends AbstractConfigManager {
    */
   private async writeInstanceProfile(doc: InstanceConfig, filePath: string | null): Promise<void> {
     try {
-      if (!filePath) { 
-        filePath = await this.getFilePathForDoc(doc.id); 
+      if (!filePath) {
+        filePath = await this.getFilePathForDoc(doc.id);
       }
       // Determine startPage based on TOC elements
       const startPage = doc['toc-elements'].length === 1 ? doc['toc-elements'][0].topic : doc['start-page'];
@@ -359,8 +359,8 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   async deleteDocument(docId: string): Promise<boolean> {
     try {
       const ihp = this.ihpData?.ihp;
-      if (!ihp.instance) { 
-        return false; 
+      if (!ihp.instance) {
+        return false;
       }
 
       const arr = Array.isArray(ihp.instance) ? ihp.instance : [ihp.instance];
@@ -382,10 +382,10 @@ export class XMLConfigurationManager extends AbstractConfigManager {
 
         // Remove from .ihp
         arr.splice(idx, 1);
-        if (arr.length === 1) { 
-          ihp.instance = arr[0]; 
-        } else { 
-          ihp.instance = arr; 
+        if (arr.length === 1) {
+          ihp.instance = arr[0];
+        } else {
+          ihp.instance = arr;
         }
         await this.writeIhpFile();
 
@@ -494,7 +494,7 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         return false;
       }
 
-      
+
 
       // If doc lacks start-page, set it
       if (!doc['start-page']) {
@@ -594,29 +594,29 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<boolean> {
     try {
       const doc = this.instances.find(d => d.id === docId);
-      if (!doc) { 
+      if (!doc) {
         vscode.window.showErrorMessage(`Document "${docId}" not found for renameTopic.`);
-        return false; 
+        return false;
       }
 
       const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
-      if (!topic) { 
+      if (!topic) {
         vscode.window.showErrorMessage(`Topic "${oldTopicFile}" not found in doc "${docId}".`);
-        return false; 
+        return false;
       }
-      
+
       const topicsDir = this.getTopicsDir();
       const newTopicFile = this.formatTitleAsFilename(newName);
       const oldFilePath = path.join(topicsDir, oldTopicFile);
       const newFilePath = path.join(topicsDir, newTopicFile);
 
-      if (!(await this.fileExists(oldFilePath))) { 
+      if (!(await this.fileExists(oldFilePath))) {
         vscode.window.showErrorMessage(`Old topic file "${oldTopicFile}" does not exist on disk.`);
-        return false; 
+        return false;
       }
-      if (await this.fileExists(newFilePath)) { 
+      if (await this.fileExists(newFilePath)) {
         vscode.window.showErrorMessage(`New topic file "${newTopicFile}" already exists on disk.`);
-        return false; 
+        return false;
       }
 
       // Update .tree
@@ -893,35 +893,35 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }));
   }
 
-  async moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise< [TocElement, TocElement] | undefined> {
-      // 1) Find the document by ID
-      const doc = this.instances.find(d => d.id === docId);
-      if (!doc) {
-        throw new Error(`Document "${docId}" not found for moveTopicInDoc.`);
-      }
-      // 2) Find the target node
-      const targetTopic = await this.findTopicInDoc(doc['toc-elements'], targetTopicId, sourceTopicId);
-      if (!targetTopic) {
-        return; // Target not found
-      }
-      // Ensure targetTopic has children
-      if (!(targetTopic as TocElement).children) {
-        (targetTopic as TocElement).children = [];
-      }
+  async moveTopics(docId: string, sourceTopicId: string, targetTopicId: string): Promise<TocElement[] | undefined> {
+    // 1) Find the document by ID
+    const doc = this.instances.find(d => d.id === docId);
+    if (!doc) {
+      throw new Error(`Document "${docId}" not found for moveTopicInDoc.`);
+    }
+    // 2) Find the target node
+    const targetTopic = await this.findTopicInDoc(doc['toc-elements'], targetTopicId, sourceTopicId);
+    if (!targetTopic) {
+      return; // Target not found
+    }
+    // Ensure targetTopic has children
+    if (!(targetTopic as TocElement).children) {
+      (targetTopic as TocElement).children = [];
+    }
 
-      // 3) Remove the source topic from doc’s toc-elements
-      const sourceTopic = await this.removeTopicFromDoc(doc['toc-elements'], sourceTopicId);
-      if (!sourceTopic) {
-        return; // Source not found
-      }
+    // 3) Remove the source topic from doc’s toc-elements
+    const sourceTopic = await this.removeTopicFromDoc(doc['toc-elements'], sourceTopicId);
+    if (!sourceTopic) {
+      return; // Source not found
+    }
 
-      
-      
-      (targetTopic as TocElement).children.push(sourceTopic);
 
-      // 4) Write updates to the .tree file
-      await this.writeInstanceProfile(doc, null);
-      return [(targetTopic as TocElement), sourceTopic];
+
+    (targetTopic as TocElement).children.push(sourceTopic);
+
+    // 4) Write updates to the .tree file
+    await this.writeInstanceProfile(doc, null);
+    return doc["toc-elements"];
   }
 
   private async removeTopicFromDoc(topics: TocElement[], topicId: string): Promise<TocElement | undefined> {
@@ -936,19 +936,19 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
     return undefined;
   }
-  private async findTopicInDoc(topics: TocElement[], targetTopicId: string, sourceTopicId: string): Promise<TocElement | boolean | undefined>{
+  private async findTopicInDoc(topics: TocElement[], targetTopicId: string, sourceTopicId: string): Promise<TocElement | boolean | undefined> {
     for (const t of topics) {
-      
+
       if (t.topic === targetTopicId) {
         if (t.children.some(child => child.topic === sourceTopicId)) { return false; }
         return t;
-       }
-      const childFound = await this.findTopicInDoc(t.children, targetTopicId,sourceTopicId);
+      }
+      const childFound = await this.findTopicInDoc(t.children, targetTopicId, sourceTopicId);
       if (childFound || childFound === false) {
         return childFound;
       }
     }
     return undefined;
   }
-    
+
 }

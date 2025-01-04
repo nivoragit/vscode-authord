@@ -16,11 +16,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[] | null, docId: string | undefined): void {
+  refresh(tocTree: TocTreeItem[] | null, docId: string | null): void {
     if (tocTree) {
       this.tocTree = tocTree;
     }
-    this.currentDocId = docId;
+    if (docId) {
+      this.currentDocId = docId;
+    }
+    
     this._onDidChangeTreeData.fire();
   }
 
@@ -51,72 +54,70 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return treeItem;
   }
   async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
-    const item = await this.configManager?.moveTopics(
+    const newTocTree = await this.configManager?.moveTopics(
       this.currentDocId as string,
       sourceTopicId,
       targetTopicId
     );
 
-    if (!item) {
+    if (!newTocTree) {
       return; // Target not found
     }
-    const [newTargetNode, newSourceNode] = item;
-    const [targetNode, sourceNode] = this.updateTopicById(this.parseTocElement(newTargetNode), this.parseTocElement(newSourceNode),targetTopicId, sourceTopicId, this.tocTree);
+    this.refresh(this.parseTocElements(newTocTree),null);
+    // const [targetNode, sourceNode] = this.updateTopicById(this.parseTocElement(newTargetNode),targetTopicId, sourceTopicId, this.tocTree);
 
-    if (targetNode &&  sourceNode) {
-      this._onDidChangeTreeData.fire();
-    }
+    // if (targetNode &&  sourceNode) {
+    //   this._onDidChangeTreeData.fire();
+    // }
 
   }
 
-  private updateTopicById(
-    newTargetNode: TocTreeItem,
-    newSourceNode: TocTreeItem,
-    targetTopicId: string,
-    sourceTopicId: string,
-    tree: TocTreeItem[]
-  ): [boolean, boolean] {
-    let targetUpdated = false;
-    let sourceUpdated = false;
+  // private updateTopicById(
+  //   newTargetNode: TocTreeItem,
+  //   targetTopicId: string,
+  //   sourceTopicId: string,
+  //   tree: TocTreeItem[]
+  // ): [boolean, boolean] {
+  //   let targetUpdated = false;
+  //   let sourceUpdated = false;
   
-    for (let i = 0; i < tree.length; i++) {
-      const node = tree[i];
+  //   for (let i = 0; i < tree.length; i++) {
+  //     const node = tree[i];
   
-      // If this node is the target...
-      if (node.topic === targetTopicId) {
-        tree[i] = newTargetNode;
-        targetUpdated = true;
-      }
-      // If this node is the source...
-      else if (node.topic === sourceTopicId) {
-        tree[i] = newSourceNode;
-        sourceUpdated = true;
-      }
+  //     // If this node is the target...
+  //     if (node.topic === targetTopicId) {
+  //       tree[i] = newTargetNode;
+  //       targetUpdated = true;
+  //     }
+  //     // If this node is the source...
+  //     else if (node.topic === sourceTopicId) {
+  //       tree.splice(i, 1);
+  //       sourceUpdated = true;
+  //     }
   
-      // If we've updated both, stop immediately
-      if (targetUpdated && sourceUpdated) {
-        return [true, true];
-      }
+  //     // If we've updated both, stop immediately
+  //     if (targetUpdated && sourceUpdated) {
+  //       return [true, true];
+  //     }
   
-      // Recurse into children if present
-      if (node.children && node.children.length > 0) {
-        [targetUpdated, sourceUpdated] = this.updateTopicById(
-          newTargetNode,
-          newSourceNode,
-          targetTopicId,
-          sourceTopicId,
-          node.children
-        );
-        // Early exit if both are updated
-        if (targetUpdated && sourceUpdated) {
-          return [true, true];
-        }
-      }
-    }
+  //     // Recurse into children if present
+  //     if (node.children && node.children.length > 0) {
+  //       [targetUpdated, sourceUpdated] = this.updateTopicById(
+  //         newTargetNode,
+  //         targetTopicId,
+  //         sourceTopicId,
+  //         node.children
+  //       );
+  //       // Early exit if both are updated
+  //       if (targetUpdated && sourceUpdated) {
+  //         return [true, true];
+  //       }
+  //     }
+  //   }
   
-    // Return whatever was found/updated at this level
-    return [targetUpdated, sourceUpdated];
-  }
+  //   // Return whatever was found/updated at this level
+  //   return [targetUpdated, sourceUpdated];
+  // }
   
 
   async rootTopic(element: DocumentationItem): Promise<void> {
@@ -198,15 +199,15 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       };
     });
   }
-  private parseTocElement(tocElement: TocElement): TocTreeItem {
-    const children = tocElement.children ? tocElement.children.map(child => this.parseTocElement(child)) : [];
-    return {
-      title: tocElement.title,
-      topic: tocElement.topic,
-      sortChildren: tocElement.sortChildren,
-      children,
-    };
-  }
+  // private parseTocElement(tocElement: TocElement): TocTreeItem {
+  //   const children = tocElement.children ? tocElement.children.map(child => this.parseTocElement(child)) : [];
+  //   return {
+  //     title: tocElement.title,
+  //     topic: tocElement.topic,
+  //     sortChildren: tocElement.sortChildren,
+  //     children,
+  //   };
+  // } // todo
 
 
   private async topicExists(enteredFileName: string): Promise<boolean> {
