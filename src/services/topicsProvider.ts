@@ -64,61 +64,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return; // Target not found
     }
     this.refresh(this.parseTocElements(newTocTree),null);
-    // const [targetNode, sourceNode] = this.updateTopicById(this.parseTocElement(newTargetNode),targetTopicId, sourceTopicId, this.tocTree);
-
-    // if (targetNode &&  sourceNode) {
-    //   this._onDidChangeTreeData.fire();
-    // }
-
   }
-
-  // private updateTopicById(
-  //   newTargetNode: TocTreeItem,
-  //   targetTopicId: string,
-  //   sourceTopicId: string,
-  //   tree: TocTreeItem[]
-  // ): [boolean, boolean] {
-  //   let targetUpdated = false;
-  //   let sourceUpdated = false;
-  
-  //   for (let i = 0; i < tree.length; i++) {
-  //     const node = tree[i];
-  
-  //     // If this node is the target...
-  //     if (node.topic === targetTopicId) {
-  //       tree[i] = newTargetNode;
-  //       targetUpdated = true;
-  //     }
-  //     // If this node is the source...
-  //     else if (node.topic === sourceTopicId) {
-  //       tree.splice(i, 1);
-  //       sourceUpdated = true;
-  //     }
-  
-  //     // If we've updated both, stop immediately
-  //     if (targetUpdated && sourceUpdated) {
-  //       return [true, true];
-  //     }
-  
-  //     // Recurse into children if present
-  //     if (node.children && node.children.length > 0) {
-  //       [targetUpdated, sourceUpdated] = this.updateTopicById(
-  //         newTargetNode,
-  //         targetTopicId,
-  //         sourceTopicId,
-  //         node.children
-  //       );
-  //       // Early exit if both are updated
-  //       if (targetUpdated && sourceUpdated) {
-  //         return [true, true];
-  //       }
-  //     }
-  //   }
-  
-  //   // Return whatever was found/updated at this level
-  //   return [targetUpdated, sourceUpdated];
-  // }
-  
 
   async rootTopic(element: DocumentationItem): Promise<void> {
     try {
@@ -369,17 +315,16 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return false;
   }
 
-  findTopicItemByFilename(fileName: string): TocTreeItem | undefined {
-    return this._findTopicItemByFilename(this.tocTree, fileName);
-  }
-
-  private _findTopicItemByFilename(tocTree: TocTreeItem[], fileName: string): TocTreeItem | undefined {
+  findTopicItemByFilename(fileName: string, tocTree?: TocTreeItem[]): TocTreeItem | undefined {
+    if(!tocTree){
+      tocTree = this.tocTree;
+    }
     for (const item of tocTree) {
       if (item.topic === fileName) {
         return item;
       }
       if (item.children && item.children.length > 0) {
-        const found = this._findTopicItemByFilename(item.children, fileName);
+        const found = this.findTopicItemByFilename(fileName, item.children);
         if (found) {
           return found;
         }

@@ -66,7 +66,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       try {
         const deleted = await this.configManager.deleteDocument(item.id as string);
         if (deleted) {
-          this.topicsProvider.refresh([], undefined);
+          this.topicsProvider.refresh([], null);
           this.refresh();
           vscode.window.showInformationMessage(`Deleted documentation "${item.label}".`);
         } else {
@@ -170,7 +170,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     const aboutTitle = `About ${title}`;
   
     // Step 5: Ensure the topics directory exists
-    await this.configManager.createDirectory(this.configManager.getTopicsDir());
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(this.configManager.getTopicsDir()));
   
     // Step 6: Create the new document object
     const newDocument: InstanceConfig = {
