@@ -1,4 +1,3 @@
-import { TocTreeItem } from "../utils/types";
 import * as vscode from 'vscode';
 import * as path from 'path';
 
@@ -167,7 +166,7 @@ export abstract class AbstractConfigManager {
    * Adds a new topic -> writes .md -> updates .tree.
    * Refactored to return Promise<boolean>.
    */
-  async addTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<boolean> {
+  async addSiblingTopic(docItem: string, siblingTopic: string, newTopic: TocElement): Promise<boolean> {
     try {
       const doc = this.findDocById(docItem);
       if (!doc) {
@@ -182,8 +181,62 @@ export abstract class AbstractConfigManager {
         doc['start-page'] = newTopic.topic;
       }
 
+      let tocElements:TocElement[] | undefined;
+
+        tocElements = this.findSiblingsByFilename(doc['toc-elements'], this.formatTitleAsFilename(siblingTopic));
+        if (!tocElements) {
+          vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
+          return false;
+        }
+        // Check for duplicates
+        if (!tocElements!.some(t => t.title === newTopic.title)) {
+          tocElements!.push(newTopic);
+        }
+      
+
+      // Write the .md file
+      await this.writeTopicFile(newTopic);
+      // Update .tree
+      await this.writeConfig(doc);
+
+      vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+      return true;
+    } catch (err: any) {
+      vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}": ${err.message}`);
+      return false;
+    }
+  }
+  async SetasStartPage(docItem: string, siblingTopic: string): Promise<boolean> {
+    try {
+      const doc = this.findDocById(docItem);
+      if (!doc) {
+        vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
+        return false;
+      }
+      doc['start-page'] = this.formatTitleAsFilename(siblingTopic);
+
+
+
+      // Update config
+      await this.writeConfig(doc);
+
+      vscode.window.showInformationMessage("start page set successfully.");
+      return true;
+    } catch (err: any) {
+      vscode.window.showErrorMessage("Failed to set start page");
+      return false;
+    }
+  }
+  async addChildTopic(docItem: string, parentTopic: string | null, newTopic: TocElement): Promise<boolean> {
+    try {
+      const doc = this.findDocById(docItem);
+      if (!doc) {
+        vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
+        return false;
+      }
+
       // Identify parent or root
-      let parentArray = doc['toc-elements'];
+      let parentArray;
       if (parentTopic) {
         const parent = this.findTopicByFilename(doc['toc-elements'], this.formatTitleAsFilename(parentTopic));
         if (!parent) {
@@ -191,10 +244,12 @@ export abstract class AbstractConfigManager {
           return false;
         }
         parentArray = parent.children;
+      }else{
+        parentArray = doc['toc-elements'];
       }
 
-      // Check for duplicates
-      if (!parentArray.some(t => t.title === newTopic.title)) {
+      // push for root
+      if (!parentTopic) {
         parentArray.push(newTopic);
       }
 
@@ -306,6 +361,16 @@ export abstract class AbstractConfigManager {
     }
     return undefined;
   }
+  protected findSiblingsByFilename(topics: TocElement[], fileName: string): TocElement[] | undefined {
+    for (const t of topics) {
+      if (t.topic === fileName) {
+        return topics;
+      }
+      const found = this.findSiblingsByFilename(t.children, fileName);
+      if (found) { return found; }
+    }
+    return undefined;
+  }
 
   /**
    * Gathers all .md filenames from a TocElement[] recursively.
@@ -325,7 +390,7 @@ export abstract class AbstractConfigManager {
   }
 
   protected formatTitleAsFilename(title: string): string {
-    return title.toLowerCase().replace(/\s+/g, '-') + '.md';
+    return title.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
   }
 
   /**

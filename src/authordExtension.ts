@@ -238,20 +238,41 @@ export class Authord {
 
             }),
 
-            vscode.commands.registerCommand('extension.addTopic', (item: TopicsItem) => {
-                this.topicsProvider!.addTopic(item);
+            vscode.commands.registerCommand('extension.addChildTopic', (item: TopicsItem) => {
+                this.topicsProvider!.addChildTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.addContextMenuChildTopic', (item: TopicsItem) => {
+                this.topicsProvider!.addChildTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.addContextMenuTopic', (item: TopicsItem) => {
+                this.topicsProvider!.addSiblingTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.ContextMenuSetasStartPage', (item: TopicsItem) => {
+                this.topicsProvider!.setStartPage(item);
             }),
             vscode.commands.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
+                this.topicsProvider!.deleteTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.deleteContextMenuTopic', (item: TopicsItem) => {
                 this.topicsProvider!.deleteTopic(item);
             }),
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
+            vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
+                this.documentationProvider!.addDoc();
+            }),
             vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
+                this.documentationProvider!.deleteDoc(item);
+            }),
+            vscode.commands.registerCommand('extension.deleteContextMenuDocumentation', (item: DocumentationItem) => {
                 this.documentationProvider!.deleteDoc(item);
             }),
             vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
                 this.topicsProvider!.rootTopic(item);
+            }),
+            vscode.commands.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
+                this.documentationProvider!.renameDoc(item);
             }),
             vscode.commands.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
                 this.documentationProvider!.renameDoc(item);

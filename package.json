@@ -75,23 +75,52 @@
       },
       {
         "command": "extension.addDocumentation",
-        "title": "Doc"
+        "title": "New"
+      },
+      {
+        "command": "extension.addContextMenuDocumentation",
+        "title": "New Instance"
       },
       {
         "command": "extension.rootTopic",
         "title": "Root"
       },
       {
-        "command": "extension.addTopic",
+        "command": "extension.addChildTopic",
         "title": "Child"
       },
+      {
+        "command": "extension.addContextMenuTopic",
+        "title": "New Topic"
+      },
+      {
+        "command": "extension.addContextMenuChildTopic",
+        "title": "New Child Topic"
+      },
+      {
+        "command": "extension.ContextMenuSetasStartPage",
+        "title": "Set as Home Page"
+      },
+      
       {
         "command": "extension.deleteTopic",
         "title": "Delete"
       },
       {
+        "command": "extension.deleteContextMenuTopic",
+        "title": "Remove TOC Element..."
+      },
+      {
+        "command": "extension.deleteContextMenuDocumentation",
+        "title": "Delete..."
+      },
+      {
         "command": "extension.deleteDocumentation",
         "title": "Delete"
+      },
+      {
+        "command": "extension.renameContextMenuDoc",
+        "title": "Rename..."
       },
       {
         "command": "extension.renameDoc",
@@ -147,12 +176,22 @@
     "menus": {
       "view/item/context": [
         {
-          "command": "extension.addTopic",
+          "command": "extension.addContextMenuTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
-          "command": "extension.addTopic",
+          "command": "extension.addContextMenuChildTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@2"
+        },
+        {
+          "command": "extension.ContextMenuSetasStartPage",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@2"
+        },
+        {
+          "command": "extension.addChildTopic",
           "when": "view == topicsView && viewItem == topic",
           "group": "inline"
         },
@@ -172,22 +211,22 @@
           "group": "inline"
         },
         {
-          "command": "extension.deleteTopic",
+          "command": "extension.deleteContextMenuTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
-          "command": "extension.renameDoc",
+          "command": "extension.renameContextMenuDoc",
           "when": "view == documentationsView && viewItem == documentation",
           "group": "navigation"
         },
         {
-          "command": "extension.deleteDocumentation",
+          "command": "extension.deleteContextMenuDocumentation",
           "when": "view == documentationsView && viewItem == documentation",
           "group": "navigation"
         },
         {
-          "command": "extension.addDocumentation",
+          "command": "extension.addContextMenuDocumentation",
           "when": "view == documentationsView",
           "group": "navigation"
         }
