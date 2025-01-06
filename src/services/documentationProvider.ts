@@ -212,7 +212,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       return;
     }
 
-    const safeFileName = `${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
+    const safeFileName = `about-${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
     const newTopic: TocElement = {
       topic: safeFileName,
       title: topicTitle,
@@ -221,7 +221,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     };
 
     try {
-      const added = await this.configManager.addTopic(element.id as string, null, newTopic);
+      const added = await this.configManager.addChildTopic(element.id as string, null, newTopic);
       if (added) {
         this.refresh();
 
