@@ -259,6 +259,9 @@ export class Authord {
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
+            vscode.commands.registerCommand('extension.addDocumentation', () => {
+                this.reinitialize();
+            }),
             vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),

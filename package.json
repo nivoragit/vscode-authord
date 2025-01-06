@@ -78,6 +78,10 @@
         "title": "New"
       },
       {
+        "command": "extension.reloadConfiguration",
+        "title": "Reload Configuration"
+      },
+      {
         "command": "extension.addContextMenuDocumentation",
         "title": "New Instance"
       },
@@ -239,6 +243,11 @@
         },
         {
           "command": "extension.addDocumentation",
+          "when": "view == documentationsView",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.reloadConfiguration",
           "when": "view == documentationsView",
           "group": "navigation"
         }
