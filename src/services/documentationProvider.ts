@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { InstanceConfig, TocTreeItem } from '../utils/types';
-import { TocElement, AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 import { TopicsProvider } from './topicsProvider';
+import { InstanceConfig, TocElement } from '../utils/types';
 
 export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
 
@@ -231,13 +231,8 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
           return;
         }
   
-        const tocTreeItems = doc["toc-elements"].map((e: TocElement) => ({
-          topic: e.topic,
-          title: e.title,
-          sortChildren: e.sortChildren,
-          children: this.parseTocElements(e.children)
-        }));
-        this.topicsProvider.refresh(tocTreeItems, element.id);
+        const tocElements = doc["toc-elements"];
+        this.topicsProvider.refresh(tocElements, element.id);
       } else {
         vscode.window.showErrorMessage(`Failed to add topic "${topicTitle}" to documentation "${element.label}".`);
       }
@@ -246,17 +241,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
   }
 
-  private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
-    return tocElements.map(element => {
-      const children = element.children ? this.parseTocElements(element.children) : [];
-      return {
-        title: element.title,
-        topic: element.topic,
-        sortChildren: element.sortChildren,
-        children,
-      };
-    });
-  }
 }
 
 export class DocumentationItem extends vscode.TreeItem {

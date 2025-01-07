@@ -1,14 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
-import { TocTreeItem } from '../utils/types';
 import { AbstractConfigManager, TocElement } from '../configurationManagers/abstractConfigurationManager';
 import { DocumentationItem } from './documentationProvider';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TopicsItem | undefined | void> = new vscode.EventEmitter<TopicsItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<TopicsItem | undefined | void> = this._onDidChangeTreeData.event;
-  private tocTree: TocTreeItem[] = [];
+  private tocTree: TocElement[] = [];
   private configManager: AbstractConfigManager;
   currentDocId: string | undefined;
 
@@ -16,7 +15,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.configManager = configManager;
   }
 
-  refresh(tocTree: TocTreeItem[] | null, docId: string | null): void {
+  refresh(tocTree: TocElement[] | null, docId: string | null): void {
     if (tocTree) {
       this.tocTree = tocTree;
     }
@@ -38,7 +37,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return Promise.resolve(element.children.map(child => this.createTreeItem(child)));
   }
 
-  private createTreeItem(item: TocTreeItem): TopicsItem {
+  private createTreeItem(item: TocElement): TopicsItem {
     const hasChildren = item.children && item.children.length > 0;
     const treeItem = new TopicsItem(
       item.title,
@@ -53,6 +52,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     };
     return treeItem;
   }
+
   async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
     const newTocTree = await this.configManager?.moveTopics(
       this.currentDocId as string,
@@ -63,20 +63,23 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     if (!newTocTree) {
       return; // Target not found
     }
-    this.refresh(this.parseTocElements(newTocTree), null);
+    this.refresh(newTocTree, null);
   }
+
   private formatTitleAsFilename(title: string): string {
     return title.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
   }
+
   async rootTopic(element: DocumentationItem): Promise<void> {
     try {
       if (element && !this.currentDocId) {
         this.currentDocId = element.id;
       }
       const newTopic = await this.createTopic();
+      if(!newTopic){ return; }
       // Attempt to add to config (returns Promise<boolean>)
       const success = await this.configManager.addChildTopic(this.currentDocId as string, null, newTopic);
-      if (!success || !newTopic) {
+      if (!success) {
         vscode.window.showWarningMessage('Failed to add root topic via config manager.');
         return;
       }
@@ -87,18 +90,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to create root topic: ${error.message}`);
     }
-  }
-
-  private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
-    return tocElements.map(element => {
-      const children = element.children ? this.parseTocElements(element.children) : [];
-      return {
-        title: element.title,
-        topic: element.topic,
-        sortChildren: element.sortChildren,
-        children,
-      };
-    });
   }
 
   private async topicExists(enteredFileName: string): Promise<boolean> {
@@ -137,11 +128,10 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return;
     }
 
-
-
     this._onDidChangeTreeData.fire();
   }
-  private findSiblingsByLabel(topics: TocTreeItem[], label: string): TocElement[] | undefined {
+
+  private findSiblingsByLabel(topics: TocElement[], label: string): TocElement[] | undefined {
     for (const t of topics) {
       if (t.title === label) {
         return topics;
@@ -151,6 +141,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
+
   async addSiblingTopic(sibling?: TopicsItem): Promise<void> {
     const newTopic = await this.createTopic();
     if (!newTopic || !this.currentDocId || !sibling) { return; }
@@ -169,6 +160,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     this._onDidChangeTreeData.fire();
   }
+
   async setStartPage(instance?: TopicsItem): Promise<void> {
     if (!this.currentDocId || !instance) { return; }
 
@@ -183,7 +175,8 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     this._onDidChangeTreeData.fire();
   }
-  async createTopic(): Promise<TocTreeItem | undefined> {
+
+  async createTopic(): Promise<TocElement | undefined> {
     try {
       if (!this.currentDocId) {
         vscode.window.showWarningMessage('No active document to add a topic to.');
@@ -289,7 +282,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
   }
 
-  private removeTopicFromTree(topicId: string, tree: TocTreeItem[]): boolean {
+  private removeTopicFromTree(topicId: string, tree: TocElement[]): boolean {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].topic === topicId) {
         tree.splice(i, 1);
@@ -305,7 +298,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return false;
   }
 
-  findTopicItemByFilename(fileName: string, tocTree?: TocTreeItem[]): TocTreeItem | undefined {
+  findTopicItemByFilename(fileName: string, tocTree?: TocElement[]): TocElement | undefined {
     if (!tocTree) {
       tocTree = this.tocTree;
     }
@@ -323,7 +316,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return undefined;
   }
 
-  private renameTopicInTree(topicId: string, newName: string, tree: TocTreeItem[]): void {
+  private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].topic === topicId) {
         tree[i].topic = newName.toLowerCase().replace(/\s+/g, '-') + '.md';
@@ -338,13 +331,13 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
 }
 
 export class TopicsItem extends vscode.TreeItem {
-  children: TocTreeItem[];
+  children: TocElement[];
   topic: string;
 
   constructor(
     label: string,
     collapsibleState: vscode.TreeItemCollapsibleState,
-    children: TocTreeItem[] = [],
+    children: TocElement[] = [],
     topic: string
   ) {
     super(label, collapsibleState);

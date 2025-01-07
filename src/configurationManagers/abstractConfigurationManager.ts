@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { InstanceConfig, TocElement, Topic } from '../utils/types';
 
 export abstract class AbstractConfigManager {
 
@@ -468,21 +469,7 @@ export abstract class AbstractConfigManager {
 }
 
 
-export interface InstanceConfig {
-  id: string;
-  name: string;
-  "start-page": string;
-  "toc-elements": TocElement[];
-}
 
-export interface TocElement {
-  topic: string; // The filename for the topic, e.g., "example.md"
-  title: string; // The display title of the topic
-  sortChildren: string; // Sorting behavior for child topics
-  children: TocElement[]; // Nested child topics
-}
-export interface Topic {
-  name: string;
-  path: string;
-}
-
+// export interface Topics {
+//   "dir": string;
+// } todo
