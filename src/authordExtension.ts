@@ -19,6 +19,8 @@ export class Authord {
     private topicsProvider: TopicsProvider | undefined;
     private configCode = 0;
     configManager: AbstractConfigManager | undefined;
+    currentFileName: string = "";
+    currentTopicTitle: string = "";
     constructor(
         private context: vscode.ExtensionContext,
         private workspaceRoot: string
@@ -26,9 +28,9 @@ export class Authord {
         if (!workspaceRoot) {
             throw new Error('Workspace root is required to initialize InitializeExtension.');
         }
-        // Kick off async initialization
-        this.initialize();
+
     }
+
 
     /**
      * Main async initialization flow:
@@ -36,7 +38,7 @@ export class Authord {
      *  2. Creates providers and registers them if config is valid
      *  3. Registers commands
      */
-    public async initialize(): Promise<void> {
+    async initialize(): Promise<void> {
         try {
             this.registerCreateProjectCommand();
             await this.checkConfigFiles();
@@ -112,32 +114,74 @@ export class Authord {
     private subscribeListeners(): void {
         // Listen for saves of Markdown files
         this.context.subscriptions.push(
+            vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+                if (editor?.document.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
+                    let topicTitle = editor.document.lineAt(0).text.trim();
+                    if (!topicTitle) {
+                        for (let i = 1; i < editor.document.lineCount; i++) {
+                            topicTitle = editor.document.lineAt(i).text.trim();
+                            if (topicTitle) {
+                                break;
+                            }
+                        }
+                    }
+                    if (topicTitle.startsWith('#') && !topicTitle.startsWith('##')) {
+                        const fileName = path.basename(editor.document.fileName);
+                        if (this.currentFileName !== fileName) {
+                            // document has changed
+                            this.currentFileName = fileName;
+                            this.currentTopicTitle = topicTitle.substring(1).trim() || fileName;
+                         
+                        }
+                    }
+                    
+                    
+                   
+
+                }
+            }),
             vscode.workspace.onDidSaveTextDocument(async (doc) => {
                 if (doc.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
-                    const topicTitle = doc.lineAt(0).text.trim().substring(1).trim();
+
+                    let topicTitle = doc.lineAt(0).text.trim();
+                    if (!topicTitle) {
+                        for (let i = 1; i < doc.lineCount; i++) {
+                            topicTitle = doc.lineAt(i).text.trim();
+                            if (topicTitle) {
+                                break;
+                            }
+                        }
+                    }
+                    if (!topicTitle) { return; }
+                    if (topicTitle.startsWith('# ')) {
+                        topicTitle = topicTitle.substring(1).trim();
+                    } else {
+                        topicTitle = "";
+                    }
                     const fileName = path.basename(doc.fileName);
-                    const newFileName = topicTitle.toLowerCase().replace(/\s+/g, '-') + '.md';
-                    if (!topicTitle || fileName === newFileName) {
+                    if (this.currentTopicTitle === topicTitle && this.currentFileName === fileName) {
                         return;
                     }
                     // 1. Find the corresponding tree item by comparing 'topic' with the saved filename
                     const matchingItem = this.topicsProvider.findTopicItemByFilename(fileName);
                     // 2. Read the title from the first line (or parse frontmatter, if you prefer)
                     if (!matchingItem) {
+
                         return;
                     }
                     // 3. Update the in-memory model
-                    matchingItem.title = topicTitle;
+                    matchingItem.title = topicTitle || `<${fileName}>`;
                     this.topicsProvider!.renameTopic(
-                        //todo optimize this pass matchingItem
                         matchingItem.topic,
-                        topicTitle
+                        topicTitle || `<${fileName}>`
                     );
+                    this.currentTopicTitle = topicTitle;
 
                 }
             })
         );
     }
+
     private registerProviders(): void {
         if (!this.topicsProvider || !this.documentationProvider) {
             vscode.window.showErrorMessage(
@@ -218,15 +262,15 @@ export class Authord {
         );
 
         this.context.subscriptions.push(selectInstanceCommand);
-        this.context.subscriptions.push(moveTopicCommand);        
+        this.context.subscriptions.push(moveTopicCommand);
         this.context.subscriptions.push(
             vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-            // Open the markdown file in the first column
-            const document = await vscode.workspace.openTextDocument(resourceUri);
-            await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+                // Open the markdown file in the first column
+                const document = await vscode.workspace.openTextDocument(resourceUri);
+                await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
 
-            // Focus the existing preview or open it if it doesn't exist
-            await focusOrShowPreview();
+                // Focus the existing preview or open it if it doesn't exist
+                await focusOrShowPreview();
 
             }),
 
@@ -248,13 +292,15 @@ export class Authord {
             vscode.commands.registerCommand('extension.deleteContextMenuTopic', (item: TopicsItem) => {
                 this.topicsProvider!.deleteTopic(item);
             }),
+            vscode.commands.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
+                this.topicsProvider!.renameTopicCommand(item);
+            }),
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
-            vscode.commands.registerCommand('extension.reloadConfiguration', () => { 
+            vscode.commands.registerCommand('extension.reloadConfiguration', () => {
                 this.reinitialize();
-                this.topicsProvider?.refresh([],null);
-
+                this.topicsProvider?.refresh([], null);
             }),
             vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
                 this.documentationProvider!.addDoc();
@@ -266,7 +312,7 @@ export class Authord {
                 this.documentationProvider!.deleteDoc(item);
             }),
             vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
-                this.topicsProvider!.rootTopic(item);
+                this.topicsProvider!.addRootTopic(item);
             }),
             vscode.commands.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
                 this.documentationProvider!.renameDoc(item);
@@ -282,24 +328,10 @@ export class Authord {
     private async createConfigFile() {
         const filePath = path.join(this.workspaceRoot, configFiles[0]);
         this.configManager = await new AuthordConfigurationManager(filePath).createConfigFile();
+        await this.configManager.refresh();
         await this.reinitialize();
     }
 
-    /**
-     * Sorts TOC elements if `sortChildren` is provided.
-     */
-    private sortTocElements(tocElements: TocElement[]): void {
-        tocElements.forEach(element => {
-            if (element.sortChildren && element.children) {
-                element.children.sort(
-                    (a, b) =>
-                        a.title.localeCompare(b.title) *
-                        (element.sortChildren === 'ascending' ? 1 : -1)
-                );
-                this.sortTocElements(element.children);
-            }
-        });
-    }
 
     /**
      * Sets up watchers for a given config file in the workspace root.

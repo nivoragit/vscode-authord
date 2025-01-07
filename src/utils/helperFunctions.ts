@@ -5,8 +5,9 @@ import { Token } from 'markdown-it';
 import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 
 // Initial state
-export let configExists = true;
+export let configExists = false;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
+
 
 // Setter function
 export function setConfigExists(value: boolean): void {
@@ -98,8 +99,7 @@ export function createCustomImageRenderer(
     const currentDocumentPath = env.currentDocument.path;
     const imageFolder = path.basename(configManager.getImageDir()); 
     const topicsFolder = path.basename(configManager.getTopicsDir());
-    // Prefix markdown image paths if missing "images/"
-    // todo topics hard coded
+
     if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
       if (

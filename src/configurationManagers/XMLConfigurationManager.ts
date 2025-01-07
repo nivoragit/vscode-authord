@@ -1,4 +1,4 @@
-import { AbstractConfigManager} from './abstractConfigurationManager';
+import { AbstractConfigManager } from './abstractConfigurationManager';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
@@ -97,34 +97,57 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Reads each instance’s .tree file (if any) to build this.instances.
    */
-  async loadInstances(): Promise<void> {
+  public async loadInstances(): Promise<InstanceConfig[]> {
     try {
       const ihp = this.ihpData?.ihp;
-      const array = Array.isArray(ihp?.instance) ? ihp.instance : ihp?.instance ? [ihp.instance] : [];
-      const result: InstanceConfig[] = [];
+      // Normalize to an array of instance entries
+      const arr = Array.isArray(ihp?.instance)
+        ? ihp.instance
+        : ihp?.instance
+          ? [ihp.instance]
+          : [];
 
-      for (const inst of array) {
-        if (inst['@_src']) {
-          const treeFile = path.join(this.getIhpDir(), inst['@_src']);
-          // If .tree is missing or unreadable, skip
-          if (await this.fileExists(treeFile)) {
-            const instanceProfile = await this.readInstanceProfile(treeFile);
-            if (instanceProfile) {
-              result.push(instanceProfile);
-            }
-          }
-        }
+      // If there are no instance entries, we can exit early
+      if (arr.length === 0) {
+        this.instances = [];
+        return this.instances;
       }
-      this.instances = result;
+
+      // Parallelize reading each .tree file using Promise.all
+      const instanceProfiles = await Promise.all(
+        arr.map(async (inst: any) => {
+          // If there's no '@_src', skip
+          if (!inst['@_src']) {
+            return null;
+          }
+
+          const treeFile = path.join(this.getIhpDir(), inst['@_src']);
+
+          // Check if .tree file exists
+          if (!(await this.fileExists(treeFile))) {
+            return null;
+          }
+
+          // Read and parse the instance profile
+          const instanceProfile = await this.readInstanceProfile(treeFile);
+          return instanceProfile || null; // Return null if invalid
+        })
+      );
+
+      // Filter out null entries
+      const validProfiles = instanceProfiles.filter(
+        (profile) => profile !== null
+      ) as InstanceConfig[];
+
+      // Assign to this.instances
+      this.instances = validProfiles;
+      return this.instances;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to load instances: ${err.message}`);
       throw err;
     }
   }
 
-  /**
-   * Reads a single .tree file -> returns an InstanceConfig if valid, else null.
-   */
   private async readInstanceProfile(treeFile: string): Promise<InstanceConfig | null> {
     try {
       const raw = await this.readFileAsString(treeFile);
@@ -136,7 +159,9 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       const docId = profile['@_id'];
       const name = profile['@_name'] || profile['@_id'] || 'Untitled';
       const startPage = profile['@_start-page'] || '';
-      const tocElements: TocElement[] = this.loadTocElements(profile['toc-element'] || []);
+
+      // Note the 'await' usage here to retrieve titles concurrently from .md files
+      const tocElements: TocElement[] = await this.loadTocElements(profile['toc-element'] || []);
 
       return {
         id: docId,
@@ -146,29 +171,44 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       };
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to read instance profile from "${treeFile}": ${err.message}`);
-      // Return null rather than rethrowing, so we skip this instance gracefully.
       return null;
     }
   }
 
   /**
-   * Converts <toc-element> structures into our TocElement interface recursively.
+   * Reads each <toc-element> concurrently, extracting the title from its corresponding .md file,
+   * and stores the "title -> filename" mapping asynchronously in titleToFileMap.
+   * This is the most efficient approach, as Promise.all parallelizes the reads.
    */
-  private loadTocElements(xmlElements: any): TocElement[] {
+  private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
     if (!Array.isArray(xmlElements)) {
       xmlElements = xmlElements ? [xmlElements] : [];
     }
-    return xmlElements.map((elem: any) => {
+
+    const tasks = xmlElements.map(async (elem: any) => {
       const topicFile = elem['@_topic'];
-      const children = this.loadTocElements(elem['toc-element'] || []);
+      const children = await this.loadTocElements(elem['toc-element'] || []);
+
+      // Attempt to read the .md file and retrieve a heading-based title
+      const mdTitle = await this.getMdTitle(topicFile);
+
       return {
         topic: topicFile,
-        title: path.basename(topicFile, '.md'),
+        title: mdTitle,
         sortChildren: 'none',
         children
       } as TocElement;
     });
+
+    return Promise.all(tasks);
   }
+
+  /**
+   * Reads the corresponding .md file and returns the first heading line as the title.
+   * Falls back to the filename if no heading is found or if the file is missing.
+   */
+
+
 
   /**
    * Writes updated instance-profile data to the .tree file for a doc, preserving indentation.
@@ -268,7 +308,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       this.treeFileName = `${newDocument.id}.tree`;
       const treeFilePath = path.join(this.getIhpDir(), this.treeFileName);
 
-      await this.writeConfig(newDocument, treeFilePath);
       // Update .ihp
       if (!this.ihpData.ihp.instance) {
         this.ihpData.ihp.instance = [];
@@ -285,8 +324,14 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
         await this.writeTopicFile(newDocument['toc-elements'][0]);
       }
+      if (await this.fileExists(treeFilePath)) {
+        this.writeConfig(newDocument, treeFilePath);
+        return true;
+      } else {
+        vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}"`);
+        return false;
+      };
 
-      return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}": ${err.message}`);
       return false;
@@ -317,10 +362,13 @@ export class XMLConfigurationManager extends AbstractConfigManager {
           // Remove all topics from disk
           const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
           const topicsDir = this.getTopicsDir();
-          for (const tFile of allTopics) {
-            const p = path.join(topicsDir, tFile);
-            await this.deleteFileIfExists(p);
-          }
+          await Promise.all(
+            allTopics.map(async (tFile) => {
+              const p = path.join(topicsDir, tFile);
+              await this.deleteFileIfExists(p);
+            })
+          );
+
         }
 
         // Remove from .ihp
@@ -384,26 +432,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   // ------------------------------------------------------------------------------------
   // FILE FOLDER UTILITIES
   // ------------------------------------------------------------------------------------
-
-
-  /**
-   * Reads a file as string using workspace.fs.
-   */
-  private async readFileAsString(filePath: string): Promise<string> {
-    try {
-      // Check if the file exists
-      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-      // Read the file and return its contents as a UTF-8 string
-      const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
-      return Buffer.from(data).toString('utf-8');
-    } catch (error: any) {
-      vscode.window.showErrorMessage(`Error reading file "${filePath}": ${error.message}`);
-      throw new Error(`File "${filePath}" does not exist or cannot be read.`);
-    }
-  }
-
-
-
   /**
    * Utility to open an XML file, parse, mutate, replace content, and run `editor.action.formatDocument`.
    */
@@ -506,7 +534,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
           'toc-elements': inst['toc-elements'].map(te => ({
             topic: te.topic,
             title: te.title,
-            'sort-children': te.sortChildren,
             children: te.children
           }))
         }))
@@ -529,7 +556,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     return elements.map(e => ({
       topic: e.topic,
       title: e.title,
-      'sort-children': e.sortChildren,
       children: this.convertTocElements(e.children)
     }));
   }

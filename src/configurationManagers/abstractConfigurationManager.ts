@@ -72,60 +72,99 @@ export abstract class AbstractConfigManager {
     (targetTopic as TocElement).children.push(sourceTopic);
 
     // 4) Write updates to the .tree file
-    this.writeConfig(doc);
+    await this.writeConfig(doc);
     return doc["toc-elements"];
+  }
+  /**
+ * Opens the given Markdown file and replaces its first line with `# newTitle`.
+ */
+  async setMarkdownTitle(fileName: string, newTitle: string) {
+
+    const filePath = path.join(this.getTopicsDir(), fileName);
+    if (!this.fileExists(filePath)) {
+      vscode.window.showErrorMessage('File not found or cannot be opened.');
+      return;
+    }
+    try {
+
+      const document = await vscode.workspace.openTextDocument(filePath);
+
+      // Reveal the document in the active editor
+      const editor = await vscode.window.showTextDocument(document);
+
+      // Perform an edit operation
+      await editor.edit(editBuilder => {
+        if (document.lineCount > 0) {
+          const firstLineRange = document.lineAt(0).range;
+          editBuilder.replace(firstLineRange, `# ${newTitle}`);
+        } else {
+          // If the file is empty, just insert a new line
+          editBuilder.insert(new vscode.Position(0, 0), `# ${newTitle}\n\n`);
+        }
+      });
+
+      // Save the changes
+      await document.save();
+
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Error setting markdown title in ${filePath}: ${error.message}`);
+    }
   }
 
   /**
     * Renames a topic’s file on disk and updates .tree data accordingly.
     * Already returning Promise<boolean>, updated to unify error handling.
     */
-  async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<boolean> {
+  async renameTopic(
+    docId: string,
+    oldTopicFile: string,
+    newName: string,
+    enteredFileName?: string
+  ): Promise<boolean> {
     try {
       const doc = this.findDocById(docId);
       if (!doc) {
         vscode.window.showErrorMessage(`Document "${docId}" not found for renameTopic.`);
         return false;
       }
-
+  
       const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
       if (!topic) {
         vscode.window.showErrorMessage(`Topic "${oldTopicFile}" not found in doc "${docId}".`);
         return false;
       }
-
+  
       const topicsDir = this.getTopicsDir();
-      const newTopicFile = this.formatTitleAsFilename(newName);
-      const oldFilePath = path.join(topicsDir, oldTopicFile);
-      const newFilePath = path.join(topicsDir, newTopicFile);
-
-      if (!(await this.fileExists(oldFilePath))) {
-        vscode.window.showErrorMessage(`Old topic file "${oldTopicFile}" does not exist on disk.`);
-        return false;
-      }
-      if (await this.fileExists(newFilePath)) {
-        vscode.window.showErrorMessage(`New topic file "${newTopicFile}" already exists on disk.`);
-        return false;
-      }
+      // Generate the new filename if one wasn’t provided
+      const newTopicFile = enteredFileName || this.formatTitleAsFilename(newName);
+  
+      // Convert to VS Code file URIs
+      const oldFileUri = vscode.Uri.file(path.join(topicsDir, oldTopicFile));
+      const newFileUri = vscode.Uri.file(path.join(topicsDir, newTopicFile));
+      
+      // Rename the file
+    await vscode.workspace.fs.rename(oldFileUri, newFileUri);
+      // If this doc only has one topic, update the start-page property
       if (doc['toc-elements'].length === 1) {
         doc['start-page'] = newTopicFile;
       }
-
-      // Update .tree
+  
+      // After successful rename, update the in-memory TOC data
       topic.topic = newTopicFile;
       topic.title = newName;
-      await this.writeConfig(doc);
-      // Rename on disk
-      await vscode.workspace.fs.rename(
-        vscode.Uri.file(oldFilePath),
-        vscode.Uri.file(newFilePath)
-      );
+  
+      // Write back the updated doc config
+      await await this.writeConfig(doc);
+  
       return true;
     } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to rename topic "${oldTopicFile}" -> "${newName}": ${err.message}`);
+      vscode.window.showErrorMessage(
+        `Failed to rename topic "${oldTopicFile}" to "${newName}": ${err.message}`
+      );
       return false;
     }
   }
+  
 
   /**
      * Deletes a topic (and children) -> removes from disk -> updates .tree.
@@ -139,29 +178,37 @@ export abstract class AbstractConfigManager {
         return false;
       }
 
-      // Extract the topic
+      // Extract the topic (and its children)
       const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
       if (!extractedTopic) {
         vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
         return false;
       }
 
-      // Gather all .md files for this topic children
+      // Gather all .md files for this topic and its descendants
       const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
       const topicsDir = this.getTopicsDir();
-      for (const tFile of allTopics) {
-        await this.deleteFileIfExists(path.join(topicsDir, tFile));
-      }
+
+      // Perform all file deletions in parallel
+      await Promise.all(
+        allTopics.map((tFile) => this.deleteFileIfExists(path.join(topicsDir, tFile)))
+      );
 
       // Update .tree
-      await this.writeConfig(doc);
-
-      return true;
+      if (await this.fileExists(path.join(topicsDir, topicFileName))) {
+        vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}"`);
+        return false;
+      } else {
+        await this.writeConfig(doc);
+        return true;
+        
+      }
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}": ${err.message}`);
       return false;
     }
   }
+
 
   /**
    * Adds a new topic -> writes .md -> updates .tree.
@@ -182,26 +229,32 @@ export abstract class AbstractConfigManager {
         doc['start-page'] = newTopic.topic;
       }
 
-      let tocElements:TocElement[] | undefined;
+      let tocElements: TocElement[] | undefined;
 
-        tocElements = this.findSiblingsByFilename(doc['toc-elements'], this.formatTitleAsFilename(siblingTopic));
-        if (!tocElements) {
-          vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
-          return false;
-        }
-        // Check for duplicates
-        if (!tocElements!.some(t => t.title === newTopic.title)) {
-          tocElements!.push(newTopic);
-        }
-      
+      tocElements = this.findSiblingsByFilename(doc['toc-elements'],siblingTopic);
+      if (!tocElements) {
+        vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
+        return false;
+      }
+      // Check for duplicates
+      if (!tocElements!.some(t => t.title === newTopic.title)) {
+        tocElements!.push(newTopic);
+      }
+
 
       // Write the .md file
       await this.writeTopicFile(newTopic);
-      // Update .tree
-      await this.writeConfig(doc);
 
-      vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
-      return true;
+      // Update .tree
+      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+        await this.writeConfig(doc);
+        return true;
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete topic "${newTopic.title}"`);
+        return false;
+      }
+
+
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}": ${err.message}`);
       return false;
@@ -214,14 +267,12 @@ export abstract class AbstractConfigManager {
         vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
         return false;
       }
-      doc['start-page'] = this.formatTitleAsFilename(siblingTopic);
+      doc['start-page'] = siblingTopic;
 
 
 
       // Update config
       await this.writeConfig(doc);
-
-      vscode.window.showInformationMessage("start page set successfully.");
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage("Failed to set start page");
@@ -239,13 +290,13 @@ export abstract class AbstractConfigManager {
       // Identify parent or root
       let parentArray;
       if (parentTopic) {
-        const parent = this.findTopicByFilename(doc['toc-elements'], this.formatTitleAsFilename(parentTopic));
+        const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
         if (!parent) {
           vscode.window.showWarningMessage(`Parent topic "${parentTopic}" not found.`);
           return false;
         }
         parentArray = parent.children;
-      }else{
+      } else {
         parentArray = doc['toc-elements'];
       }
 
@@ -257,10 +308,15 @@ export abstract class AbstractConfigManager {
       // Write the .md file
       await this.writeTopicFile(newTopic);
       // Update .tree
-      await this.writeConfig(doc);
+      // Update .tree
+      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+        await this.writeConfig(doc);
+        return true;
+      } else {
+        vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);
+        return false;
+      }
 
-      vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
-      return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}": ${err.message}`);
       return false;
@@ -322,7 +378,7 @@ export abstract class AbstractConfigManager {
       // ignore
     }
   }
-  protected async writeNewFile(filePath: string, content: string): Promise<void> {
+  protected async writeNewFile(filePath: string, content: string): Promise<boolean> {
     try {
       const fileUri = vscode.Uri.file(filePath);
       const directoryUri = fileUri.with({ path: path.dirname(fileUri.fsPath) });
@@ -332,6 +388,7 @@ export abstract class AbstractConfigManager {
       vscode.window.showErrorMessage(`Failed to write new file at "${filePath}": ${error.message}`);
       throw error;
     }
+    return true;
   }
   /**
      * Extracts a topic by `t.topic === fileName` and returns it, or null if not found.
@@ -372,6 +429,48 @@ export abstract class AbstractConfigManager {
     }
     return undefined;
   }
+  /**
+    * Reads a file as string using workspace.fs.
+    */
+  protected async readFileAsString(filePath: string): Promise<string> {
+    try {
+      // Check if the file exists
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      // Read the file and return its contents as a UTF-8 string
+      const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+      return Buffer.from(data).toString('utf-8');
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Error reading file "${filePath}": ${error.message}`);
+      throw new Error(`File "${filePath}" does not exist or cannot be read.`);
+    }
+  }
+  protected async getMdTitle(topicFile: string): Promise<string> {
+    try {
+      const topicsDir = this.getTopicsDir();
+      const mdFilePath = path.join(topicsDir, topicFile);
+
+      // Read the .md file contents
+      const content = await this.readFileAsString(mdFilePath);
+
+      // Look for the first heading in the file
+      const lines = content.split('\n');
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('# ')) {
+          // Strip out any leading '#' characters and extra spaces
+          // return line.replace(/^#+\s*/, '').trim();
+          return line.substring(1).trim();
+        } else if (line.length > 0) {
+          break; // if not empty line -> break
+        }
+      }
+    } catch {
+      // If file not found or no heading, we ignore and fall back
+    }
+
+    // Fallback to the base filename if no heading is available
+    return `<${path.basename(topicFile)}>`;
+  }
 
   /**
    * Gathers all .md filenames from a TocElement[] recursively.
@@ -398,33 +497,53 @@ export abstract class AbstractConfigManager {
      * Returns all topics by scanning each doc’s toc-elements and checking actual file existence on disk.
      */
   async getTopics(): Promise<Topic[]> {
-    if (!this.instances) { return []; }
-    const topics: Topic[] = [];
-    const topicsDir = this.getTopicsDir();
+    if (!this.instances) {
+      return [];
+    }
 
-    // Recursively traverse elements
-    const traverseElements = async (elements: TocElement[]) => {
+    const topicsDir = this.getTopicsDir();
+    const allFilePaths: string[] = [];
+
+    // First, gather all topics (sync in-memory traversal; no awaits here)
+    const traverseElements = (elements: TocElement[]) => {
       for (const e of elements) {
-        const filePath = path.join(topicsDir, e.topic);
-        if (await this.fileExists(filePath)) {
-          topics.push({ name: path.basename(filePath), path: filePath });
-        }
+        allFilePaths.push(path.join(topicsDir, e.topic));
         if (e.children && e.children.length > 0) {
-          await traverseElements(e.children);
+          traverseElements(e.children);
         }
       }
     };
 
     try {
       for (const doc of this.instances) {
-        await traverseElements(doc['toc-elements']);
+        traverseElements(doc['toc-elements']);
       }
+
+      // Check file existence in parallel
+      const checkResults = await Promise.all(
+        allFilePaths.map(async (filePath) => {
+          if (await this.fileExists(filePath)) {
+            return filePath;
+          }
+          return null;
+        })
+      );
+
+      // Filter out nulls and build Topic objects
+      const topics = checkResults
+        .filter((filePath) => filePath !== null)
+        .map((existingPath) => ({
+          name: path.basename(existingPath as string),
+          path: existingPath as string,
+        }));
+
+      return topics;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Error retrieving topics: ${err.message}`);
       throw err;
     }
-    return topics;
   }
+
 
   /**
     * Checks if a file exists using workspace.fs.stat.
@@ -460,16 +579,16 @@ export abstract class AbstractConfigManager {
         return;
       }
 
-      await this.writeNewFile(filePath, `# ${newTopic.title}\n\nContent goes here...`);
+      const write = await this.writeNewFile(filePath, `# ${newTopic.title}\n\nContent goes here...`);
+      if (write) {
+        await vscode.commands.executeCommand(
+          'authordExtension.openMarkdownFile',
+          filePath
+        );
+      }
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}": ${err.message}`);
       throw err;
     }
   }
 }
-
-
-
-// export interface Topics {
-//   "dir": string;
-// } todo

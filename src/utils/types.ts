@@ -8,7 +8,6 @@ export interface InstanceConfig {
 export interface TocElement {
   topic: string; // The filename for the topic, e.g., "example.md"
   title: string; // The display title of the topic
-  sortChildren: string; // Sorting behavior for child topics
   children: TocElement[]; // Nested child topics
 }
 export interface Topic {
