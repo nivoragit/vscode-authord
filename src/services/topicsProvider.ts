@@ -315,34 +315,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return undefined;
   }
 
-  /**
-   * Recursively expands all nodes in the "topicsView".
-   * Call this from your "Expand All TOC" command handler.
-   */
-  public async expandAllNodes(treeView: vscode.TreeView<TopicsItem>): Promise<void> {
-    // Get root items
-    const rootItems = await this.getChildren();
-
-    // Recursively expand each root item
-    for (const item of rootItems) {
-      await this.expandNodeRecursively(treeView, item);
-    }
-  }
-
-  /**
-  * Helper method to expand an individual node and all of its children.
-  */
-  private async expandNodeRecursively(treeView: vscode.TreeView<TopicsItem>, item: TopicsItem): Promise<void> {
-    // Reveal (expand) the current item
-    await treeView.reveal(item, { expand: true });
-
-    // Recursively expand children
-    const children = await this.getChildren(item);
-    for (const child of children) {
-      await this.expandNodeRecursively(treeView, child);
-    }
-  }
-
 
   private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
     for (let i = 0; i < tree.length; i++) {
