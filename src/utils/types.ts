@@ -1,5 +1,3 @@
-import { TocElement } from "../configurationManagers/abstractConfigurationManager";
-
 export interface InstanceConfig {
   id: string;
   name: string;
@@ -7,15 +5,20 @@ export interface InstanceConfig {
   "toc-elements": TocElement[];
 }
 
-export interface Topics {
-  "dir": string;
+export interface TocElement {
+  topic: string; // The filename for the topic, e.g., "example.md"
+  title: string; // The display title of the topic
+  sortChildren: string; // Sorting behavior for child topics
+  children: TocElement[]; // Nested child topics
+}
+export interface Topic {
+  name: string;
+  path: string;
 }
 
-export interface TocTreeItem {
-  title: string;
-  topic: string;
-  filePath?: string;
-  sortChildren:  string;
-  children: TocTreeItem[];
+export interface InstanceConfig {
+  id: string;
+  name: string;
+  "start-page": string;
+  "toc-elements": TocElement[];
 }
-

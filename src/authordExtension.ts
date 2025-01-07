@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { TocTreeItem } from './utils/types';
 import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
 import { AuthordConfigurationManager } from './configurationManagers/AuthordConfigurationManager';
-import { AbstractConfigManager, TocElement, Topic } from './configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager} from './configurationManagers/abstractConfigurationManager';
 import { XMLConfigurationManager } from './configurationManagers/XMLConfigurationManager';
 import { DocumentationProvider, DocumentationItem } from './services/documentationProvider';
 import { TopicsProvider, TopicsItem } from './services/topicsProvider';
 import { TopicsDragAndDropController } from './services/topicsDragAndDropController';
+import { TocElement, Topic } from './utils/types';
 
 export class Authord {
     private commandsRegistered = false;
@@ -17,7 +17,7 @@ export class Authord {
     private setupConfigWatchers = false;
     private documentationProvider: DocumentationProvider | undefined;
     private topicsProvider: TopicsProvider | undefined;
-    private tocTree: TocTreeItem[] = [];
+    private tocTree: TocElement[] = [];
     private topics: Topic[] = [];
     private instanceId: string | undefined;
     private configCode = 0;
@@ -207,14 +207,9 @@ export class Authord {
                     return;
                 }
 
-                const tocTreeItems = doc["toc-elements"].map((e: TocElement) => ({
-                    topic: e.topic,
-                    title: e.title,
-                    sortChildren: e.sortChildren,
-                    children: this.parseTocElements(e.children),
-                }));
+                const tocElements = doc["toc-elements"];
 
-                this.topicsProvider!.refresh(tocTreeItems, docId);
+                this.topicsProvider!.refresh(tocElements, docId);
             }
         );
         //command that calls moveTopic
@@ -259,7 +254,7 @@ export class Authord {
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
-            vscode.commands.registerCommand('extension.addDocumentation', () => {
+            vscode.commands.registerCommand('extension.reloadConfiguration', () => {
                 this.reinitialize();
             }),
             vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
@@ -290,26 +285,9 @@ export class Authord {
     }
 
     /**
-     * Helper to link topics (with file paths) into a TOC structure, if needed.
-     */
-    private linkTopicsToToc(tocTree: TocTreeItem[], topics: Topic[]): void {
-        tocTree.forEach(element => {
-            if (element.topic) {
-                const topic = topics.find(t => t.name === element.topic);
-                if (topic) {
-                    element.filePath = topic.path;
-                }
-            }
-            if (element.children) {
-                this.linkTopicsToToc(element.children, topics);
-            }
-        });
-    }
-
-    /**
      * Sorts TOC elements if `sortChildren` is provided.
      */
-    private sortTocElements(tocElements: TocTreeItem[]): void {
+    private sortTocElements(tocElements: TocElement[]): void {
         tocElements.forEach(element => {
             if (element.sortChildren && element.children) {
                 element.children.sort(
@@ -319,23 +297,6 @@ export class Authord {
                 );
                 this.sortTocElements(element.children);
             }
-        });
-    }
-
-    /**
-     * Recursively transforms `TocElement[]` to `TocTreeItem[]`.
-     */
-    private parseTocElements(tocElements: TocElement[]): TocTreeItem[] {
-        return tocElements.map(element => {
-            const children = element.children
-                ? this.parseTocElements(element.children)
-                : [];
-            return {
-                title: element.title,
-                topic: element.topic,
-                sortChildren: element.sortChildren,
-                children,
-            };
         });
     }
 
