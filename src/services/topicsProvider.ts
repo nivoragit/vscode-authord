@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
-import { AbstractConfigManager, TocElement } from '../configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager} from '../configurationManagers/abstractConfigurationManager';
 import { DocumentationItem } from './documentationProvider';
+import { TocElement } from '../utils/types';
 
 export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TopicsItem | undefined | void> = new vscode.EventEmitter<TopicsItem | undefined | void>();
@@ -76,16 +77,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         this.currentDocId = element.id;
       }
       const newTopic = await this.createTopic();
-      if(!newTopic){ return; }
+      if (!newTopic) { return; }
       // Attempt to add to config (returns Promise<boolean>)
       const success = await this.configManager.addChildTopic(this.currentDocId as string, null, newTopic);
       if (!success) {
         vscode.window.showWarningMessage('Failed to add root topic via config manager.');
         return;
       }
-
-      // Update local tocTree
-      this.tocTree.push(newTopic);
+      
       this._onDidChangeTreeData.fire();
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to create root topic: ${error.message}`);
@@ -315,6 +314,35 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     }
     return undefined;
   }
+
+  /**
+   * Recursively expands all nodes in the "topicsView".
+   * Call this from your "Expand All TOC" command handler.
+   */
+  public async expandAllNodes(treeView: vscode.TreeView<TopicsItem>): Promise<void> {
+    // Get root items
+    const rootItems = await this.getChildren();
+
+    // Recursively expand each root item
+    for (const item of rootItems) {
+      await this.expandNodeRecursively(treeView, item);
+    }
+  }
+
+  /**
+  * Helper method to expand an individual node and all of its children.
+  */
+  private async expandNodeRecursively(treeView: vscode.TreeView<TopicsItem>, item: TopicsItem): Promise<void> {
+    // Reveal (expand) the current item
+    await treeView.reveal(item, { expand: true });
+
+    // Recursively expand children
+    const children = await this.getChildren(item);
+    for (const child of children) {
+      await this.expandNodeRecursively(treeView, child);
+    }
+  }
+
 
   private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
     for (let i = 0; i < tree.length; i++) {

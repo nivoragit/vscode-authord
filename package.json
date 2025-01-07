@@ -75,11 +75,13 @@
       },
       {
         "command": "extension.addDocumentation",
-        "title": "New"
+        "title": "New",
+        "icon": "$(add)"
       },
       {
         "command": "extension.reloadConfiguration",
-        "title": "Reload Configuration"
+        "title": "Reload Configuration",
+        "icon": "$(sync)"
       },
       {
         "command": "extension.addContextMenuDocumentation",
@@ -90,8 +92,14 @@
         "title": "Root"
       },
       {
+        "command": "workbench.actions.treeView.topicsView.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(fold-up)"
+      },
+      {
         "command": "extension.addChildTopic",
-        "title": "Child"
+        "title": "Child",
+        "icon": "$(add)"
       },
       {
         "command": "extension.addContextMenuTopic",
@@ -99,16 +107,16 @@
       },
       {
         "command": "extension.addContextMenuChildTopic",
-        "title": "New Child Topic"
+        "title": "New Child Topic"        
       },
       {
         "command": "extension.ContextMenuSetasStartPage",
         "title": "Set as Home Page"
       },
-      
       {
         "command": "extension.deleteTopic",
-        "title": "Delete"
+        "title": "Delete",
+        "icon": "$(trash)"
       },
       {
         "command": "extension.deleteContextMenuTopic",
@@ -120,7 +128,8 @@
       },
       {
         "command": "extension.deleteDocumentation",
-        "title": "Delete"
+        "title": "Delete",
+        "icon": "$(trash)"
       },
       {
         "command": "extension.renameContextMenuDoc",
@@ -128,7 +137,8 @@
       },
       {
         "command": "extension.renameDoc",
-        "title": "Rename"
+        "title": "Rename",
+        "icon": "$(edit)"
       },
       {
         "command": "authordDocsExtension.selectInstance",
@@ -155,6 +165,12 @@
         "command": "markdownPreview.show",
         "title": "Show Markdown Preview",
         "when": "authord.configExists"
+      },
+
+      {
+        "command": "extension.expandAllToc",
+        "title": "Expand All",
+        "icon": "$(fold-down)"
       }
     ],
     "views": {
@@ -249,6 +265,16 @@
         {
           "command": "extension.reloadConfiguration",
           "when": "view == documentationsView",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.expandAllToc",
+          "when": "view == topicsView",
+          "group": "navigation"
+        },
+        {
+          "command": "workbench.actions.treeView.topicsView.collapseAll",
+          "when": "view == topicsView",
           "group": "navigation"
         }
       ]

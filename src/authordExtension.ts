@@ -3,7 +3,7 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { configFiles, focusOrShowPreview, setConfigExists } from './utils/helperFunctions';
 import { AuthordConfigurationManager } from './configurationManagers/AuthordConfigurationManager';
-import { AbstractConfigManager} from './configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager } from './configurationManagers/abstractConfigurationManager';
 import { XMLConfigurationManager } from './configurationManagers/XMLConfigurationManager';
 import { DocumentationProvider, DocumentationItem } from './services/documentationProvider';
 import { TopicsProvider, TopicsItem } from './services/topicsProvider';
@@ -17,11 +17,9 @@ export class Authord {
     private setupConfigWatchers = false;
     private documentationProvider: DocumentationProvider | undefined;
     private topicsProvider: TopicsProvider | undefined;
-    private tocTree: TocElement[] = [];
-    private topics: Topic[] = [];
-    private instanceId: string | undefined;
     private configCode = 0;
     configManager: AbstractConfigManager | undefined;
+    topicsView: vscode.TreeView<TopicsItem> | undefined;
     constructor(
         private context: vscode.ExtensionContext,
         private workspaceRoot: string
@@ -97,6 +95,7 @@ export class Authord {
                         this.subscribeListeners();
                         this.listenersSubscribed = true;
                     }
+                    this.configManager.refresh();
                 }
                 this.documentationProvider?.refresh();
                 vscode.window.showInformationMessage('extension reinitialized');
@@ -157,7 +156,7 @@ export class Authord {
             this.topicsProvider
         );
 
-        const topicsView = vscode.window.createTreeView('topicsView', {
+        this.topicsView = vscode.window.createTreeView('topicsView', {
             treeDataProvider: this.topicsProvider,
             dragAndDropController: new TopicsDragAndDropController(this.topicsProvider)
         });
@@ -166,8 +165,7 @@ export class Authord {
         });
 
 
-        this.context.subscriptions.push(docView, topicsView);
-
+        this.context.subscriptions.push(docView, this.topicsView);
         this.context.subscriptions.push(
             vscode.window.registerTreeDataProvider('emptyProjectView',
                 {
@@ -223,13 +221,24 @@ export class Authord {
         this.context.subscriptions.push(selectInstanceCommand);
         this.context.subscriptions.push(moveTopicCommand);
         this.context.subscriptions.push(
+            vscode.commands.registerCommand('extension.expandAllToc', async () => {
+                if (!this.topicsProvider || !this.topicsView) {
+                    vscode.window.showWarningMessage('registering expand nodes failed');
+                    return;
+                }
+                await this.topicsProvider.expandAllNodes(this.topicsView);
+                vscode.window.showInformationMessage('All TOC items expanded.');
+            })
+        );
+        
+        this.context.subscriptions.push(
             vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
-                // Open the markdown file in the first column
-                const document = await vscode.workspace.openTextDocument(resourceUri);
-                await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+            // Open the markdown file in the first column
+            const document = await vscode.workspace.openTextDocument(resourceUri);
+            await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
 
-                // Focus the existing preview or open it if it doesn't exist
-                await focusOrShowPreview();
+            // Focus the existing preview or open it if it doesn't exist
+            await focusOrShowPreview();
 
             }),
 
@@ -254,8 +263,10 @@ export class Authord {
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
-            vscode.commands.registerCommand('extension.reloadConfiguration', () => {
+            vscode.commands.registerCommand('extension.reloadConfiguration', () => { 
                 this.reinitialize();
+                this.topicsProvider?.refresh([],null);
+
             }),
             vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
                 this.documentationProvider!.addDoc();
@@ -278,6 +289,8 @@ export class Authord {
         );
         this.commandsRegistered = true;
     }
+
+
     private async createConfigFile() {
         const filePath = path.join(this.workspaceRoot, configFiles[0]);
         this.configManager = await new AuthordConfigurationManager(filePath).createConfigFile();

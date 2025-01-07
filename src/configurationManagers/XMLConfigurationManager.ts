@@ -1,8 +1,9 @@
-import { AbstractConfigManager, InstanceConfig, TocElement, Topic } from './abstractConfigurationManager';
+import { AbstractConfigManager} from './abstractConfigurationManager';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import Ajv from 'ajv';
+import { InstanceConfig, TocElement } from '../utils/types';
 
 export class XMLConfigurationManager extends AbstractConfigManager {
   private treeFileName: string = '';
