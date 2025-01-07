@@ -19,7 +19,6 @@ export class Authord {
     private topicsProvider: TopicsProvider | undefined;
     private configCode = 0;
     configManager: AbstractConfigManager | undefined;
-    topicsView: vscode.TreeView<TopicsItem> | undefined;
     constructor(
         private context: vscode.ExtensionContext,
         private workspaceRoot: string
@@ -156,7 +155,7 @@ export class Authord {
             this.topicsProvider
         );
 
-        this.topicsView = vscode.window.createTreeView('topicsView', {
+        const topicsView = vscode.window.createTreeView('topicsView', {
             treeDataProvider: this.topicsProvider,
             dragAndDropController: new TopicsDragAndDropController(this.topicsProvider)
         });
@@ -165,7 +164,7 @@ export class Authord {
         });
 
 
-        this.context.subscriptions.push(docView, this.topicsView);
+        this.context.subscriptions.push(docView, topicsView);
         this.context.subscriptions.push(
             vscode.window.registerTreeDataProvider('emptyProjectView',
                 {
@@ -219,18 +218,7 @@ export class Authord {
         );
 
         this.context.subscriptions.push(selectInstanceCommand);
-        this.context.subscriptions.push(moveTopicCommand);
-        this.context.subscriptions.push(
-            vscode.commands.registerCommand('extension.expandAllToc', async () => {
-                if (!this.topicsProvider || !this.topicsView) {
-                    vscode.window.showWarningMessage('registering expand nodes failed');
-                    return;
-                }
-                await this.topicsProvider.expandAllNodes(this.topicsView);
-                vscode.window.showInformationMessage('All TOC items expanded.');
-            })
-        );
-        
+        this.context.subscriptions.push(moveTopicCommand);        
         this.context.subscriptions.push(
             vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
             // Open the markdown file in the first column

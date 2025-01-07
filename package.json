@@ -165,12 +165,6 @@
         "command": "markdownPreview.show",
         "title": "Show Markdown Preview",
         "when": "authord.configExists"
-      },
-
-      {
-        "command": "extension.expandAllToc",
-        "title": "Expand All",
-        "icon": "$(fold-down)"
       }
     ],
     "views": {
@@ -265,11 +259,6 @@
         {
           "command": "extension.reloadConfiguration",
           "when": "view == documentationsView",
-          "group": "navigation"
-        },
-        {
-          "command": "extension.expandAllToc",
-          "when": "view == topicsView",
           "group": "navigation"
         },
         {
