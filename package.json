@@ -89,7 +89,8 @@
       },
       {
         "command": "extension.rootTopic",
-        "title": "Root"
+        "title": "Root",
+        "icon": "$(add)"
       },
       {
         "command": "workbench.actions.treeView.topicsView.collapseAll",
