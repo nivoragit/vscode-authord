@@ -130,12 +130,12 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this._onDidChangeTreeData.fire();
   }
 
-  private findSiblingsByLabel(topics: TocElement[], label: string): TocElement[] | undefined {
+  private findSiblingsByTopic(topics: TocElement[], topic: string): TocElement[] | undefined {
     for (const t of topics) {
-      if (t.title === label) {
+      if (t.topic === topic) {
         return topics;
       }
-      const found = this.findSiblingsByLabel(t.children, label);
+      const found = this.findSiblingsByTopic(t.children, topic);
       if (found) { return found; }
     }
     return undefined;
@@ -144,7 +144,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   async addSiblingTopic(sibling?: TopicsItem): Promise<void> {
     const newTopic = await this.createTopic();
     if (!newTopic || !this.currentDocId || !sibling) { return; }
-    const tree = this.findSiblingsByLabel(this.tocTree, sibling.label as string);
+    const tree = this.findSiblingsByTopic(this.tocTree, this.formatTitleAsFilename(sibling.label as string));
     tree?.push(newTopic);
 
     // Attempt to add to config (returns Promise<boolean>)
@@ -319,7 +319,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].topic === topicId) {
-        tree[i].topic = newName.toLowerCase().replace(/\s+/g, '-') + '.md';
+        tree[i].topic = this.formatTitleAsFilename(newName);
         return; // Exit once the topic is updated
       }
       if (tree[i].children && tree[i].children.length > 0) {

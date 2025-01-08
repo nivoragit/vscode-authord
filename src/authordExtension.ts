@@ -116,7 +116,7 @@ export class Authord {
                 if (doc.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
                     const topicTitle = doc.lineAt(0).text.trim().substring(1).trim();
                     const fileName = path.basename(doc.fileName);
-                    const newFileName = topicTitle.toLowerCase().replace(/\s+/g, '-') + '.md';
+                    const newFileName = topicTitle.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
                     if (!topicTitle || fileName === newFileName) {
                         return;
                     }
