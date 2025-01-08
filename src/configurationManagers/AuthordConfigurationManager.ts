@@ -173,11 +173,14 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
       const topicsDir = this.getTopicsDir();
       const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
-
-      for (const topicFileName of allTopics) {
-        const filePath = path.join(topicsDir, topicFileName);
-        await this.deleteFileIfExists(filePath);
-      }
+      // running deletions in parallel
+      await Promise.all(
+        allTopics.map(async (topicFileName) => {
+          const filePath = path.join(topicsDir, topicFileName);
+          await this.deleteFileIfExists(filePath);
+        })
+      );  
+      
 
       this.instances = this.instances.filter(d => d.id !== docId);
       await this.writeConfig();

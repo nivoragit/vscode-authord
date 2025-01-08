@@ -75,6 +75,40 @@ export abstract class AbstractConfigManager {
     this.writeConfig(doc);
     return doc["toc-elements"];
   }
+  /**
+ * Opens the given Markdown file and replaces its first line with `# newTitle`.
+ */
+async setMarkdownTitle(fileName: string, newTitle: string) {
+  const filePath = path.join(this.getTopicsDir(), this.formatTitleAsFilename(fileName));
+  if(!this.fileExists(filePath)){
+    vscode.window.showErrorMessage('File not found or cannot be opened.');
+    return;
+  }
+  try {
+
+    const document = await vscode.workspace.openTextDocument(filePath);
+
+    // Reveal the document in the active editor
+    const editor = await vscode.window.showTextDocument(document);
+
+    // Perform an edit operation
+    await editor.edit(editBuilder => {
+      if (document.lineCount > 0) {
+        const firstLineRange = document.lineAt(0).range;
+        editBuilder.replace(firstLineRange, `# ${newTitle}`);
+      } else {
+        // If the file is empty, just insert a new line
+        editBuilder.insert(new vscode.Position(0, 0), `# ${newTitle}\n\n`);
+      }
+    });
+
+    // Save the changes
+    await document.save();
+
+  } catch (error: any) {
+    vscode.window.showErrorMessage(`Error setting markdown title in ${filePath}: ${error.message}`);
+  }
+}
 
   /**
     * Renames a topic’s file on disk and updates .tree data accordingly.
@@ -138,30 +172,32 @@ export abstract class AbstractConfigManager {
         vscode.window.showWarningMessage(`Document "${docId}" not found.`);
         return false;
       }
-
-      // Extract the topic
+  
+      // Extract the topic (and its children)
       const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
       if (!extractedTopic) {
         vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
         return false;
       }
-
-      // Gather all .md files for this topic children
+  
+      // Gather all .md files for this topic and its descendants
       const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
       const topicsDir = this.getTopicsDir();
-      for (const tFile of allTopics) {
-        await this.deleteFileIfExists(path.join(topicsDir, tFile));
-      }
-
+  
+      // Perform all file deletions in parallel
+      await Promise.all(
+        allTopics.map((tFile) => this.deleteFileIfExists(path.join(topicsDir, tFile)))
+      );
+  
       // Update .tree
       await this.writeConfig(doc);
-
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}": ${err.message}`);
       return false;
     }
   }
+  
 
   /**
    * Adds a new topic -> writes .md -> updates .tree.
@@ -182,18 +218,18 @@ export abstract class AbstractConfigManager {
         doc['start-page'] = newTopic.topic;
       }
 
-      let tocElements:TocElement[] | undefined;
+      let tocElements: TocElement[] | undefined;
 
-        tocElements = this.findSiblingsByFilename(doc['toc-elements'], this.formatTitleAsFilename(siblingTopic));
-        if (!tocElements) {
-          vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
-          return false;
-        }
-        // Check for duplicates
-        if (!tocElements!.some(t => t.title === newTopic.title)) {
-          tocElements!.push(newTopic);
-        }
-      
+      tocElements = this.findSiblingsByFilename(doc['toc-elements'], this.formatTitleAsFilename(siblingTopic));
+      if (!tocElements) {
+        vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
+        return false;
+      }
+      // Check for duplicates
+      if (!tocElements!.some(t => t.title === newTopic.title)) {
+        tocElements!.push(newTopic);
+      }
+
 
       // Write the .md file
       await this.writeTopicFile(newTopic);
@@ -245,7 +281,7 @@ export abstract class AbstractConfigManager {
           return false;
         }
         parentArray = parent.children;
-      }else{
+      } else {
         parentArray = doc['toc-elements'];
       }
 
@@ -398,33 +434,53 @@ export abstract class AbstractConfigManager {
      * Returns all topics by scanning each doc’s toc-elements and checking actual file existence on disk.
      */
   async getTopics(): Promise<Topic[]> {
-    if (!this.instances) { return []; }
-    const topics: Topic[] = [];
+    if (!this.instances) {
+      return [];
+    }
+  
     const topicsDir = this.getTopicsDir();
-
-    // Recursively traverse elements
-    const traverseElements = async (elements: TocElement[]) => {
+    const allFilePaths: string[] = [];
+  
+    // First, gather all topics (sync in-memory traversal; no awaits here)
+    const traverseElements = (elements: TocElement[]) => {
       for (const e of elements) {
-        const filePath = path.join(topicsDir, e.topic);
-        if (await this.fileExists(filePath)) {
-          topics.push({ name: path.basename(filePath), path: filePath });
-        }
+        allFilePaths.push(path.join(topicsDir, e.topic));
         if (e.children && e.children.length > 0) {
-          await traverseElements(e.children);
+          traverseElements(e.children);
         }
       }
     };
-
+  
     try {
       for (const doc of this.instances) {
-        await traverseElements(doc['toc-elements']);
+        traverseElements(doc['toc-elements']);
       }
+  
+      // Check file existence in parallel
+      const checkResults = await Promise.all(
+        allFilePaths.map(async (filePath) => {
+          if (await this.fileExists(filePath)) {
+            return filePath;
+          }
+          return null;
+        })
+      );
+  
+      // Filter out nulls and build Topic objects
+      const topics = checkResults
+        .filter((filePath) => filePath !== null)
+        .map((existingPath) => ({
+          name: path.basename(existingPath as string),
+          path: existingPath as string,
+        }));
+  
+      return topics;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Error retrieving topics: ${err.message}`);
       throw err;
     }
-    return topics;
   }
+  
 
   /**
     * Checks if a file exists using workspace.fs.stat.

@@ -97,30 +97,57 @@ export class XMLConfigurationManager extends AbstractConfigManager {
   /**
    * Reads each instance’s .tree file (if any) to build this.instances.
    */
-  async loadInstances(): Promise<void> {
+  public async loadInstances(): Promise<InstanceConfig[]> {
     try {
       const ihp = this.ihpData?.ihp;
-      const array = Array.isArray(ihp?.instance) ? ihp.instance : ihp?.instance ? [ihp.instance] : [];
-      const result: InstanceConfig[] = [];
-
-      for (const inst of array) {
-        if (inst['@_src']) {
-          const treeFile = path.join(this.getIhpDir(), inst['@_src']);
-          // If .tree is missing or unreadable, skip
-          if (await this.fileExists(treeFile)) {
-            const instanceProfile = await this.readInstanceProfile(treeFile);
-            if (instanceProfile) {
-              result.push(instanceProfile);
-            }
-          }
-        }
+      // Normalize to an array of instance entries
+      const arr = Array.isArray(ihp?.instance)
+        ? ihp.instance
+        : ihp?.instance
+        ? [ihp.instance]
+        : [];
+  
+      // If there are no instance entries, we can exit early
+      if (arr.length === 0) {
+        this.instances = [];
+        return this.instances;
       }
-      this.instances = result;
+  
+      // Parallelize reading each .tree file using Promise.all
+      const instanceProfiles = await Promise.all(
+        arr.map(async (inst: any) => {
+          // If there's no '@_src', skip
+          if (!inst['@_src']) {
+            return null;  
+          }
+  
+          const treeFile = path.join(this.getIhpDir(), inst['@_src']);
+  
+          // Check if .tree file exists
+          if (!(await this.fileExists(treeFile))) {
+            return null;
+          }
+  
+          // Read and parse the instance profile
+          const instanceProfile = await this.readInstanceProfile(treeFile);
+          return instanceProfile || null; // Return null if invalid
+        })
+      );
+  
+      // Filter out null entries
+      const validProfiles = instanceProfiles.filter(
+        (profile) => profile !== null
+      ) as InstanceConfig[];
+  
+      // Assign to this.instances
+      this.instances = validProfiles;
+      return this.instances;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to load instances: ${err.message}`);
       throw err;
     }
   }
+  
 
   /**
    * Reads a single .tree file -> returns an InstanceConfig if valid, else null.
@@ -317,10 +344,13 @@ export class XMLConfigurationManager extends AbstractConfigManager {
           // Remove all topics from disk
           const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
           const topicsDir = this.getTopicsDir();
-          for (const tFile of allTopics) {
-            const p = path.join(topicsDir, tFile);
-            await this.deleteFileIfExists(p);
-          }
+          await Promise.all(
+            allTopics.map(async (tFile) => {
+              const p = path.join(topicsDir, tFile);
+              await this.deleteFileIfExists(p);
+            })
+          );
+          
         }
 
         // Remove from .ihp

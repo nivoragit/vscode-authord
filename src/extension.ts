@@ -12,6 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
   initializer = new Authord(context, workspaceRoot);
+  initializer.initialize();
 
   // Return the extendMarkdownIt function
   return {

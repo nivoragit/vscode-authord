@@ -26,9 +26,9 @@ export class Authord {
         if (!workspaceRoot) {
             throw new Error('Workspace root is required to initialize InitializeExtension.');
         }
-        // Kick off async initialization
-        this.initialize();
+
     }
+
 
     /**
      * Main async initialization flow:
@@ -36,7 +36,7 @@ export class Authord {
      *  2. Creates providers and registers them if config is valid
      *  3. Registers commands
      */
-    public async initialize(): Promise<void> {
+    async initialize(): Promise<void> {
         try {
             this.registerCreateProjectCommand();
             await this.checkConfigFiles();
@@ -114,9 +114,13 @@ export class Authord {
         this.context.subscriptions.push(
             vscode.workspace.onDidSaveTextDocument(async (doc) => {
                 if (doc.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
-                    const topicTitle = doc.lineAt(0).text.trim().substring(1).trim();
+                    let topicTitle  = doc.lineAt(0).text.trim();
+                    if(!topicTitle.startsWith('#')){
+                        return;
+                    }
+                    topicTitle = topicTitle.substring(1);
                     const fileName = path.basename(doc.fileName);
-                    const newFileName = topicTitle.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
+                    const newFileName = topicTitle.toLowerCase().replace(/\s+/g, '-') + '.md';
                     if (!topicTitle || fileName === newFileName) {
                         return;
                     }
@@ -248,13 +252,15 @@ export class Authord {
             vscode.commands.registerCommand('extension.deleteContextMenuTopic', (item: TopicsItem) => {
                 this.topicsProvider!.deleteTopic(item);
             }),
+            vscode.commands.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
+                this.topicsProvider!.renameTopicCommand(item);
+            }),
             vscode.commands.registerCommand('extension.addDocumentation', () => {
                 this.documentationProvider!.addDoc();
             }),
             vscode.commands.registerCommand('extension.reloadConfiguration', () => { 
                 this.reinitialize();
                 this.topicsProvider?.refresh([],null);
-
             }),
             vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
                 this.documentationProvider!.addDoc();
@@ -285,21 +291,6 @@ export class Authord {
         await this.reinitialize();
     }
 
-    /**
-     * Sorts TOC elements if `sortChildren` is provided.
-     */
-    private sortTocElements(tocElements: TocElement[]): void {
-        tocElements.forEach(element => {
-            if (element.sortChildren && element.children) {
-                element.children.sort(
-                    (a, b) =>
-                        a.title.localeCompare(b.title) *
-                        (element.sortChildren === 'ascending' ? 1 : -1)
-                );
-                this.sortTocElements(element.children);
-            }
-        });
-    }
 
     /**
      * Sets up watchers for a given config file in the workspace root.

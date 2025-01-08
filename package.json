@@ -122,11 +122,15 @@
       },
       {
         "command": "extension.deleteContextMenuTopic",
-        "title": "Remove TOC Element..."
+        "title": "Remove TOC Element"
+      },
+      {
+        "command": "extension.renameContextMenuTopic",
+        "title": "Edit Title"
       },
       {
         "command": "extension.deleteContextMenuDocumentation",
-        "title": "Delete..."
+        "title": "Delete"
       },
       {
         "command": "extension.deleteDocumentation",
@@ -135,7 +139,7 @@
       },
       {
         "command": "extension.renameContextMenuDoc",
-        "title": "Rename..."
+        "title": "Rename"
       },
       {
         "command": "extension.renameDoc",
@@ -228,6 +232,11 @@
         },
         {
           "command": "extension.deleteContextMenuTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@2"
+        },
+        {
+          "command": "extension.renameContextMenuTopic",
           "when": "view == topicsView && viewItem == topic",
           "group": "navigation@2"
         },

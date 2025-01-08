@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs'; // Updated to use fs.promises for async operations
-import { AbstractConfigManager} from '../configurationManagers/abstractConfigurationManager';
+import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 import { DocumentationItem } from './documentationProvider';
 import { TocElement } from '../utils/types';
 
@@ -84,7 +84,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         vscode.window.showWarningMessage('Failed to add root topic via config manager.');
         return;
       }
-      
+
       this._onDidChangeTreeData.fire();
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to create root topic: ${error.message}`);
@@ -257,6 +257,42 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       this.refresh(this.tocTree, this.currentDocId);
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to delete topic: ${error.message}`);
+    }
+  }
+  /**
+   * Prompts the user for a new topic name, then calls the existing rename logic.
+   * This command can be invoked from a context menu item or command palette action.
+   */
+  async renameTopicCommand(item: TopicsItem): Promise<void> {
+    try {
+      // Ensure we have an active document
+      if (!this.currentDocId) {
+        vscode.window.showWarningMessage('No active document to rename a topic in.');
+        return;
+      }
+
+      // Ensure the item is valid
+      if (!item || !item.topic) {
+        vscode.window.showWarningMessage('Invalid topic selected for rename.');
+        return;
+      }
+
+
+      // Prompt user for the new topic name
+      const newName = await vscode.window.showInputBox({
+        prompt: 'Enter new topic name',
+        value: item.label as string,  // Prepopulate with current label
+      });
+
+      if (!newName) {
+        vscode.window.showWarningMessage('Rename canceled.');
+        return;
+      }
+      const setMarkdownTitlePromise = this.configManager.setMarkdownTitle(item.label as string, newName);
+      const renameTopicPromise = this.renameTopic(item.topic, newName);
+      await Promise.all([setMarkdownTitlePromise, renameTopicPromise]);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
     }
   }
 
