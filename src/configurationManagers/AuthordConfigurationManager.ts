@@ -7,7 +7,7 @@ import { InstanceConfig } from '../utils/types';
 export interface AuthordConfig {
   topics?: { dir: string };
   [key: string]: any;
-} 
+}
 
 export class AuthordConfigurationManager extends AbstractConfigManager {
   configData: AuthordConfig | undefined;
@@ -19,7 +19,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   // ------------------------------------------------------------------------------------
   // FILE/JSON HELPERS
   // ------------------------------------------------------------------------------------
-  
+
 
   private async readJsonFile(filePath: string): Promise<any> {
     try {
@@ -38,8 +38,15 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     try {
       const fileUri = vscode.Uri.file(filePath);
       // Ensure the file exists; create it with default config if it doesn't
-      if (!(await this.fileExists(filePath))) {
-        await this.writeNewFile(filePath, JSON.stringify(this.configData, null, 2));
+      if (!(await this.fileExists(filePath)) && this.configData) {
+        // removing title before write
+      //   const jsonData = this.configData.instances.map((doc: InstanceConfig) => ({
+      //     ...doc,
+      //     'toc-elements': doc['toc-elements'].map(({ title, ...rest }: any) => rest) // Exclude `title` directly
+      // }));
+      
+      await this.writeNewFile(filePath, JSON.stringify(this.configData, null, 2));
+      
         return;
       }
 
@@ -93,7 +100,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       throw error;
     }
   }
-  protected async writeConfig(_?:any,__?:any): Promise<void> {
+  protected async writeConfig(_?: any, __?: any): Promise<void> {
     try {
       if (!this.configData) {
         return;
@@ -152,6 +159,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
         return false;
       }
       this.instances.push(newDocument);
+
       await this.writeConfig();
 
       if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
@@ -179,8 +187,8 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
           const filePath = path.join(topicsDir, topicFileName);
           await this.deleteFileIfExists(filePath);
         })
-      );  
-      
+      );
+
 
       this.instances = this.instances.filter(d => d.id !== docId);
       await this.writeConfig();

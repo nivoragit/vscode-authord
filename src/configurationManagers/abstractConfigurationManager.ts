@@ -78,43 +78,44 @@ export abstract class AbstractConfigManager {
   /**
  * Opens the given Markdown file and replaces its first line with `# newTitle`.
  */
-async setMarkdownTitle(fileName: string, newTitle: string) {
-  const filePath = path.join(this.getTopicsDir(), this.formatTitleAsFilename(fileName));
-  if(!this.fileExists(filePath)){
-    vscode.window.showErrorMessage('File not found or cannot be opened.');
-    return;
+  async setMarkdownTitle(fileName: string, newTitle: string) {
+
+    const filePath = path.join(this.getTopicsDir(),fileName);
+    if (!this.fileExists(filePath)) {
+      vscode.window.showErrorMessage('File not found or cannot be opened.');
+      return;
+    }
+    try {
+
+      const document = await vscode.workspace.openTextDocument(filePath);
+
+      // Reveal the document in the active editor
+      const editor = await vscode.window.showTextDocument(document);
+
+      // Perform an edit operation
+      await editor.edit(editBuilder => {
+        if (document.lineCount > 0) {
+          const firstLineRange = document.lineAt(0).range;
+          editBuilder.replace(firstLineRange, `# ${newTitle}`);
+        } else {
+          // If the file is empty, just insert a new line
+          editBuilder.insert(new vscode.Position(0, 0), `# ${newTitle}\n\n`);
+        }
+      });
+
+      // Save the changes
+      await document.save();
+
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Error setting markdown title in ${filePath}: ${error.message}`);
+    }
   }
-  try {
-
-    const document = await vscode.workspace.openTextDocument(filePath);
-
-    // Reveal the document in the active editor
-    const editor = await vscode.window.showTextDocument(document);
-
-    // Perform an edit operation
-    await editor.edit(editBuilder => {
-      if (document.lineCount > 0) {
-        const firstLineRange = document.lineAt(0).range;
-        editBuilder.replace(firstLineRange, `# ${newTitle}`);
-      } else {
-        // If the file is empty, just insert a new line
-        editBuilder.insert(new vscode.Position(0, 0), `# ${newTitle}\n\n`);
-      }
-    });
-
-    // Save the changes
-    await document.save();
-
-  } catch (error: any) {
-    vscode.window.showErrorMessage(`Error setting markdown title in ${filePath}: ${error.message}`);
-  }
-}
 
   /**
     * Renames a topic’s file on disk and updates .tree data accordingly.
     * Already returning Promise<boolean>, updated to unify error handling.
     */
-  async renameTopic(docId: string, oldTopicFile: string, newName: string): Promise<boolean> {
+  async renameTopic(docId: string, oldTopicFile: string, newName: string, enteredFileName?: string): Promise<boolean> {
     try {
       const doc = this.findDocById(docId);
       if (!doc) {
@@ -129,7 +130,7 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
       }
 
       const topicsDir = this.getTopicsDir();
-      const newTopicFile = this.formatTitleAsFilename(newName);
+      const newTopicFile = enteredFileName ? enteredFileName : this.formatTitleAsFilename(newName);
       const oldFilePath = path.join(topicsDir, oldTopicFile);
       const newFilePath = path.join(topicsDir, newTopicFile);
 
@@ -172,23 +173,23 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
         vscode.window.showWarningMessage(`Document "${docId}" not found.`);
         return false;
       }
-  
+
       // Extract the topic (and its children)
       const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
       if (!extractedTopic) {
         vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
         return false;
       }
-  
+
       // Gather all .md files for this topic and its descendants
       const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
       const topicsDir = this.getTopicsDir();
-  
+
       // Perform all file deletions in parallel
       await Promise.all(
         allTopics.map((tFile) => this.deleteFileIfExists(path.join(topicsDir, tFile)))
       );
-  
+
       // Update .tree
       await this.writeConfig(doc);
       return true;
@@ -197,7 +198,7 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
       return false;
     }
   }
-  
+
 
   /**
    * Adds a new topic -> writes .md -> updates .tree.
@@ -408,6 +409,48 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
     }
     return undefined;
   }
+   /**
+     * Reads a file as string using workspace.fs.
+     */
+    protected async readFileAsString(filePath: string): Promise<string> {
+      try {
+        // Check if the file exists
+        await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+        // Read the file and return its contents as a UTF-8 string
+        const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+        return Buffer.from(data).toString('utf-8');
+      } catch (error: any) {
+        vscode.window.showErrorMessage(`Error reading file "${filePath}": ${error.message}`);
+        throw new Error(`File "${filePath}" does not exist or cannot be read.`);
+      }
+    }
+  protected async getMdTitle(topicFile: string): Promise<string> {
+    try {
+      const topicsDir = this.getTopicsDir();
+      const mdFilePath = path.join(topicsDir, topicFile);
+  
+      // Read the .md file contents
+      const content = await this.readFileAsString(mdFilePath);
+  
+      // Look for the first heading in the file
+      const lines = content.split('\n');
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('# ')) {
+          // Strip out any leading '#' characters and extra spaces
+          // return line.replace(/^#+\s*/, '').trim();
+          return line.substring(1).trim();
+        }else if(line.length > 0){
+          break; // if not empty line -> break
+        }
+      }
+    } catch {
+      // If file not found or no heading, we ignore and fall back
+    }
+    
+    // Fallback to the base filename if no heading is available
+    return `<${path.basename(topicFile)}>`;
+  }
 
   /**
    * Gathers all .md filenames from a TocElement[] recursively.
@@ -437,10 +480,10 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
     if (!this.instances) {
       return [];
     }
-  
+
     const topicsDir = this.getTopicsDir();
     const allFilePaths: string[] = [];
-  
+
     // First, gather all topics (sync in-memory traversal; no awaits here)
     const traverseElements = (elements: TocElement[]) => {
       for (const e of elements) {
@@ -450,12 +493,12 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
         }
       }
     };
-  
+
     try {
       for (const doc of this.instances) {
         traverseElements(doc['toc-elements']);
       }
-  
+
       // Check file existence in parallel
       const checkResults = await Promise.all(
         allFilePaths.map(async (filePath) => {
@@ -465,7 +508,7 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
           return null;
         })
       );
-  
+
       // Filter out nulls and build Topic objects
       const topics = checkResults
         .filter((filePath) => filePath !== null)
@@ -473,14 +516,14 @@ async setMarkdownTitle(fileName: string, newTitle: string) {
           name: path.basename(existingPath as string),
           path: existingPath as string,
         }));
-  
+
       return topics;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Error retrieving topics: ${err.message}`);
       throw err;
     }
   }
-  
+
 
   /**
     * Checks if a file exists using workspace.fs.stat.

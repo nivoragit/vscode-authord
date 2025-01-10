@@ -67,7 +67,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     this.refresh(newTocTree, null);
   }
 
-  private formatTitleAsFilename(title: string): string {
+  formatTitleAsFilename(title: string): string {
     return title.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
   }
 
@@ -276,42 +276,78 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         vscode.window.showWarningMessage('Invalid topic selected for rename.');
         return;
       }
-
-
-      // Prompt user for the new topic name
+      // Prompt for the topic title
       const newName = await vscode.window.showInputBox({
         prompt: 'Enter new topic name',
-        value: item.label as string,  // Prepopulate with current label
+        value: item.label as string,
       });
-
       if (!newName) {
         vscode.window.showWarningMessage('Rename canceled.');
         return;
       }
-      const setMarkdownTitlePromise = this.configManager.setMarkdownTitle(item.label as string, newName);
-      const renameTopicPromise = this.renameTopic(item.topic, newName);
-      await Promise.all([setMarkdownTitlePromise, renameTopicPromise]);
+
+      // Prompt the user for the file name, pre-populated with the default
+      let enteredFileName = await vscode.window.showInputBox({
+        prompt: 'Enter a new file name or skip',
+        placeHolder: 'Leave empty to keep the current file name'
+      });
+      let counter = 1;
+      while (enteredFileName && await this.topicExists(enteredFileName)) {
+        vscode.window.showWarningMessage(`A topic file with filename "${enteredFileName}" already exists.`);
+        // Prompt the user for a different file name
+        enteredFileName = await vscode.window.showInputBox({
+          prompt: 'Enter different file name',
+          value: `${newName.toLowerCase().replace(/\s+/g, '-')}${counter}.md`
+        });
+        if (!enteredFileName) {
+          break;
+        }
+        counter++;
+      }
+      const fileName = this.getTopicByTitle(item.label as string);
+      if (!fileName) {
+        vscode.window.showErrorMessage('Failed to get topic by title');
+        return;
+      }
+      const promises: Promise<void>[] = [];
+      // Always update the Markdown title
+      // todo send file name
+      promises.push(this.configManager.setMarkdownTitle(fileName, newName));
+
+      // Conditionally add the rename topic operation
+      if (enteredFileName) {
+        enteredFileName = enteredFileName.endsWith('.md') ? enteredFileName : `${enteredFileName}.md`;
+        promises.push(this.renameTopic(item.topic, newName, enteredFileName));
+      } else {
+        promises.push(this.renameTopic(item.topic, newName));
+      }
+      // Run all operations concurrently
+      await Promise.all(promises);
+
+      vscode.window.showInformationMessage('Topic renamed successfully.');
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
     }
   }
 
-  async renameTopic(topic: string, newName: string): Promise<void> {
+  async renameTopic(topic: string, newName: string, enteredFileName?: string): Promise<void> {
     try {
       if (!this.currentDocId || !topic) {
         vscode.window.showWarningMessage('Rename failed, invalid document state.');
         return;
       }
 
-      // Attempt to rename in config (returns Promise<boolean>)
-      const renameSuccess = await this.configManager.renameTopic(this.currentDocId, topic, newName);
-      if (!renameSuccess) {
-        vscode.window.showWarningMessage('Failed to rename topic via config manager.');
-        return;
+      if (enteredFileName) {
+        // Attempt to rename in config (returns Promise<boolean>)
+        const renameSuccess = await this.configManager.renameTopic(this.currentDocId, topic, newName, enteredFileName);
+        if (!renameSuccess) {
+          vscode.window.showWarningMessage('Failed to rename topic via config manager.');
+          return;
+        }
       }
 
       this.renameTopicInTree(topic, newName, this.tocTree);
-      this.refresh(this.tocTree, this.currentDocId);
+      this._onDidChangeTreeData.fire();
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
     }
@@ -331,6 +367,21 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
     }
     return false;
+  }
+  private getTopicByTitle(title: string): string | undefined {
+    const tocTree = this.tocTree;
+    for (const item of tocTree) {
+      if (item.title === title) {
+        return item.topic;
+      }
+      if (item.children && item.children.length > 0) {
+        const found = this.findTopicItemByFilename(title, item.children);
+        if (found) {
+          return found.topic;
+        }
+      }
+    }
+    return undefined;
   }
 
   findTopicItemByFilename(fileName: string, tocTree?: TocElement[]): TocElement | undefined {
@@ -355,7 +406,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].topic === topicId) {
-        tree[i].topic = this.formatTitleAsFilename(newName);
+        tree[i].title = newName;
         return; // Exit once the topic is updated
       }
       if (tree[i].children && tree[i].children.length > 0) {

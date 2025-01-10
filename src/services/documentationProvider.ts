@@ -201,46 +201,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
   }
 
-  /**
-   * Creates a new topic under the specified document.
-   * Now handles the returned Promise<boolean> from the configManager.addTopic method.
-   */
-  async newTopic(element: DocumentationItem): Promise<void> {
-    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!topicTitle) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return;
-    }
-
-    const safeFileName = `about-${topicTitle.toLowerCase().replace(/\s+/g, '-')}.md`;
-    const newTopic: TocElement = {
-      topic: safeFileName,
-      title: topicTitle,
-      sortChildren: "none",
-      children: []
-    };
-
-    try {
-      const added = await this.configManager.addChildTopic(element.id as string, null, newTopic);
-      if (added) {
-        this.refresh();
-
-        const doc = this.configManager.getDocuments().find(d => d.id === element.id);
-        if (!doc) {
-          vscode.window.showErrorMessage(`No document found with id ${element.label}`);
-          return;
-        }
-  
-        const tocElements = doc["toc-elements"];
-        this.topicsProvider.refresh(tocElements, element.id);
-      } else {
-        vscode.window.showErrorMessage(`Failed to add topic "${topicTitle}" to documentation "${element.label}".`);
-      }
-    } catch (error) {
-      vscode.window.showErrorMessage(`Error while creating topic: ${error}`);
-    }
-  }
-
 }
 
 export class DocumentationItem extends vscode.TreeItem {
