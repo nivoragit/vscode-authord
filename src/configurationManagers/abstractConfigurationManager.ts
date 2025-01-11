@@ -36,7 +36,7 @@ export abstract class AbstractConfigManager {
         return false;
       }
       doc.name = newName;
-      await this.writeConfig(doc);
+      this.writeConfig(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to rename document "${docId}" -> "${newName}": ${err.message}`);
@@ -72,7 +72,7 @@ export abstract class AbstractConfigManager {
     (targetTopic as TocElement).children.push(sourceTopic);
 
     // 4) Write updates to the .tree file
-    await this.writeConfig(doc);
+    this.writeConfig(doc);
     return doc["toc-elements"];
   }
   /**
@@ -115,58 +115,58 @@ export abstract class AbstractConfigManager {
     * Renames a topic’s file on disk and updates .tree data accordingly.
     * Already returning Promise<boolean>, updated to unify error handling.
     */
-  async renameTopic(docId: string, oldTopicFile: string, newName: string, enteredFileName?: string): Promise<boolean> {
+  async renameTopic(
+    docId: string,
+    oldTopicFile: string,
+    newName: string,
+    enteredFileName?: string
+  ): Promise<boolean> {
     try {
       const doc = this.findDocById(docId);
       if (!doc) {
         vscode.window.showErrorMessage(`Document "${docId}" not found for renameTopic.`);
         return false;
       }
-
+  
       const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
       if (!topic) {
         vscode.window.showErrorMessage(`Topic "${oldTopicFile}" not found in doc "${docId}".`);
         return false;
       }
-
+  
       const topicsDir = this.getTopicsDir();
-      const newTopicFile = enteredFileName ? enteredFileName : this.formatTitleAsFilename(newName);
-      const oldFilePath = path.join(topicsDir, oldTopicFile);
-      const newFilePath = path.join(topicsDir, newTopicFile);
-
-      if (!(await this.fileExists(oldFilePath))) {
-        vscode.window.showErrorMessage(`Old topic file "${oldTopicFile}" does not exist on disk.`);
-        return false;
-      }
-      if (await this.fileExists(newFilePath)) {
-        vscode.window.showErrorMessage(`New topic file "${newTopicFile}" already exists on disk.`);
-        return false;
-      }
-      // Rename on disk
-      await vscode.workspace.fs.rename(
-        vscode.Uri.file(oldFilePath),
-        vscode.Uri.file(newFilePath)
-      );
-
+      // Generate the new filename if one wasn’t provided
+      const newTopicFile = enteredFileName || this.formatTitleAsFilename(newName);
+  
+      // Convert to VS Code file URIs
+      const oldFileUri = vscode.Uri.file(path.join(topicsDir, oldTopicFile));
+      const newFileUri = vscode.Uri.file(path.join(topicsDir, newTopicFile));
+  
+      // Attempt to rename the file on disk
+      // This will throw if the old file doesn't exist or the new file already exists
+      await vscode.workspace.fs.rename(oldFileUri, newFileUri);
+  
+      // If this doc only has one topic, update the start-page property
       if (doc['toc-elements'].length === 1) {
         doc['start-page'] = newTopicFile;
       }
-      if (!(await this.fileExists(newFilePath)) || await this.fileExists(oldFilePath)) {
-        vscode.window.showErrorMessage(`Failed to rename topic "${oldTopicFile}" -> "${newName}"`);
-        return false;
-      }
-
-      // Update .tree
+  
+      // After successful rename, update the in-memory TOC data
       topic.topic = newTopicFile;
       topic.title = newName;
+  
+      // Write back the updated doc config
       await this.writeConfig(doc);
-
+  
       return true;
     } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to rename topic "${oldTopicFile}" -> "${newName}": ${err.message}`);
+      vscode.window.showErrorMessage(
+        `Failed to rename topic "${oldTopicFile}" to "${newName}": ${err.message}`
+      );
       return false;
     }
   }
+  
 
   /**
      * Deletes a topic (and children) -> removes from disk -> updates .tree.
@@ -201,12 +201,10 @@ export abstract class AbstractConfigManager {
         vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}"`);
         return false;
       } else {
-        await this.writeConfig(doc);
+        this.writeConfig(doc);
         return true;
         
       }
-
-
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}": ${err.message}`);
       return false;
@@ -235,7 +233,7 @@ export abstract class AbstractConfigManager {
 
       let tocElements: TocElement[] | undefined;
 
-      tocElements = this.findSiblingsByFilename(doc['toc-elements'], this.formatTitleAsFilename(siblingTopic));
+      tocElements = this.findSiblingsByFilename(doc['toc-elements'],siblingTopic);
       if (!tocElements) {
         vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
         return false;
@@ -251,8 +249,7 @@ export abstract class AbstractConfigManager {
 
       // Update .tree
       if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
-        await this.writeConfig(doc);
-        vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+        this.writeConfig(doc);
         return true;
       } else {
         vscode.window.showErrorMessage(`Failed to delete topic "${newTopic.title}"`);
@@ -272,14 +269,12 @@ export abstract class AbstractConfigManager {
         vscode.window.showWarningMessage(`Document "${docItem}" not found.`);
         return false;
       }
-      doc['start-page'] = this.formatTitleAsFilename(siblingTopic);
+      doc['start-page'] = siblingTopic;
 
 
 
       // Update config
-      await this.writeConfig(doc);
-
-      vscode.window.showInformationMessage("start page set successfully.");
+      this.writeConfig(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage("Failed to set start page");
@@ -317,8 +312,7 @@ export abstract class AbstractConfigManager {
       // Update .tree
       // Update .tree
       if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
-        await this.writeConfig(doc);
-        vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+        this.writeConfig(doc);
         return true;
       } else {
         vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);

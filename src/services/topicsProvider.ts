@@ -149,13 +149,13 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   async addSiblingTopic(sibling?: TopicsItem): Promise<void> {
     const newTopic = await this.createTopic();
     if (!newTopic || !this.currentDocId || !sibling) { return; }
-    const tree = this.findSiblingsByTopic(this.tocTree, this.formatTitleAsFilename(sibling.label as string));
+    const tree = this.findSiblingsByTopic(this.tocTree, sibling.topic);
     tree?.push(newTopic);
 
     // Attempt to add to config (returns Promise<boolean>)
     const success = await this.configManager.addSiblingTopic(
       this.currentDocId,
-      sibling.label as string,
+      sibling.topic,
       newTopic
     );
     if (!success) {
@@ -171,7 +171,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     // Attempt to add to config (returns Promise<boolean>)
     const success = await this.configManager.SetasStartPage(
       this.currentDocId,
-      instance.label as string,
+      instance.topic,
     );
     if (!success) {
       vscode.window.showWarningMessage('Failed to add topic via config manager.');
@@ -308,7 +308,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         }
         counter++;
       }
-      const fileName = this.getTopicByTitle(item.label as string);
+      const fileName = item.topic;
       if (!fileName) {
         vscode.window.showErrorMessage('Failed to get topic by title');
         return;

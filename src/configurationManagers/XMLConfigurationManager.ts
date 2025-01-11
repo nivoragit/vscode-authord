@@ -329,9 +329,10 @@ export class XMLConfigurationManager extends AbstractConfigManager {
         await this.writeTopicFile(newDocument['toc-elements'][0]);
       }
       if (await this.fileExists(treeFilePath)) {
-        await this.writeConfig(newDocument, treeFilePath);
+        this.writeConfig(newDocument, treeFilePath);
         return true;
       } else {
+        vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}"`);
         return false;
       };
 
