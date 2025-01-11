@@ -141,11 +141,9 @@ export abstract class AbstractConfigManager {
       // Convert to VS Code file URIs
       const oldFileUri = vscode.Uri.file(path.join(topicsDir, oldTopicFile));
       const newFileUri = vscode.Uri.file(path.join(topicsDir, newTopicFile));
-  
-      // Attempt to rename the file on disk
-      // This will throw if the old file doesn't exist or the new file already exists
-      await vscode.workspace.fs.rename(oldFileUri, newFileUri);
-  
+      
+      // Rename the file
+    await vscode.workspace.fs.rename(oldFileUri, newFileUri);
       // If this doc only has one topic, update the start-page property
       if (doc['toc-elements'].length === 1) {
         doc['start-page'] = newTopicFile;
@@ -594,9 +592,3 @@ export abstract class AbstractConfigManager {
     }
   }
 }
-
-
-
-// export interface Topics {
-//   "dir": string;
-// } todo

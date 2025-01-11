@@ -8,7 +8,6 @@ import { InstanceConfig, TocElement } from '../utils/types';
 export class XMLConfigurationManager extends AbstractConfigManager {
   private treeFileName: string = '';
   private ihpData: any;
-  // titleToFileMap: Record<string, string> = {};
 
   constructor(configPath: string) {
     super(configPath);
@@ -192,9 +191,6 @@ export class XMLConfigurationManager extends AbstractConfigManager {
 
       // Attempt to read the .md file and retrieve a heading-based title
       const mdTitle = await this.getMdTitle(topicFile);
-
-      // Asynchronously add to the dictionary (title -> filename)
-      // this.titleToFileMap[mdTitle] = topicFile; todo remove
 
       return {
         topic: topicFile,

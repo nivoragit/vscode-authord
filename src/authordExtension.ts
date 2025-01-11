@@ -172,7 +172,6 @@ export class Authord {
                     // 3. Update the in-memory model
                     matchingItem.title = topicTitle || `<${fileName}>`;
                     this.topicsProvider!.renameTopic(
-                        //todo optimize this pass matchingItem
                         matchingItem.topic,
                         topicTitle || `<${fileName}>`
                     );

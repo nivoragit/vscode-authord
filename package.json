@@ -77,7 +77,6 @@
         "command": "extension.addDocumentation",
         "title": "New",
         "icon": "$(add)"
-        
       },
       {
         "command": "extension.reloadConfiguration",
@@ -109,7 +108,7 @@
       },
       {
         "command": "extension.addContextMenuChildTopic",
-        "title": "New Child Topic"        
+        "title": "New Child Topic"
       },
       {
         "command": "extension.ContextMenuSetasStartPage",
@@ -303,34 +302,22 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.9",
     "@types/vscode": "^1.70.0",
-    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "esbuild-loader": "^4.2.2",
     "eslint": "^8.57.1",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "globals": "^15.14.0",
-    "prettier": "^3.4.2",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.2",
     "webpack": "^5.96.1",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
     "fast-xml-parser": "^4.5.1",
     "markdown-it-attrs": "^4.3.1",
-    "markdown-it-plantuml": "^1.4.1",
-    "uuid": "^11.0.3",
-    "xml2js": "^0.6.2"
+    "markdown-it-plantuml": "^1.4.1"
   }
 }

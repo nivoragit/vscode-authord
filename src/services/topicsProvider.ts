@@ -315,7 +315,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
       const promises: Promise<void>[] = [];
       // Always update the Markdown title
-      // todo send file name
       promises.push(this.configManager.setMarkdownTitle(fileName, newName));
 
       // Conditionally add the rename topic operation
@@ -348,9 +347,13 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
           vscode.window.showWarningMessage('Failed to rename topic via config manager.');
           return;
         }
+        await vscode.commands.executeCommand('workbench.action.closeEditorsToTheRight');
+        this.renameTopicInTree(topic, newName, this.tocTree, enteredFileName);
+      } else {
+        this.renameTopicInTree(topic, newName, this.tocTree);
       }
 
-      this.renameTopicInTree(topic, newName, this.tocTree);
+
       this._onDidChangeTreeData.fire();
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to rename topic: ${error.message}`);
@@ -407,14 +410,17 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   }
 
 
-  private renameTopicInTree(topicId: string, newName: string, tree: TocElement[]): void {
+  private renameTopicInTree(topicId: string, newName: string, tree: TocElement[], newTopic?: string): void {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].topic === topicId) {
         tree[i].title = newName;
+        if (newTopic) {
+          tree[i].topic = newTopic;
+        }
         return; // Exit once the topic is updated
       }
       if (tree[i].children && tree[i].children.length > 0) {
-        this.renameTopicInTree(topicId, newName, tree[i].children);
+        this.renameTopicInTree(topicId, newName, tree[i].children, newTopic);
         return; // Exit after the recursive call if the topic is found
       }
     }
