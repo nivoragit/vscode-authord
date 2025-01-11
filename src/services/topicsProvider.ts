@@ -39,10 +39,14 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   }
 
   private createTreeItem(item: TocElement): TopicsItem {
-    const hasChildren = item.children && item.children.length > 0;
+    const collapsibleState = item.children?.length
+      ? vscode.TreeItemCollapsibleState.Collapsed
+      : vscode.TreeItemCollapsibleState.None;
+
+
     const treeItem = new TopicsItem(
       item.title,
-      hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+      collapsibleState,
       item.children,
       item.topic
     );
@@ -53,6 +57,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     };
     return treeItem;
   }
+
 
   async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
     const newTocTree = await this.configManager?.moveTopics(
@@ -71,7 +76,7 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     return title.trim().toLowerCase().replace(/\s+/g, '-') + '.md';
   }
 
-  async rootTopic(element: DocumentationItem): Promise<void> {
+  async addRootTopic(element: DocumentationItem): Promise<void> {
     try {
       if (element && !this.currentDocId) {
         this.currentDocId = element.id;
@@ -113,20 +118,20 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
     // Add to either the parent or root
     if (parent) {
       parent.children.push(newTopic);
+      parent.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
     } else {
       this.tocTree.push(newTopic);
     }
     // Attempt to add to config (returns Promise<boolean>)
     const success = await this.configManager.addChildTopic(
       this.currentDocId,
-      parent?.label as string || null,
+      parent?.topic || null,
       newTopic
     );
     if (!success) {
       vscode.window.showWarningMessage('Failed to add topic via config manager.');
       return;
     }
-
     this._onDidChangeTreeData.fire();
   }
 
@@ -221,7 +226,6 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       return {
         topic: enteredFileName,
         title: topicTitle,
-        sortChildren: "none",
         children: []
       };
     } catch (error: any) {

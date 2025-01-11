@@ -1,4 +1,4 @@
-import { AbstractConfigManager} from './abstractConfigurationManager';
+import { AbstractConfigManager } from './abstractConfigurationManager';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
@@ -105,41 +105,41 @@ export class XMLConfigurationManager extends AbstractConfigManager {
       const arr = Array.isArray(ihp?.instance)
         ? ihp.instance
         : ihp?.instance
-        ? [ihp.instance]
-        : [];
-  
+          ? [ihp.instance]
+          : [];
+
       // If there are no instance entries, we can exit early
       if (arr.length === 0) {
         this.instances = [];
         return this.instances;
       }
-  
+
       // Parallelize reading each .tree file using Promise.all
       const instanceProfiles = await Promise.all(
         arr.map(async (inst: any) => {
           // If there's no '@_src', skip
           if (!inst['@_src']) {
-            return null;  
+            return null;
           }
-  
+
           const treeFile = path.join(this.getIhpDir(), inst['@_src']);
-  
+
           // Check if .tree file exists
           if (!(await this.fileExists(treeFile))) {
             return null;
           }
-  
+
           // Read and parse the instance profile
           const instanceProfile = await this.readInstanceProfile(treeFile);
           return instanceProfile || null; // Return null if invalid
         })
       );
-  
+
       // Filter out null entries
       const validProfiles = instanceProfiles.filter(
         (profile) => profile !== null
       ) as InstanceConfig[];
-  
+
       // Assign to this.instances
       this.instances = validProfiles;
       return this.instances;
@@ -149,68 +149,68 @@ export class XMLConfigurationManager extends AbstractConfigManager {
     }
   }
 
-private async readInstanceProfile(treeFile: string): Promise<InstanceConfig | null> {
-  try {
-    const raw = await this.readFileAsString(treeFile);
-    const parser = new XMLParser({ ignoreAttributes: false });
-    const data = parser.parse(raw);
-    const profile = data['instance-profile'];
-    if (!profile) { return null; }
+  private async readInstanceProfile(treeFile: string): Promise<InstanceConfig | null> {
+    try {
+      const raw = await this.readFileAsString(treeFile);
+      const parser = new XMLParser({ ignoreAttributes: false });
+      const data = parser.parse(raw);
+      const profile = data['instance-profile'];
+      if (!profile) { return null; }
 
-    const docId = profile['@_id'];
-    const name = profile['@_name'] || profile['@_id'] || 'Untitled';
-    const startPage = profile['@_start-page'] || '';
+      const docId = profile['@_id'];
+      const name = profile['@_name'] || profile['@_id'] || 'Untitled';
+      const startPage = profile['@_start-page'] || '';
 
-    // Note the 'await' usage here to retrieve titles concurrently from .md files
-    const tocElements: TocElement[] = await this.loadTocElements(profile['toc-element'] || []);
+      // Note the 'await' usage here to retrieve titles concurrently from .md files
+      const tocElements: TocElement[] = await this.loadTocElements(profile['toc-element'] || []);
 
-    return {
-      id: docId,
-      name,
-      'start-page': startPage,
-      'toc-elements': tocElements
-    };
-  } catch (err: any) {
-    vscode.window.showErrorMessage(`Failed to read instance profile from "${treeFile}": ${err.message}`);
-    return null;
-  }
-}
-
-/**
- * Reads each <toc-element> concurrently, extracting the title from its corresponding .md file,
- * and stores the "title -> filename" mapping asynchronously in titleToFileMap.
- * This is the most efficient approach, as Promise.all parallelizes the reads.
- */
-private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
-  if (!Array.isArray(xmlElements)) {
-    xmlElements = xmlElements ? [xmlElements] : [];
+      return {
+        id: docId,
+        name,
+        'start-page': startPage,
+        'toc-elements': tocElements
+      };
+    } catch (err: any) {
+      vscode.window.showErrorMessage(`Failed to read instance profile from "${treeFile}": ${err.message}`);
+      return null;
+    }
   }
 
-  const tasks = xmlElements.map(async (elem: any) => {
-    const topicFile = elem['@_topic'];
-    const children = await this.loadTocElements(elem['toc-element'] || []);
+  /**
+   * Reads each <toc-element> concurrently, extracting the title from its corresponding .md file,
+   * and stores the "title -> filename" mapping asynchronously in titleToFileMap.
+   * This is the most efficient approach, as Promise.all parallelizes the reads.
+   */
+  private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
+    if (!Array.isArray(xmlElements)) {
+      xmlElements = xmlElements ? [xmlElements] : [];
+    }
 
-    // Attempt to read the .md file and retrieve a heading-based title
-    const mdTitle = await this.getMdTitle(topicFile);
+    const tasks = xmlElements.map(async (elem: any) => {
+      const topicFile = elem['@_topic'];
+      const children = await this.loadTocElements(elem['toc-element'] || []);
 
-    // Asynchronously add to the dictionary (title -> filename)
-    // this.titleToFileMap[mdTitle] = topicFile; todo remove
+      // Attempt to read the .md file and retrieve a heading-based title
+      const mdTitle = await this.getMdTitle(topicFile);
 
-    return {
-      topic: topicFile,
-      title: mdTitle,
-      sortChildren: 'none',
-      children
-    } as TocElement;
-  });
+      // Asynchronously add to the dictionary (title -> filename)
+      // this.titleToFileMap[mdTitle] = topicFile; todo remove
 
-  return Promise.all(tasks);
-}
+      return {
+        topic: topicFile,
+        title: mdTitle,
+        sortChildren: 'none',
+        children
+      } as TocElement;
+    });
 
-/**
- * Reads the corresponding .md file and returns the first heading line as the title.
- * Falls back to the filename if no heading is found or if the file is missing.
- */
+    return Promise.all(tasks);
+  }
+
+  /**
+   * Reads the corresponding .md file and returns the first heading line as the title.
+   * Falls back to the filename if no heading is found or if the file is missing.
+   */
 
 
 
@@ -312,7 +312,6 @@ private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
       this.treeFileName = `${newDocument.id}.tree`;
       const treeFilePath = path.join(this.getIhpDir(), this.treeFileName);
 
-      await this.writeConfig(newDocument, treeFilePath);
       // Update .ihp
       if (!this.ihpData.ihp.instance) {
         this.ihpData.ihp.instance = [];
@@ -329,8 +328,13 @@ private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
       if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
         await this.writeTopicFile(newDocument['toc-elements'][0]);
       }
+      if (await this.fileExists(treeFilePath)) {
+        await this.writeConfig(newDocument, treeFilePath);
+        return true;
+      } else {
+        return false;
+      };
 
-      return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}": ${err.message}`);
       return false;
@@ -367,7 +371,7 @@ private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
               await this.deleteFileIfExists(p);
             })
           );
-          
+
         }
 
         // Remove from .ihp
@@ -533,7 +537,6 @@ private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
           'toc-elements': inst['toc-elements'].map(te => ({
             topic: te.topic,
             title: te.title,
-            'sort-children': te.sortChildren,
             children: te.children
           }))
         }))
@@ -556,7 +559,6 @@ private async loadTocElements(xmlElements: any): Promise<TocElement[]> {
     return elements.map(e => ({
       topic: e.topic,
       title: e.title,
-      'sort-children': e.sortChildren,
       children: this.convertTocElements(e.children)
     }));
   }

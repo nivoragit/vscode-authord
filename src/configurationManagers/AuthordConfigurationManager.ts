@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import Ajv from 'ajv';
 import { AbstractConfigManager } from './abstractConfigurationManager';
-import { InstanceConfig } from '../utils/types';
+import { InstanceConfig, TocElement } from '../utils/types';
 
 export interface AuthordConfig {
   topics?: { dir: string };
@@ -39,14 +39,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       const fileUri = vscode.Uri.file(filePath);
       // Ensure the file exists; create it with default config if it doesn't
       if (!(await this.fileExists(filePath)) && this.configData) {
-        // removing title before write
-      //   const jsonData = this.configData.instances.map((doc: InstanceConfig) => ({
-      //     ...doc,
-      //     'toc-elements': doc['toc-elements'].map(({ title, ...rest }: any) => rest) // Exclude `title` directly
-      // }));
-      
-      await this.writeNewFile(filePath, JSON.stringify(this.configData, null, 2));
-      
+        await this.writeNewFile(filePath, JSON.stringify(this.configData, null, 2));
         return;
       }
 
@@ -56,7 +49,14 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       let jsonData = JSON.parse(originalText);
       jsonData = mutateFn(jsonData);
       const indentation = await this.getIndentationSetting();
-      const newJsonString = JSON.stringify(jsonData, null, indentation);
+      // removing title before write
+      const instances = jsonData.instances.map((doc: InstanceConfig) => ({
+        ...doc,
+        'toc-elements': doc['toc-elements'].map(({ title, ...rest }: any) => rest) // Exclude `title`
+      }));
+
+      const newJsonString = JSON.stringify({ ...jsonData, instances: instances }, null, indentation);
+      // const newJsonString = JSON.stringify(jsonData, null, indentation);
 
       const edit = new vscode.WorkspaceEdit();
       edit.replace(
@@ -88,11 +88,10 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
     };
   }
 
-  private async readConfig(): Promise<AuthordConfig> {
+  private async readConfig(): Promise<AuthordConfig | undefined> {
     try {
       if (!(await this.fileExists(this.configPath))) {
-        const defaultConfig = this.defaultConfigJson();
-        await this.writeNewFile(this.configPath, JSON.stringify(defaultConfig, null, 2));
+        return;
       }
       return await this.readJsonFile(this.configPath);
     } catch (error: any) {
@@ -118,6 +117,19 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   async refresh(): Promise<void> {
     try {
       this.configData = await this.readConfig();
+      if (!this.configData) { return; }
+      await Promise.all(
+        this.configData.instances.map(async (instance: InstanceConfig) => {
+          await Promise.all(
+            instance['toc-elements'].map(async (element: TocElement) => {
+              if (element.topic) { // Add title only if `topic` exists
+                element.title = await this.getMdTitle(element.topic);
+              }
+            })
+          );
+        })
+      );
+
       this.instances = this.configData.instances;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error refreshing configuration: ${error.message}`);
@@ -160,12 +172,18 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       }
       this.instances.push(newDocument);
 
-      await this.writeConfig();
 
-      if (newDocument['toc-elements'] && newDocument['toc-elements'][0]) {
-        await this.writeTopicFile(newDocument['toc-elements'][0]);
+      const newTopic = newDocument['toc-elements'][0];
+      if (newDocument['toc-elements'] && newTopic) {
+        await this.writeTopicFile(newTopic);
       }
-      return true;
+      // Update .tree
+      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+        await this.writeConfig();
+        return true;
+      } else {
+        return false;
+      };
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error adding document: ${error.message}`);
       return false;

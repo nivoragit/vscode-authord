@@ -17,7 +17,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     this.topicsProvider = topicsProvider;
     this.refresh();
   }
-
   refresh(): void {
     this.instances = this.configManager.getDocuments();
     this._onDidChangeTreeData.fire();
@@ -181,7 +180,6 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
         {
           topic: startPageFileName,
           title: aboutTitle,
-          sortChildren: 'none',
           children: [],
         },
       ],

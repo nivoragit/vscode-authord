@@ -5,8 +5,9 @@ import { Token } from 'markdown-it';
 import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
 
 // Initial state
-export let configExists = true;
+export let configExists = false;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
+
 
 // Setter function
 export function setConfigExists(value: boolean): void {

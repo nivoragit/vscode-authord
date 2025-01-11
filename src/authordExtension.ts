@@ -313,7 +313,7 @@ export class Authord {
                 this.documentationProvider!.deleteDoc(item);
             }),
             vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
-                this.topicsProvider!.rootTopic(item);
+                this.topicsProvider!.addRootTopic(item);
             }),
             vscode.commands.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
                 this.documentationProvider!.renameDoc(item);
@@ -329,6 +329,7 @@ export class Authord {
     private async createConfigFile() {
         const filePath = path.join(this.workspaceRoot, configFiles[0]);
         this.configManager = await new AuthordConfigurationManager(filePath).createConfigFile();
+        await this.configManager.refresh();
         await this.reinitialize();
     }
 

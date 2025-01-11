@@ -72,7 +72,7 @@ export abstract class AbstractConfigManager {
     (targetTopic as TocElement).children.push(sourceTopic);
 
     // 4) Write updates to the .tree file
-    this.writeConfig(doc);
+    await this.writeConfig(doc);
     return doc["toc-elements"];
   }
   /**
@@ -80,7 +80,7 @@ export abstract class AbstractConfigManager {
  */
   async setMarkdownTitle(fileName: string, newTitle: string) {
 
-    const filePath = path.join(this.getTopicsDir(),fileName);
+    const filePath = path.join(this.getTopicsDir(), fileName);
     if (!this.fileExists(filePath)) {
       vscode.window.showErrorMessage('File not found or cannot be opened.');
       return;
@@ -142,19 +142,25 @@ export abstract class AbstractConfigManager {
         vscode.window.showErrorMessage(`New topic file "${newTopicFile}" already exists on disk.`);
         return false;
       }
+      // Rename on disk
+      await vscode.workspace.fs.rename(
+        vscode.Uri.file(oldFilePath),
+        vscode.Uri.file(newFilePath)
+      );
+
       if (doc['toc-elements'].length === 1) {
         doc['start-page'] = newTopicFile;
+      }
+      if (!(await this.fileExists(newFilePath)) || await this.fileExists(oldFilePath)) {
+        vscode.window.showErrorMessage(`Failed to rename topic "${oldTopicFile}" -> "${newName}"`);
+        return false;
       }
 
       // Update .tree
       topic.topic = newTopicFile;
       topic.title = newName;
       await this.writeConfig(doc);
-      // Rename on disk
-      await vscode.workspace.fs.rename(
-        vscode.Uri.file(oldFilePath),
-        vscode.Uri.file(newFilePath)
-      );
+
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to rename topic "${oldTopicFile}" -> "${newName}": ${err.message}`);
@@ -191,8 +197,16 @@ export abstract class AbstractConfigManager {
       );
 
       // Update .tree
-      await this.writeConfig(doc);
-      return true;
+      if (await this.fileExists(path.join(topicsDir, topicFileName))) {
+        vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}"`);
+        return false;
+      } else {
+        await this.writeConfig(doc);
+        return true;
+        
+      }
+
+
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}": ${err.message}`);
       return false;
@@ -234,11 +248,18 @@ export abstract class AbstractConfigManager {
 
       // Write the .md file
       await this.writeTopicFile(newTopic);
-      // Update .tree
-      await this.writeConfig(doc);
 
-      vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
-      return true;
+      // Update .tree
+      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+        await this.writeConfig(doc);
+        vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+        return true;
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete topic "${newTopic.title}"`);
+        return false;
+      }
+
+
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}": ${err.message}`);
       return false;
@@ -276,7 +297,7 @@ export abstract class AbstractConfigManager {
       // Identify parent or root
       let parentArray;
       if (parentTopic) {
-        const parent = this.findTopicByFilename(doc['toc-elements'], this.formatTitleAsFilename(parentTopic));
+        const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
         if (!parent) {
           vscode.window.showWarningMessage(`Parent topic "${parentTopic}" not found.`);
           return false;
@@ -294,10 +315,16 @@ export abstract class AbstractConfigManager {
       // Write the .md file
       await this.writeTopicFile(newTopic);
       // Update .tree
-      await this.writeConfig(doc);
+      // Update .tree
+      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+        await this.writeConfig(doc);
+        vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
+        return true;
+      } else {
+        vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);
+        return false;
+      }
 
-      vscode.window.showInformationMessage(`Topic "${newTopic.title}" added successfully.`);
-      return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}": ${err.message}`);
       return false;
@@ -359,7 +386,7 @@ export abstract class AbstractConfigManager {
       // ignore
     }
   }
-  protected async writeNewFile(filePath: string, content: string): Promise<void> {
+  protected async writeNewFile(filePath: string, content: string): Promise<boolean> {
     try {
       const fileUri = vscode.Uri.file(filePath);
       const directoryUri = fileUri.with({ path: path.dirname(fileUri.fsPath) });
@@ -369,6 +396,7 @@ export abstract class AbstractConfigManager {
       vscode.window.showErrorMessage(`Failed to write new file at "${filePath}": ${error.message}`);
       throw error;
     }
+    return true;
   }
   /**
      * Extracts a topic by `t.topic === fileName` and returns it, or null if not found.
@@ -409,29 +437,29 @@ export abstract class AbstractConfigManager {
     }
     return undefined;
   }
-   /**
-     * Reads a file as string using workspace.fs.
-     */
-    protected async readFileAsString(filePath: string): Promise<string> {
-      try {
-        // Check if the file exists
-        await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-        // Read the file and return its contents as a UTF-8 string
-        const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
-        return Buffer.from(data).toString('utf-8');
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`Error reading file "${filePath}": ${error.message}`);
-        throw new Error(`File "${filePath}" does not exist or cannot be read.`);
-      }
+  /**
+    * Reads a file as string using workspace.fs.
+    */
+  protected async readFileAsString(filePath: string): Promise<string> {
+    try {
+      // Check if the file exists
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      // Read the file and return its contents as a UTF-8 string
+      const data = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+      return Buffer.from(data).toString('utf-8');
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Error reading file "${filePath}": ${error.message}`);
+      throw new Error(`File "${filePath}" does not exist or cannot be read.`);
     }
+  }
   protected async getMdTitle(topicFile: string): Promise<string> {
     try {
       const topicsDir = this.getTopicsDir();
       const mdFilePath = path.join(topicsDir, topicFile);
-  
+
       // Read the .md file contents
       const content = await this.readFileAsString(mdFilePath);
-  
+
       // Look for the first heading in the file
       const lines = content.split('\n');
       for (let line of lines) {
@@ -440,14 +468,14 @@ export abstract class AbstractConfigManager {
           // Strip out any leading '#' characters and extra spaces
           // return line.replace(/^#+\s*/, '').trim();
           return line.substring(1).trim();
-        }else if(line.length > 0){
+        } else if (line.length > 0) {
           break; // if not empty line -> break
         }
       }
     } catch {
       // If file not found or no heading, we ignore and fall back
     }
-    
+
     // Fallback to the base filename if no heading is available
     return `<${path.basename(topicFile)}>`;
   }
@@ -559,7 +587,13 @@ export abstract class AbstractConfigManager {
         return;
       }
 
-      await this.writeNewFile(filePath, `# ${newTopic.title}\n\nContent goes here...`);
+      const write = await this.writeNewFile(filePath, `# ${newTopic.title}\n\nContent goes here...`);
+      if (write) {
+        await vscode.commands.executeCommand(
+          'authordExtension.openMarkdownFile',
+          filePath
+        );
+      }
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}": ${err.message}`);
       throw err;
