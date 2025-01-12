@@ -36,7 +36,7 @@ export abstract class AbstractConfigManager {
         return false;
       }
       doc.name = newName;
-      this.writeConfig(doc);
+      await this.writeConfig(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to rename document "${docId}" -> "${newName}": ${err.message}`);
@@ -72,7 +72,7 @@ export abstract class AbstractConfigManager {
     (targetTopic as TocElement).children.push(sourceTopic);
 
     // 4) Write updates to the .tree file
-    this.writeConfig(doc);
+    await this.writeConfig(doc);
     return doc["toc-elements"];
   }
   /**
@@ -154,7 +154,7 @@ export abstract class AbstractConfigManager {
       topic.title = newName;
   
       // Write back the updated doc config
-      await this.writeConfig(doc);
+      await await this.writeConfig(doc);
   
       return true;
     } catch (err: any) {
@@ -199,7 +199,7 @@ export abstract class AbstractConfigManager {
         vscode.window.showErrorMessage(`Failed to delete topic "${topicFileName}"`);
         return false;
       } else {
-        this.writeConfig(doc);
+        await this.writeConfig(doc);
         return true;
         
       }
@@ -247,7 +247,7 @@ export abstract class AbstractConfigManager {
 
       // Update .tree
       if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
-        this.writeConfig(doc);
+        await this.writeConfig(doc);
         return true;
       } else {
         vscode.window.showErrorMessage(`Failed to delete topic "${newTopic.title}"`);
@@ -272,7 +272,7 @@ export abstract class AbstractConfigManager {
 
 
       // Update config
-      this.writeConfig(doc);
+      await this.writeConfig(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage("Failed to set start page");
@@ -310,7 +310,7 @@ export abstract class AbstractConfigManager {
       // Update .tree
       // Update .tree
       if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
-        this.writeConfig(doc);
+        await this.writeConfig(doc);
         return true;
       } else {
         vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);

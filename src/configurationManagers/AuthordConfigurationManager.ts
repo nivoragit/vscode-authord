@@ -139,7 +139,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   async createConfigFile(): Promise<AuthordConfigurationManager> {
     try {
       this.configData = this.defaultConfigJson();
-      this.writeConfig();
+      await this.writeConfig();
       return this;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error creating config file: ${error.message}`);
@@ -179,7 +179,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
       }
       // Update .tree
       if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
-        this.writeConfig();
+        await this.writeConfig();
         return true;
       } else {
         vscode.window.showErrorMessage(`Error adding document`);
@@ -210,7 +210,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
 
       this.instances = this.instances.filter(d => d.id !== docId);
-      this.writeConfig();
+      await this.writeConfig();
       return true;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error deleting document with id "${docId}": ${error.message}`);
