@@ -313,19 +313,18 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
         vscode.window.showErrorMessage('Failed to get topic by title');
         return;
       }
-      const promises: Promise<void>[] = [];
-      // Always update the Markdown title
-      promises.push(this.configManager.setMarkdownTitle(fileName, newName));
 
       // Conditionally add the rename topic operation
       if (enteredFileName) {
         enteredFileName = enteredFileName.endsWith('.md') ? enteredFileName : `${enteredFileName}.md`;
-        promises.push(this.renameTopic(item.topic, newName, enteredFileName));
+        await this.renameTopic(item.topic, newName, enteredFileName);
+        this.configManager.setMarkdownTitle(enteredFileName, newName);
       } else {
-        promises.push(this.renameTopic(item.topic, newName));
+        await this.renameTopic(item.topic, newName);
+        // Always update the Markdown title
+        this.configManager.setMarkdownTitle(fileName, newName);
       }
-      // Run all operations concurrently
-      await Promise.all(promises);
+
 
       vscode.window.showInformationMessage('Topic renamed successfully.');
     } catch (error: any) {
