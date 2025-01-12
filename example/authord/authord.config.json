@@ -1,0 +1,30 @@
+{
+	"schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "Authord Settings",
+	"type": "object",
+	"topics": {
+		"dir": "topics"
+	},
+	"images": {
+		"dir": "images",
+		"version": "1.0",
+		"web-path": "images"
+	},
+	"instances": [
+		{
+			"id": "as",
+			"name": "Authord Settings",
+			"start-page": "authord-settings.md",
+			"toc-elements": [
+				{
+					"topic": "authord-settings.md",
+					"children": []
+				},
+				{
+					"topic": "sibling-topic.md",
+					"children": []
+				}
+			]
+		}
+	]
+}
