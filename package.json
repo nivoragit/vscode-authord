@@ -247,7 +247,7 @@
         {
           "command": "extension.deleteContextMenuDocumentation",
           "when": "view == documentationsView && viewItem == documentation",
-          "group": "navigatio@1"
+          "group": "navigation@1"
         },
         {
           "command": "extension.addContextMenuDocumentation",
@@ -298,7 +298,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
+    "lint": "eslint src --ext .ts,.js",
     "test": "vscode-test"
   },
   "devDependencies": {
@@ -310,6 +310,10 @@
     "@vscode/test-cli": "^0.0.10",
     "esbuild-loader": "^4.2.2",
     "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.5.2",
+    "eslint-plugin-import": "^2.31.0",
     "typescript": "^5.7.2",
     "webpack": "^5.96.1",
     "webpack-cli": "^6.0.1"
@@ -317,7 +321,46 @@
   "dependencies": {
     "ajv": "^8.17.1",
     "fast-xml-parser": "^4.5.1",
+    "markdown-it": "^13.0.1",
     "markdown-it-attrs": "^4.3.1",
     "markdown-it-plantuml": "^1.4.1"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "browser": false,
+      "node": true,
+      "es2021": true
+    },
+    "extends": [
+      "airbnb-base",
+      "plugin:@typescript-eslint/recommended",
+      "prettier"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 12,
+      "sourceType": "module",
+      "project": "./tsconfig.json"
+    },
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "settings": {
+      "import/resolver": {
+        "typescript": {}
+      }
+    },
+    "rules": {
+      "import/extensions": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-await-in-loop": "off"
+    },
+    "ignorePatterns": [
+      "out/",
+      "dist/",
+      "**/*.d.ts",
+      "src/media/script.js"
+    ]
   }
 }
