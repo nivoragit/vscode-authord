@@ -207,12 +207,12 @@
         {
           "command": "extension.ContextMenuSetasStartPage",
           "when": "view == topicsView && viewItem == topic",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "extension.addChildTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "extension.deleteTopic",
@@ -232,12 +232,12 @@
         {
           "command": "extension.deleteContextMenuTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "extension.renameContextMenuTopic",
           "when": "view == topicsView && viewItem == topic",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "extension.renameContextMenuDoc",
@@ -247,7 +247,7 @@
         {
           "command": "extension.deleteContextMenuDocumentation",
           "when": "view == documentationsView && viewItem == documentation",
-          "group": "navigation"
+          "group": "navigatio@1"
         },
         {
           "command": "extension.addContextMenuDocumentation",

@@ -120,18 +120,18 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       prompt: 'Enter Documentation Name',
       placeHolder: 'e.g., My Documentation',
     });
-  
+
     if (!title) {
       vscode.window.showWarningMessage('Document creation canceled.');
       return;
     }
-  
+
     // Step 2: Generate a default ID based on the title
     let defaultId = title
       .split(/\s+/)
       .map(word => word[0]?.toLowerCase() || '')
       .join('');
-  
+
     // Step 3: Prompt for the instance ID with the default placeholder
     let docId = await vscode.window.showInputBox({
       prompt: 'Enter Document ID',
@@ -163,33 +163,34 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
         return;
       }
     }
-  
+
     // Step 4: Automatically generate the start page file name and "About ..." title
     const startPageFileName = title.replace(/\s+/g, '-').toLowerCase() + '.md';
     const aboutTitle = `About ${title}`;
-  
+
     // Step 5: Ensure the topics directory exists
     await vscode.workspace.fs.createDirectory(vscode.Uri.file(this.configManager.getTopicsDir()));
-  
+    const tocElements = [
+      {
+        topic: startPageFileName,
+        title: aboutTitle,
+        children: [],
+      },
+    ];
     // Step 6: Create the new document object
     const newDocument: InstanceConfig = {
       id: docId,
       name: title,
       'start-page': startPageFileName,
-      'toc-elements': [
-        {
-          topic: startPageFileName,
-          title: aboutTitle,
-          children: [],
-        },
-      ],
+      'toc-elements': tocElements,
     };
-  
+
     // Step 7: Add the document to the config manager and refresh
+    const added = await this.configManager.addDocument(newDocument);
     try {
-      const added = await this.configManager.addDocument(newDocument);
       if (added) {
         this.refresh();
+        this.topicsProvider.refresh(tocElements,docId);
         vscode.window.showInformationMessage(`Documentation "${title}" created successfully with ID "${docId}".`);
       } else {
         vscode.window.showErrorMessage(`Failed to create documentation "${title}" with ID "${docId}".`);

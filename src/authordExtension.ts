@@ -226,6 +226,7 @@ export class Authord {
             vscode.commands.registerCommand('extension.createProject', async () => {
                 vscode.window.showInformationMessage('Creating a new project...');
                 await this.createConfigFile();
+                await this.documentationProvider!.addDoc();
             }));
     }
 
