@@ -114,8 +114,20 @@ export class Authord {
     private subscribeListeners(): void {
         // Listen for saves of Markdown files
         this.context.subscriptions.push(
-            vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+
+            vscode.window.onDidChangeVisibleTextEditors((editors) => {
+                const tabGroups = vscode.window.tabGroups.all;
+                if (editors.length === 0 && 
+                    tabGroups.length === 2 && 
+                    tabGroups[0].tabs.length === 0 && 
+                    tabGroups[1].tabs[0].label.startsWith('Preview')) {
+                        vscode.commands.executeCommand('workbench.action.closeAllEditors');
+                }
+            }),
+
+            vscode.window.onDidChangeActiveTextEditor((editor) => {
                 if (editor?.document.languageId === 'markdown' && this.topicsProvider && this.topicsProvider.currentDocId) {
+                    // set this.currentFileName and this.currentTopicTitle for the first time
                     let topicTitle = editor.document.lineAt(0).text.trim();
                     if (!topicTitle) {
                         for (let i = 1; i < editor.document.lineCount; i++) {
@@ -131,12 +143,12 @@ export class Authord {
                             // document has changed
                             this.currentFileName = fileName;
                             this.currentTopicTitle = topicTitle.substring(1).trim() || fileName;
-                         
+
                         }
                     }
-                    
-                    
-                   
+
+
+
 
                 }
             }),
