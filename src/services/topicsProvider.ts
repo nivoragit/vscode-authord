@@ -293,10 +293,10 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       // Prompt the user for the file name, pre-populated with the default
       let enteredFileName = await vscode.window.showInputBox({
         prompt: 'Enter a new file name or skip',
-        placeHolder: 'Leave empty to keep the current file name'
+        value: item.topic
       });
       let counter = 1;
-      while (enteredFileName && await this.topicExists(enteredFileName)) {
+      while (enteredFileName !== item.topic && await this.topicExists(enteredFileName!)) {
         vscode.window.showWarningMessage(`A topic file with filename "${enteredFileName}" already exists.`);
         // Prompt the user for a different file name
         enteredFileName = await vscode.window.showInputBox({
@@ -315,14 +315,18 @@ export class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
       }
 
       // Conditionally add the rename topic operation
-      if (enteredFileName) {
-        enteredFileName = enteredFileName.endsWith('.md') ? enteredFileName : `${enteredFileName}.md`;
+      if (enteredFileName !== item.topic) {
+        enteredFileName = enteredFileName!.endsWith('.md') ? enteredFileName : `${enteredFileName}.md`;
         await this.renameTopic(item.topic, newName, enteredFileName);
-        this.configManager.setMarkdownTitle(enteredFileName, newName);
-      } else {
+        if (item.label as string !== newName) {
+          this.configManager.setMarkdownTitle(enteredFileName!, newName);
+        }
+      } else if (item.label as string !== newName) {
         await this.renameTopic(item.topic, newName);
         // Always update the Markdown title
         this.configManager.setMarkdownTitle(fileName, newName);
+      }else{
+        return;
       }
 
 
