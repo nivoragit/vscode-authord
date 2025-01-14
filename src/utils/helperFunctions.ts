@@ -1,23 +1,37 @@
+/* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
+import AbstractConfigManager from '../configurationManagers/abstractConfigurationManager';
 
-import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
-
-// Initial state
-export let configExists = false;
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
+/**
+ * Closes extra Markdown preview editors, keeping only the one in column two.
+ * Defined before usage to satisfy no-use-before-define.
+ */
+async function closeExtraPreviews(): Promise<void> {
+  const previewEditors = vscode.window.visibleTextEditors.filter(
+    (editor) => editor.document.uri.scheme === 'markdown-preview'
+  );
 
-// Setter function
-export function setConfigExists(value: boolean): void {
-  configExists = value;
-  vscode.commands.executeCommand('setContext', 'authord.configExists', value);
-  
+  if (previewEditors.length > 1) {
+    // Avoid for..of by using array methods to satisfy no-restricted-syntax
+    const extraEditors = previewEditors.filter(
+      (editor) => editor.viewColumn !== vscode.ViewColumn.Two
+    );
+    await Promise.all(
+      extraEditors.map((editor) =>
+        vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor)
+      )
+    );
+  }
 }
 
-// Helper function to show the preview in column two
-export async function showPreviewInColumnTwo() {
+/**
+ * Shows the Markdown preview in column two (or focuses/updates it if already open).
+ */
+export async function showPreviewInColumnTwo(): Promise<void> {
   const previewEditors = vscode.window.visibleTextEditors.filter(
     (editor) =>
       editor.document.uri.scheme === 'markdown-preview' &&
@@ -36,26 +50,10 @@ export async function showPreviewInColumnTwo() {
   await closeExtraPreviews();
 }
 
-
-// Helper function to close any extra preview panes
-async function closeExtraPreviews() {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) => editor.document.uri.scheme === 'markdown-preview'
-  );
-
-  if (previewEditors.length > 1) {
-    // Close all preview editors except the one in column two
-    for (const editor of previewEditors) {
-      if (editor.viewColumn !== vscode.ViewColumn.Two) {
-        await vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor);
-      }
-    }
-  }
-}
-
-
-// Helper function to focus or show the preview
-export async function focusOrShowPreview() {
+/**
+ * Either focuses an existing preview in column two, or opens a new one there.
+ */
+export async function focusOrShowPreview(): Promise<void> {
   const previewEditor = vscode.window.visibleTextEditors.find(
     (editor) =>
       editor.document.uri.scheme === 'markdown-preview' &&
@@ -72,8 +70,9 @@ export async function focusOrShowPreview() {
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 }
 
-
-// 1) Helper to handle standard Markdown images: ![Alt text](path)
+/**
+ * Custom renderer for standard Markdown images: ![Alt text](path)
+ */
 export function createCustomImageRenderer(
   defaultRender: (
     tokens: Token[],
@@ -84,20 +83,22 @@ export function createCustomImageRenderer(
   ) => string,
   configManager: AbstractConfigManager | undefined
 ) {
-  return function (
+  // Name the returned function to fix "Unexpected unnamed function" (func-names).
+  return function customImageRenderer(
     tokens: Token[],
     idx: number,
     options: any,
     env: any,
     self: any
   ) {
-    if(!configManager){
+    if (!configManager) {
       return defaultRender(tokens, idx, options, env, self);
     }
+
     const token = tokens[idx];
     const srcIndex = token.attrIndex('src');
-    const currentDocumentPath = env.currentDocument.path;
-    const imageFolder = path.basename(configManager.getImageDir()); 
+    const { path: currentDocumentPath } = env.currentDocument;
+    const imageFolder = path.basename(configManager.getImageDir());
     const topicsFolder = path.basename(configManager.getTopicsDir());
 
     if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
@@ -107,7 +108,8 @@ export function createCustomImageRenderer(
         !srcValue.startsWith(`../${imageFolder}/`) &&
         !srcValue.startsWith('http') // skip web images
       ) {
-        token.attrs![srcIndex][1] = `../${imageFolder}/` + srcValue;
+        // Use template string instead of string concatenation (prefer-template)
+        token.attrs![srcIndex][1] = `../${imageFolder}/${srcValue}`;
       }
     }
 
@@ -115,8 +117,9 @@ export function createCustomImageRenderer(
   };
 }
 
-
-// 2) Helper to handle HTML-based images: <img src="..." width=".." height="..">
+/**
+ * Custom renderer for HTML-based images: <img src="..." width=".." height="..">
+ */
 export function createCustomHtmlRenderer(
   defaultRender: (
     tokens: Token[],
@@ -127,27 +130,30 @@ export function createCustomHtmlRenderer(
   ) => string,
   configManager: AbstractConfigManager | undefined
 ) {
-  return function (
+  // Name the returned function to fix "Unexpected unnamed function" (func-names).
+  return function customHtmlRenderer(
     tokens: Token[],
     idx: number,
     options: any,
     env: any,
     self: any
   ) {
-    if(!configManager){
+    if (!configManager) {
       return defaultRender(tokens, idx, options, env, self);
     }
-    const currentDocumentPath = env.currentDocument.path;
-    let content = tokens[idx].content;
-    const imageFolder = path.basename(configManager.getImageDir()); 
-    const topicsFolder = path.basename(configManager.getTopicsDir()); 
+
+    const { path: currentDocumentPath } = env.currentDocument;
+    const imageFolder = path.basename(configManager.getImageDir());
+    const topicsFolder = path.basename(configManager.getTopicsDir());
+
+    // Use object destructuring to satisfy "prefer-destructuring"
+    const { content: originalContent } = tokens[idx];
+    let content = originalContent;
+
     // Look for <img ...> tags inside HTML blocks or inline HTML
-    // E.g., <img src="images/example.png" alt="Example" width="300">
-    // We'll prefix any src that doesn't start with http or 'images/'.
     content = content.replace(
       /<img\s+([^>]*src\s*=\s*["'])([^"']+)(["'][^>]*)>/gi,
       (match, beforeSrc, srcValue, afterSrc) => {
-        // Only prefix if missing 'images/' and not a URL
         if (
           currentDocumentPath.includes(topicsFolder) &&
           srcValue &&
@@ -160,10 +166,11 @@ export function createCustomHtmlRenderer(
       }
     );
 
-    // You can handle <a><img ...></a> or other combos similarly if needed.
-
     // Update token’s content
+    // ESLint no-param-reassign rule can be relaxed or disabled for library mutation usage
+    // eslint-disable-next-line no-param-reassign
     tokens[idx].content = content;
+
     return defaultRender(tokens, idx, options, env, self);
   };
 }

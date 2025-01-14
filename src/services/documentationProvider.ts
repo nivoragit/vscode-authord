@@ -1,39 +1,47 @@
+// eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
-import { AbstractConfigManager } from '../configurationManagers/abstractConfigurationManager';
-import { TopicsProvider } from './topicsProvider';
-import { InstanceConfig, TocElement } from '../utils/types';
+import AbstractConfigManager from '../configurationManagers/abstractConfigurationManager';
+import TopicsProvider from './topicsProvider'; // Make sure `topicsProvider.ts` has a default export
+import { InstanceConfig } from '../utils/types';
+import DocumentationItem from './documentationItem'; // Moved into its own file to fix max-classes-per-file
 
-export class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
+export default class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
+  private onDidChangeTreeDataEmitter: vscode.EventEmitter<DocumentationItem | undefined | void> 
+    = new vscode.EventEmitter<DocumentationItem | undefined | void>();
 
-  private _onDidChangeTreeData: vscode.EventEmitter<DocumentationItem | undefined | void> = new vscode.EventEmitter<DocumentationItem | undefined | void>();
-  readonly onDidChangeTreeData: vscode.Event<DocumentationItem | undefined | void> = this._onDidChangeTreeData.event;
+  public readonly onDidChangeTreeData: vscode.Event<DocumentationItem | undefined | void> 
+    = this.onDidChangeTreeDataEmitter.event;
 
   private configManager: AbstractConfigManager;
+
   private instances: InstanceConfig[] = [];
+
   private topicsProvider: TopicsProvider;
 
-  constructor(configManager: AbstractConfigManager, topicsProvider: TopicsProvider) {
+  public constructor(configManager: AbstractConfigManager, topicsProvider: TopicsProvider) {
     this.configManager = configManager;
     this.topicsProvider = topicsProvider;
     this.refresh();
   }
-  refresh(): void {
+
+  public refresh(): void {
     this.instances = this.configManager.getDocuments();
-    this._onDidChangeTreeData.fire();
+    this.onDidChangeTreeDataEmitter.fire();
   }
 
-  getTreeItem(element: DocumentationItem): vscode.TreeItem {
+  /* eslint-disable class-methods-use-this */
+  public getTreeItem(element: DocumentationItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(): Thenable<DocumentationItem[]> {
-    // For multiple instances, use Collapsed state
-    const items = this.instances.map(instance => {
+  public async getChildren(): Promise<DocumentationItem[]> {
+    const items = this.instances.map((instance) => {
       const item = new DocumentationItem(
         instance.id,
         instance.name,
         vscode.TreeItemCollapsibleState.None
       );
+
       item.command = {
         command: 'authordDocsExtension.selectInstance',
         title: 'Select Instance',
@@ -42,14 +50,10 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       item.contextValue = 'documentation';
       return item;
     });
-    return Promise.resolve(items);
+    return items;
   }
 
-  /**
-   * Deletes a documentation entry by prompting the user for confirmation.
-   * Now handles the returned Promise<boolean> from the configManager.
-   */
-  async deleteDoc(item: DocumentationItem) {
+  public async deleteDoc(item: DocumentationItem): Promise<void> {
     if (!item.id) {
       vscode.window.showWarningMessage('No document selected for deletion.');
       return;
@@ -63,7 +67,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
     if (confirm === 'Yes') {
       try {
-        const deleted = await this.configManager.deleteDocument(item.id as string);
+        const deleted = await this.configManager.deleteDocument(item.id);
         if (deleted) {
           this.topicsProvider.refresh([], null);
           this.refresh();
@@ -77,11 +81,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
   }
 
-  /**
-   * Renames a documentation entry using user input.
-   * Now handles the returned Promise<boolean> from the configManager.
-   */
-  async renameDoc(item: DocumentationItem) {
+  public async renameDoc(item: DocumentationItem): Promise<void> {
     if (!item.id) {
       vscode.window.showWarningMessage('No document selected for rename.');
       return;
@@ -89,18 +89,21 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
 
     const newName = await vscode.window.showInputBox({
       prompt: 'Enter new documentation name',
-      value: item.label as string
+      value: item.label as string,
     });
+
     if (!newName) {
       vscode.window.showWarningMessage('Rename canceled.');
       return;
     }
 
     try {
-      const renamed = await this.configManager.renameDocument(item.id as string, newName);
+      const renamed = await this.configManager.renameDocument(item.id, newName);
       if (renamed) {
         this.refresh();
-        vscode.window.showInformationMessage(`Renamed documentation "${item.label}" to "${newName}".`);
+        vscode.window.showInformationMessage(
+          `Renamed documentation "${item.label}" to "${newName}".`
+        );
       } else {
         vscode.window.showErrorMessage(`Failed to rename documentation "${item.label}".`);
       }
@@ -109,13 +112,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
     }
   }
 
-  /**
-   * Creates a new documentation entry.
-   * Uses asynchronous checks to verify if a similarly named directory already exists
-   * and handles the returned Promise<boolean> from the configManager.addDocument method.
-   */
-  async addDoc(): Promise<void> {
-    // Step 1: Prompt for the documentation title
+  public async addDoc(): Promise<void> {
     const title = await vscode.window.showInputBox({
       prompt: 'Enter Documentation Name',
       placeHolder: 'e.g., My Documentation',
@@ -126,50 +123,58 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       return;
     }
 
-    // Step 2: Generate a default ID based on the title
+    // Generate default ID
     let defaultId = title
       .split(/\s+/)
-      .map(word => word[0]?.toLowerCase() || '')
+      .map((word) => word[0]?.toLowerCase() || '')
       .join('');
 
-    // Step 3: Prompt for the instance ID with the default placeholder
     let docId = await vscode.window.showInputBox({
       prompt: 'Enter Document ID',
-      value: defaultId, // Auto-generated default ID
+      value: defaultId,
       placeHolder: 'e.g., doc1',
     });
+
     if (!docId) {
       vscode.window.showWarningMessage('Document creation canceled.');
       return;
     }
 
     let counter = 1;
-    // Check for existing IDs and adjust if necessary
-    const existingIds = this.configManager.getDocuments().map(doc => doc.id);
-    while (existingIds.includes(docId)) {
-      defaultId = title
-        .split(/\s+/)
-        .map(word => word[counter]?.toLowerCase() || '')
-        .join('');
-      counter++;
+    const existingIds = this.configManager.getDocuments().map((doc) => doc.id);
 
+    // Helper function to avoid no-loop-func rule
+    const generateId = (docTitle: string, index: number): string =>
+      docTitle
+        .split(/\s+/)
+        .map((word) => word[index]?.toLowerCase() || '')
+        .join('');
+
+    // If an ID already exists, prompt for a new one
+    while (existingIds.includes(docId)) {
+      defaultId = generateId(title, counter);
+      counter += 1;
+
+      // eslint-disable-next-line no-await-in-loop
       docId = await vscode.window.showInputBox({
         prompt: 'Enter different Document ID',
-        value: defaultId, // Auto-generated default ID
+        value: defaultId,
         placeHolder: 'e.g., doc2',
       });
+
       if (!docId) {
         vscode.window.showWarningMessage('Document creation canceled.');
         return;
       }
     }
 
-    // Step 4: Automatically generate the start page file name and "About ..." title
-    const startPageFileName = title.replace(/\s+/g, '-').toLowerCase() + '.md';
+    const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
     const aboutTitle = `About ${title}`;
 
-    // Step 5: Ensure the topics directory exists
-    await vscode.workspace.fs.createDirectory(vscode.Uri.file(this.configManager.getTopicsDir()));
+    await vscode.workspace.fs.createDirectory(
+      vscode.Uri.file(this.configManager.getTopicsDir())
+    );
+
     const tocElements = [
       {
         topic: startPageFileName,
@@ -177,7 +182,7 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
         children: [],
       },
     ];
-    // Step 6: Create the new document object
+
     const newDocument: InstanceConfig = {
       id: docId,
       name: title,
@@ -185,31 +190,21 @@ export class DocumentationProvider implements vscode.TreeDataProvider<Documentat
       'toc-elements': tocElements,
     };
 
-    // Step 7: Add the document to the config manager and refresh
-    const added = await this.configManager.addDocument(newDocument);
     try {
+      const added = await this.configManager.addDocument(newDocument);
       if (added) {
         this.refresh();
-        this.topicsProvider.refresh(tocElements,docId);
-        vscode.window.showInformationMessage(`Documentation "${title}" created successfully with ID "${docId}".`);
+        this.topicsProvider.refresh(tocElements, docId);
+        vscode.window.showInformationMessage(
+          `Documentation "${title}" created successfully with ID "${docId}".`
+        );
       } else {
-        vscode.window.showErrorMessage(`Failed to create documentation "${title}" with ID "${docId}".`);
+        vscode.window.showErrorMessage(
+          `Failed to create documentation "${title}" with ID "${docId}".`
+        );
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Error while creating documentation: ${error}`);
     }
-  }
-
-}
-
-export class DocumentationItem extends vscode.TreeItem {
-  constructor(
-    public id: string,
-    label: string,
-    collapsibleState: vscode.TreeItemCollapsibleState
-  ) {
-    super(label, collapsibleState);
-    this.contextValue = 'documentation';
-    this.id = id;
   }
 }

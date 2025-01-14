@@ -1,7 +1,10 @@
+/* eslint-disable no-param-reassign, no-useless-constructor, @typescript-eslint/no-unused-vars,
+*/
+// eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import * as path from 'path';
 import Ajv from 'ajv';
-import { AbstractConfigManager } from './abstractConfigurationManager';
+import AbstractConfigManager from './abstractConfigurationManager'; // Adjusted import for default export
 import { InstanceConfig, TocElement } from '../utils/types';
 
 export interface AuthordConfig {
@@ -9,7 +12,7 @@ export interface AuthordConfig {
   [key: string]: any;
 }
 
-export class AuthordConfigurationManager extends AbstractConfigManager {
+export default class AuthordConfigurationManager extends AbstractConfigManager {
   configData: AuthordConfig | undefined;
 
   constructor(configPath: string) {
@@ -20,8 +23,10 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   // FILE/JSON HELPERS
   // ------------------------------------------------------------------------------------
 
-
-  private async readJsonFile(filePath: string): Promise<any> {
+  /**
+   * Reads a JSON file from disk.
+   */
+  private static async readJsonFile(filePath: string): Promise<any> {
     try {
       const fileData = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
       return JSON.parse(Buffer.from(fileData).toString('utf-8'));
@@ -34,10 +39,13 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   /**
    * Opens a JSON file, applies a mutation function, and preserves indentation.
    */
-  private async updateJsonFile(filePath: string, mutateFn: (jsonData: any) => any): Promise<void> {
+  private async updateJsonFile(
+    filePath: string,
+    mutateFn: (jsonData: any) => any
+  ): Promise<void> {
     try {
       const fileUri = vscode.Uri.file(filePath);
-      // Ensure the file exists; create it with default config if it doesn't
+      // Ensure file exists; create it with default config if it doesn't.
       if (!(await this.fileExists(filePath)) && this.configData) {
         await this.writeNewFile(filePath, JSON.stringify(this.configData, null, 2));
         return;
@@ -48,15 +56,22 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
       let jsonData = JSON.parse(originalText);
       jsonData = mutateFn(jsonData);
+
+      // Use indentation from the user/editor settings
       const indentation = await this.getIndentationSetting();
-      // removing title before write
-      const instances = jsonData.instances.map((doc: InstanceConfig) => ({
-        ...doc,
-        'toc-elements': doc['toc-elements'].map(({ title, ...rest }: any) => rest) // Exclude `title`
+
+      // Example transformation: remove 'title' property before write
+      // (For demonstration; adjust logic as needed)
+      const instances = jsonData.instances.map((instance: InstanceConfig) => ({
+        ...instance,
+        'toc-elements': instance['toc-elements'].map(({ title, ...rest }: any) => rest),
       }));
 
-      const newJsonString = JSON.stringify({ ...jsonData, instances: instances }, null, indentation);
-      // const newJsonString = JSON.stringify(jsonData, null, indentation);
+      const newJsonString = JSON.stringify(
+        { ...jsonData, instances },
+        null,
+        indentation
+      );
 
       const edit = new vscode.WorkspaceEdit();
       edit.replace(
@@ -77,29 +92,30 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   // CONFIG READ/WRITE
   // ------------------------------------------------------------------------------------
 
-  private defaultConfigJson(): AuthordConfig {
+  private static defaultConfigJson(): AuthordConfig {
     return {
       schema: 'https://json-schema.org/draft/2020-12/schema',
       title: 'Authord Settings',
       type: 'object',
       topics: { dir: 'topics' },
       images: { dir: 'images', version: '1.0', 'web-path': 'images' },
-      instances: []
+      instances: [],
     };
   }
 
   private async readConfig(): Promise<AuthordConfig | undefined> {
     try {
       if (!(await this.fileExists(this.configPath))) {
-        return;
+        return undefined;
       }
-      return await this.readJsonFile(this.configPath);
+      return await AuthordConfigurationManager.readJsonFile(this.configPath);
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error reading config: ${error.message}`);
       throw error;
     }
   }
-  protected async writeConfig(_?: any, __?: any): Promise<void> {
+  
+  protected async writeConfig(): Promise<void> {
     try {
       if (!this.configData) {
         return;
@@ -117,19 +133,21 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   async refresh(): Promise<void> {
     try {
       this.configData = await this.readConfig();
-      if (!this.configData) { return; }
+      if (!this.configData) {
+        return;
+      }
       await Promise.all(
-        this.configData.instances.map(async (instance: InstanceConfig) => {
+        this.configData.instances.map(async (inst: InstanceConfig) => {
           await Promise.all(
-            instance['toc-elements'].map(async (element: TocElement) => {
-              if (element.topic) { // Add title only if `topic` exists
+            inst['toc-elements'].map(async (element: TocElement) => {
+              if (element.topic) {
+                // from parent class
                 element.title = await this.getMdTitle(element.topic);
               }
             })
           );
         })
       );
-
       this.instances = this.configData.instances;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error refreshing configuration: ${error.message}`);
@@ -138,7 +156,7 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   async createConfigFile(): Promise<AuthordConfigurationManager> {
     try {
-      this.configData = this.defaultConfigJson();
+      this.configData = AuthordConfigurationManager.defaultConfigJson();
       await this.writeConfig();
       return this;
     } catch (error: any) {
@@ -148,21 +166,12 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   getTopicsDir(): string {
-    // Not wrapping in try-catch because this simply returns a path.
-    return path.join(
-      path.dirname(this.configPath),
-      this.configData?.topics?.dir || ''
-    );
+    return path.join(path.dirname(this.configPath), this.configData?.topics?.dir || '');
   }
 
   getImageDir(): string {
-    // Not wrapping in try-catch because this simply returns a path.
-    return path.join(
-      path.dirname(this.configPath),
-      this.configData?.images?.dir || ''
-    );
+    return path.join(path.dirname(this.configPath), this.configData?.images?.dir || '');
   }
-
 
   async addDocument(newDocument: InstanceConfig): Promise<boolean> {
     try {
@@ -170,21 +179,21 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
         vscode.window.showErrorMessage('Configuration data not initialized.');
         return false;
       }
+      // from parent class
       this.instances.push(newDocument);
 
-
-      const newTopic = newDocument['toc-elements'][0];
-      if (newDocument['toc-elements'] && newTopic) {
-        await this.writeTopicFile(newTopic);
+      const [firstTopic] = newDocument['toc-elements'];
+      if (firstTopic) {
+        await this.writeTopicFile(firstTopic);
       }
-      // Update .tree
-      if (await this.fileExists(path.join(this.getTopicsDir(), newTopic.topic))) {
+
+      // Ensure the file was created before writing config
+      if (await this.fileExists(path.join(this.getTopicsDir(), firstTopic.topic))) {
         await this.writeConfig();
         return true;
-      } else {
-        vscode.window.showErrorMessage(`Error adding document`);
-        return false;
-      };
+      }
+      vscode.window.showErrorMessage('Error adding document');
+      return false;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error adding document: ${error.message}`);
       return false;
@@ -193,23 +202,19 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
 
   async deleteDocument(docId: string): Promise<boolean> {
     try {
-      const doc = this.findDocById(docId);
-      if (!doc || !this.configData) {
+      const foundDoc = this.findDocById(docId);
+      if (!foundDoc || !this.configData) {
         return false;
       }
-
       const topicsDir = this.getTopicsDir();
-      const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
-      // running deletions in parallel
+      const allTopics = this.getAllTopicsFromDoc(foundDoc['toc-elements']);
       await Promise.all(
-        allTopics.map(async (topicFileName) => {
+        allTopics.map(async (topicFileName: string) => {
           const filePath = path.join(topicsDir, topicFileName);
           await this.deleteFileIfExists(filePath);
         })
       );
-
-
-      this.instances = this.instances.filter(d => d.id !== docId);
+      this.instances = this.instances.filter((doc: InstanceConfig) => doc.id !== docId);
       await this.writeConfig();
       return true;
     } catch (error: any) {
@@ -219,15 +224,13 @@ export class AuthordConfigurationManager extends AbstractConfigManager {
   }
 
   // ------------------------------------------------------------------------------------
-  // Utility Methods
+  // SCHEMA VALIDATION
   // ------------------------------------------------------------------------------------
-
   async validateAgainstSchema(schemaPath: string): Promise<void> {
     try {
       if (!this.configData) {
         throw new Error('No configuration data available for schema validation.');
       }
-
       const ajv = new Ajv({ allErrors: true });
       const schemaData = await vscode.workspace.fs.readFile(vscode.Uri.file(schemaPath));
       const schema = JSON.parse(Buffer.from(schemaData).toString('utf-8'));
