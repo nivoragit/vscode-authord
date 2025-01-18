@@ -129,12 +129,11 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
     if (!newTopic || !this.currentDocId) return;
 
     if (parent) {
-      // eslint-disable-next-line no-param-reassign
-      parent.children = [...parent.children, newTopic];
+      parent.children.push(newTopic);      
       // eslint-disable-next-line no-param-reassign
       parent.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
     } else {
-      this.tocTree = [...this.tocTree, newTopic];
+      this.tocTree.push(newTopic);
     }
 
     const success = await this.configManager.addChildTopic(
