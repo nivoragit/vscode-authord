@@ -172,14 +172,19 @@ export default abstract class AbstractConfigManager {
     try {
       const doc = this.findDocById(docId);
       if (!doc) {
-        vscode.window.showWarningMessage(`Document "${docId}" not found.`);
+        vscode.window.showErrorMessage(`Document "${docId}" not found.`);
+        return false;
+      }
+      if(doc['start-page'] === topicFileName){
+        await vscode.window.showWarningMessage("Home page can't be deleted",{ modal: true },'OK');
         return false;
       }
       const extractedTopic = this.extractTopicByFilename(doc['toc-elements'], topicFileName);
       if (!extractedTopic) {
-        vscode.window.showWarningMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
+        vscode.window.showErrorMessage(`Topic "${topicFileName}" not found in document "${docId}".`);
         return false;
       }
+
       const allTopics = this.getAllTopicsFromDoc([extractedTopic]);
       const topicsDir = this.getTopicsDir();
       await Promise.all(
