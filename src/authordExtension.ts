@@ -12,6 +12,8 @@ import TopicsProvider from './services/topicsProvider';
 import TopicsDragAndDropController from './services/topicsDragAndDropController';
 import DocumentationItem from './services/documentationItem';
 import TopicsItem from './services/topicsItem';
+import TopicsService from './services/TopicsService';
+import DocumentationService from './services/DocumentationService';
 
 // Using a default export to comply with `import/prefer-default-export`
 export default class Authord {
@@ -61,9 +63,9 @@ export default class Authord {
       }
 
       if (this.configManager) {
-        this.topicsProvider = new TopicsProvider(this.configManager);
+        this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager));
         this.documentationProvider = new DocumentationProvider(
-          this.configManager,
+          new DocumentationService(this.configManager),
           this.topicsProvider
         );
 
@@ -94,7 +96,7 @@ export default class Authord {
         vscode.window.showErrorMessage('config file does not exist');
       } else {
         if (!this.documentationProvider || !this.topicsProvider) {
-          this.topicsProvider = new TopicsProvider(this.configManager!);
+          this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager!));
           this.documentationProvider = new DocumentationProvider(
             this.configManager!,
             this.topicsProvider
@@ -317,7 +319,7 @@ export default class Authord {
       }),
 
       vscode.commands.registerCommand('extension.ContextMenuSetasStartPage', (item: TopicsItem) => {
-        this.topicsProvider!.setStartPage(item);
+        this.topicsProvider!.setAsStartPage(item.topic);
       }),
 
       vscode.commands.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
@@ -329,7 +331,7 @@ export default class Authord {
       }),
 
       vscode.commands.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
-        this.topicsProvider!.renameTopicCommand(item);
+        this.topicsProvider!.editTitle(item);
       }),
 
       vscode.commands.registerCommand('extension.addDocumentation', () => {
@@ -338,7 +340,7 @@ export default class Authord {
 
       vscode.commands.registerCommand('extension.reloadConfiguration', () => {
         this.reinitialize();
-        this.topicsProvider?.refresh([], null);
+        this.topicsProvider?.refresh([]);
       }),
 
       vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
@@ -353,8 +355,8 @@ export default class Authord {
         this.documentationProvider!.deleteDoc(item);
       }),
 
-      vscode.commands.registerCommand('extension.rootTopic', (item: DocumentationItem) => {
-        this.topicsProvider!.addRootTopic(item);
+      vscode.commands.registerCommand('extension.rootTopic', () => {
+        this.topicsProvider!.addRootTopic();
       }),
 
       vscode.commands.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
