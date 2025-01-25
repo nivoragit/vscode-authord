@@ -4,9 +4,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import { configFiles, focusOrShowPreview } from './utils/helperFunctions';
-import AuthordConfigurationManager from './configurationManagers/AuthordConfigurationManager';
-import AbstractConfigManager from './configurationManagers/abstractConfigurationManager';
-import XMLConfigurationManager from './configurationManagers/XMLConfigurationManager';
 import DocumentationProvider from './services/documentationProvider';
 import TopicsProvider from './services/topicsProvider';
 import TopicsDragAndDropController from './services/topicsDragAndDropController';
@@ -14,6 +11,9 @@ import DocumentationItem from './services/documentationItem';
 import TopicsItem from './services/topicsItem';
 import TopicsService from './services/TopicsService';
 import DocumentationService from './services/DocumentationService';
+import AbstractConfigManager from './managers/AbstractConfigManager';
+import AuthordConfigurationManager from './managers/AuthordConfigurationManager';
+import XMLConfigurationManager from './managers/XMLConfigurationManager';
 
 // Using a default export to comply with `import/prefer-default-export`
 export default class Authord {

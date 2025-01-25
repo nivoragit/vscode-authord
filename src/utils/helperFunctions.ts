@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import AbstractConfigManager from '../configurationManagers/abstractConfigurationManager';
+import AbstractConfigManager from '../managers/AbstractConfigManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 

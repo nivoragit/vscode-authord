@@ -1,9 +1,10 @@
+/* eslint-disable no-param-reassign */
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import AbstractConfigManager from "../configurationManagers/abstractConfigurationManager";
 import { TocElement } from "../utils/types";
+import AbstractConfigManager from '../managers/AbstractConfigManager';
 
 export default class TopicsService {
   readonly topicDir: string;
