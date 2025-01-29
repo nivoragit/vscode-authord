@@ -74,7 +74,7 @@ export default class AuthordConfigurationManager extends AbstractConfigManager {
       if (!(await FileService.fileExists(this.configPath))) {
         return undefined;
       }
-      return await FileService.readJsonFile(this.configPath);
+      return FileService.readJsonFile(this.configPath);
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error reading config: ${error.message}`);
       throw error;

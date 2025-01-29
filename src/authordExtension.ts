@@ -335,7 +335,7 @@ export default class Authord {
       }),
 
       vscode.commands.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
-        this.topicsProvider!.editTitle(item);
+        this.topicsProvider!.editTopicTitle(item);
       }),
 
       vscode.commands.registerCommand('extension.addDocumentation', () => {

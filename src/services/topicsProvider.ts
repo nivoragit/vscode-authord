@@ -1,6 +1,5 @@
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { TocElement } from '../utils/types';
 import TopicsItem from './topicsItem';
 import TopicsService from './TopicsService';
@@ -12,15 +11,12 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
 
   public readonly topicsService: TopicsService;
 
-  private readonly topicsDir: string;
-
   private tocTree: TocElement[] = [];
 
   public currentDocId: string | undefined;
 
   constructor(topicsService: TopicsService) {
     this.topicsService = topicsService;
-    this.topicsDir = topicsService.topicDir;
   }
 
   public refresh(tocTree?: TocElement[], docId?: string): void {
@@ -33,8 +29,6 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
     this.onDidChangeTreeDataEmitter.fire();
   }
 
-  // Using an eslint-disable here because we must implement getTreeItem() for the interface,
-  // but we don't need 'this' in the implementation.
   // eslint-disable-next-line class-methods-use-this
   public getTreeItem(element: TopicsItem): vscode.TreeItem {
     return element;
@@ -42,28 +36,9 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
 
   public async getChildren(element?: TopicsItem): Promise<TopicsItem[]> {
     if (!element) {
-      return this.tocTree.map((item) => this.createTreeItem(item));
+      return this.tocTree.map((item) => this.topicsService.createTreeItem(item));
     }
-    return element.children.map((child) => this.createTreeItem(child));
-  }
-
-  private createTreeItem(item: TocElement): TopicsItem {
-    const collapsibleState = item.children?.length
-      ? vscode.TreeItemCollapsibleState.Collapsed
-      : vscode.TreeItemCollapsibleState.None;
-
-    const treeItem = new TopicsItem(
-      item.title,
-      collapsibleState,
-      item.topic,
-      item.children
-    );
-    treeItem.command = {
-      command: 'authordExtension.openMarkdownFile',
-      title: 'Open Topic',
-      arguments: [path.join(this.topicsDir, item.topic)],
-    };
-    return treeItem;
+    return element.children.map((child) => this.topicsService.createTreeItem(child));
   }
 
   public async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {
@@ -75,7 +50,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       targetTopicId
     );
     if (newTocTree.length === 0) {
-      return; // Possibly no valid target
+      return;
     }
     this.refresh(newTocTree);
   }
@@ -86,69 +61,63 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       return;
     }
 
-    const newTopic = await TopicsProvider.createTopic();
-    if (!newTopic) return;
-
-    const success = await this.topicsService.addChildTopic(this.currentDocId, null, newTopic);
-    if (!success) {
+    const newTopic = await this.topicsService.addChildTopic(this.currentDocId, null);
+    if (!newTopic) {
       vscode.window.showWarningMessage('Failed to add root topic.');
       return;
     }
+    this.tocTree.push(newTopic);
     this.onDidChangeTreeDataEmitter.fire();
   }
 
   public async addChildTopic(parent?: TopicsItem): Promise<void> {
+    if (!parent) {
+      vscode.window.showErrorMessage("Failed to add child topic, parent doesn't exists");
+      return;
+    }
+
     if (!this.currentDocId) {
-      vscode.window.showWarningMessage('No active document to add a topic to.');
+      vscode.window.showErrorMessage('No active document to add a topic to.');
       return;
     }
-
-    const newTopic = await TopicsProvider.createTopic();
-    if (!newTopic) return;
-
-    if (parent) {
-      // eslint-disable-next-line no-param-reassign
-      parent.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-      // eslint-disable-next-line no-param-reassign
-      parent.children.push(newTopic);
-    } else {
-      this.tocTree.push(newTopic);
-    }
-
-    const success = await this.topicsService.addChildTopic(
-      this.currentDocId,
-      parent?.topic || null,
-      newTopic
-    );
-    if (!success) {
-      vscode.window.showWarningMessage('Failed to add child topic.');
+    const newTopic = await this.topicsService.addChildTopic(this.currentDocId, parent?.topic || null);
+    if (!newTopic) {
+      vscode.window.showErrorMessage("Failed to add child topic, newTopic doesn't exists");
       return;
     }
+    // eslint-disable-next-line no-param-reassign
+    parent.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+    // eslint-disable-next-line no-param-reassign
+    parent.children.push(newTopic);
     this.onDidChangeTreeDataEmitter.fire();
   }
 
   public async addSiblingTopic(sibling?: TopicsItem): Promise<void> {
-    if (!this.currentDocId || !sibling) {
-      vscode.window.showWarningMessage('Invalid sibling/topic or no active document.');
+    if (!this.currentDocId) {
+      vscode.window.showErrorMessage('No active document to add a topic to.');
       return;
     }
-
-    const newTopic = await TopicsProvider.createTopic();
-    if (!newTopic) return;
-
-    const success = await this.topicsService.addSiblingTopic(
-      this.currentDocId,
-      sibling.topic,
-      newTopic
-    );
-    if (!success) {
-      vscode.window.showWarningMessage('Failed to add sibling topic.');
+    if (!sibling) {
+      vscode.window.showErrorMessage('Invalid sibling/topic');
       return;
+    }
+    try {
+      const parent = this.topicsService.getParentByTopic(this.tocTree, sibling.topic);
+      if (parent === true) {
+        await this.addRootTopic();
+      } else if (parent) {
+        const parentItem = this.topicsService.createTreeItem(parent);
+        await this.addChildTopic(parentItem);
+      } else {
+        vscode.window.showWarningMessage('Failed to add sibling topic.');
+      }
+    } catch {
+      vscode.window.showWarningMessage('Failed to add sibling topic.');
     }
     this.onDidChangeTreeDataEmitter.fire();
   }
 
-  public async editTitle(item: TopicsItem): Promise<void> {
+  public async editTopicTitle(item: TopicsItem): Promise<void> {
     try {
       const fileName = item.topic;
       if (!fileName) {
@@ -174,6 +143,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
         return;
       }
       if (enteredFileName === item.topic) {
+        // rename without changing file name
         await this.renameTopic(item.topic, newName);
         return;
       }
@@ -195,7 +165,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
         }
         counter += 1;
       }
-
+      // rename with changing file name
       await this.renameTopic(item.topic, newName, enteredFileName);
 
     }
@@ -225,30 +195,6 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
     }
     this.topicsService.removeTopicFromTree(item.topic, this.tocTree);
     this.refresh();
-  }
-
-  private static async createTopic(): Promise<TocElement | undefined> {
-    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!topicTitle) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return undefined;
-    }
-
-    const defaultFileName = TopicsService.formatTitleAsFilename(topicTitle);
-    const enteredFileName = await vscode.window.showInputBox({
-      prompt: 'Enter file name',
-      value: defaultFileName,
-    });
-    if (!enteredFileName) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return undefined;
-    }
-
-    return {
-      topic: enteredFileName,
-      title: topicTitle,
-      children: [],
-    };
   }
 
   public async renameTopic(oldTopic: string, newName: string, enteredFileName?: string): Promise<void> {

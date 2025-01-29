@@ -5,6 +5,7 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { TocElement } from "../utils/types";
 import AbstractConfigManager from '../managers/AbstractConfigManager';
+import TopicsItem from './topicsItem';
 
 export default class TopicsService {
   readonly topicDir: string;
@@ -29,21 +30,26 @@ export default class TopicsService {
 
   public async addChildTopic(
     docId: string,
-    parentTopicId: string | null,
-    newTopic: TocElement
-  ): Promise<boolean> {
-    // Uses addChildTopic(docId, parentTopicId, newTopic)
-    return this.configManager.addChildTopic(docId, parentTopicId, newTopic);
+    parentTopicId: string | null
+  ): Promise<TocElement> {
+    const newTopic = await TopicsService.createTopic();
+    if (docId && newTopic) {
+      // Uses addChildTopic(docId, parentTopicId, newTopic)
+      this.configManager.addChildTopic(docId, parentTopicId, newTopic);
+      return newTopic;
+    }
+    throw new Error('child topic creation failed');
   }
 
-  public async addSiblingTopic(
-    docId: string,
-    siblingTopicId: string,
-    newTopic: TocElement
-  ): Promise<boolean> {
-    // Uses addSiblingTopic(docId, siblingTopicId, newTopic)
-    return this.configManager.addSiblingTopic(docId, siblingTopicId, newTopic);
-  }
+  // public async addSiblingTopic(docId: string,siblingTopicId: string): Promise<void> {
+  //   const newTopic = await TopicsService.createTopic(); 
+  //   if (docId && siblingTopicId && newTopic) {
+  //   // Uses addSiblingTopic(docId, siblingTopicId, newTopic)
+  //   this.configManager.addSiblingTopic(docId, siblingTopicId, newTopic);
+  //   return;
+  // }
+  //   throw new Error('sibling topic creation failed');
+  // }
 
   public async renameTopic(
     docId: string,
@@ -92,18 +98,18 @@ export default class TopicsService {
     return undefined;
   }
 
-  public findSiblingsByTopic(topics: TocElement[], topic: string): TocElement[] | undefined {
+  public getParentByTopic(topics: TocElement[], topic: string): TocElement | boolean {
     for (let i = 0; i < topics.length; i += 1) {
       const t = topics[i];
       if (t.topic === topic) {
-        return topics;
+        return true;
       }
       if (t.children?.length) {
-        const found = this.findSiblingsByTopic(t.children, topic);
-        if (found) return found;
+        const found = this.getParentByTopic(t.children, topic);
+        if (found) return t;
       }
     }
-    return undefined;
+    return false;
   }
 
   public removeTopicFromTree(topicId: string, tree: TocElement[]): boolean {
@@ -145,7 +151,51 @@ export default class TopicsService {
     return false; // Return false if no match is found in the tree
   }
 
+  private static async createTopic(): Promise<TocElement | undefined> {
+    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
+    if (!topicTitle) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return undefined;
+    }
 
+    const defaultFileName = TopicsService.formatTitleAsFilename(topicTitle);
+    const enteredFileName = await vscode.window.showInputBox({
+      prompt: 'Enter file name',
+      value: defaultFileName,
+    });
+    if (!enteredFileName) {
+      vscode.window.showWarningMessage('Topic creation canceled.');
+      return undefined;
+    }
+
+    return {
+      topic: enteredFileName,
+      title: topicTitle,
+      children: [],
+    };
+  }
+
+  public createTreeItem(item: TocElement): TopicsItem {
+    const collapsibleState = item.children?.length
+      ? vscode.TreeItemCollapsibleState.Collapsed
+      : vscode.TreeItemCollapsibleState.None;
+  
+    const treeItem = new TopicsItem(
+      item.title,
+      collapsibleState,
+      item.topic,
+      item.children
+    );
+  
+    treeItem.command = {
+      command: 'authordExtension.openMarkdownFile',
+      title: 'Open Topic',
+      arguments: [path.join(this.topicDir, item.topic)],
+    };
+  
+    return treeItem;
+  }
+  
   public async topicExists(enteredFileName: string): Promise<boolean> {
     const topicPath = path.join(this.topicDir, enteredFileName);
     try {

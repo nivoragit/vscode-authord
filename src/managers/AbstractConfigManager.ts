@@ -231,52 +231,52 @@ export default abstract class AbstractConfigManager {
   /**
    * Adds a new topic -> writes .md -> updates config.
    */
-  async addSiblingTopic(
-    docId: string,
-    siblingTopic: string,
-    newTopic: TocElement
-  ): Promise<boolean> {
-    try {
-      const doc = this.findDocById(docId);
-      if (!doc) {
-        vscode.window.showWarningMessage(`Document "${docId}" not found.`);
-        return false;
-      }
-      if (!doc['start-page']) {
-        doc['start-page'] = newTopic.topic;
-      }
+  // async addSiblingTopic(
+  //   docId: string,
+  //   siblingTopic: string,
+  //   newTopic: TocElement
+  // ): Promise<boolean> {
+  //   try {
+  //     const doc = this.findDocById(docId);
+  //     if (!doc) {
+  //       vscode.window.showWarningMessage(`Document "${docId}" not found.`);
+  //       return false;
+  //     }
+  //     if (!doc['start-page']) {
+  //       doc['start-page'] = newTopic.topic;
+  //     }
 
-      const tocElements = this.findSiblingsByFilename(
-        doc['toc-elements'],
-        siblingTopic
-      );
-      if (!tocElements) {
-        vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
-        return false;
-      }
+  //     const tocElements = this.findSiblingsByFilename(
+  //       doc['toc-elements'],
+  //       siblingTopic
+  //     );
+  //     if (!tocElements) {
+  //       vscode.window.showWarningMessage(`Parent topic "${siblingTopic}" not found.`);
+  //       return false;
+  //     }
 
-      if (!tocElements.some((t) => t.title === newTopic.title)) {
-        tocElements.push(newTopic);
-      }
+  //     if (!tocElements.some((t) => t.title === newTopic.title)) {
+  //       tocElements.push(newTopic);
+  //     }
 
-      await this.writeTopicFile(newTopic);
-      if (
-        await FileService.fileExists(
-          path.join(this.getTopicsDir(), newTopic.topic)
-        )
-      ) {
-        await this.writeConfig(doc);
-        return true;
-      }
-      vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);
-      return false;
-    } catch (err: any) {
-      vscode.window.showErrorMessage(
-        `Failed to add topic "${newTopic.title}": ${err.message}`
-      );
-      return false;
-    }
-  }
+  //     await this.writeTopicFile(newTopic);
+  //     if (
+  //       await FileService.fileExists(
+  //         path.join(this.getTopicsDir(), newTopic.topic)
+  //       )
+  //     ) {
+  //       await this.writeConfig(doc);
+  //       return true;
+  //     }
+  //     vscode.window.showErrorMessage(`Failed to add topic "${newTopic.title}"`);
+  //     return false;
+  //   } catch (err: any) {
+  //     vscode.window.showErrorMessage(
+  //       `Failed to add topic "${newTopic.title}": ${err.message}`
+  //     );
+  //     return false;
+  //   }
+  // }
 
   async SetasStartPage(docId: string, siblingTopic: string): Promise<boolean> {
     try {
