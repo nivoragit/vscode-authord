@@ -250,7 +250,7 @@ export default class XMLConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  async addDocument(newDocument: InstanceConfig): Promise<boolean> {
+  async addDocument(newDocument: InstanceConfig): Promise<void> {
     try {
       const treeFileName = `${newDocument.id}.tree`;
       const treeFilePath = path.join(this.getIhpDir(), treeFileName);
@@ -273,13 +273,10 @@ export default class XMLConfigurationManager extends AbstractConfigManager {
       if (await FileService.fileExists(treeFilePath)) {
         // Re-write in case the firstTopic was just created
         await this.writeConfig(newDocument, treeFilePath);
-        return true;
       }
       vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}"`);
-      return false;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to add document "${newDocument.id}": ${err.message}`);
-      return false;
     }
   }
 

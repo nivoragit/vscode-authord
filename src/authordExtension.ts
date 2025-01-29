@@ -1,4 +1,8 @@
-
+/*
+    Presentation Layer
+    ├─ Command Handlers
+    └─ UI Components
+*/
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -98,7 +102,7 @@ export default class Authord {
         if (!this.documentationProvider || !this.topicsProvider) {
           this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager!));
           this.documentationProvider = new DocumentationProvider(
-            this.configManager!,
+            new DocumentationService(this.configManager!),
             this.topicsProvider
           );
         }

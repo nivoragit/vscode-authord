@@ -1,5 +1,9 @@
+// Application Layer
+/* eslint-disable import/no-unresolved */
+import * as vscode from 'vscode';
 import AbstractConfigManager from "../managers/AbstractConfigManager";
 import { InstanceConfig } from "../utils/types";
+import DocumentationItem from "./documentationItem";
 
 export default class DocumentationService {
   readonly configManager: AbstractConfigManager;
@@ -23,8 +27,49 @@ export default class DocumentationService {
     return this.configManager.renameDocument(docId, newName);
   }
 
-  public async addDoc(newDocument: InstanceConfig): Promise<boolean> {
+  public async addDoc(docId: string, title: string): Promise<InstanceConfig> {
+    const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
+    const aboutTitle = `About ${title}`;
+
+    // Create a minimal TOC for the new doc
+    const tocElements = [
+      {
+        topic: startPageFileName,
+        title: aboutTitle,
+        children: [],
+      },
+    ];
+
+    const newDocument = {
+      id: docId,
+      name: title,
+      'start-page': startPageFileName,
+      'toc-elements': tocElements,
+    };
     // Leverages addDocument(newDocument: InstanceConfig)
-    return this.configManager.addDocument(newDocument);
+    await this.configManager.addDocument(newDocument);
+    return newDocument;
+  }
+
+  public getDocumentationItems(): DocumentationItem[] {
+    return this.getAllDocuments().map((instance) => {
+      const item = new DocumentationItem(
+        instance.id,
+        instance.name,
+        vscode.TreeItemCollapsibleState.None
+      );
+      item.command = {
+        command: 'authordDocsExtension.selectInstance',
+        title: 'Select Instance',
+        arguments: [instance.id],
+      };
+      item.contextValue = 'documentation';
+      return item;
+    });
+  }
+
+  public isDocIdUnique(docId: string): boolean {
+    const existingIds = this.getAllDocuments().map((doc) => doc.id);
+    return !existingIds.includes(docId);
   }
 }

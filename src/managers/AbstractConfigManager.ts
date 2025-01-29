@@ -25,7 +25,7 @@ export default abstract class AbstractConfigManager {
   abstract getImageDir(): string;
 
   // Document-specific methods
-  abstract addDocument(newDocument: InstanceConfig): Promise<boolean>;
+  abstract addDocument(newDocument: InstanceConfig): Promise<void>;
 
   abstract deleteDocument(docId: string): Promise<boolean>;
 

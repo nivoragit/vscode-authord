@@ -1,16 +1,17 @@
+/*
+    Presentation Layer
+    └─ UI Components
+*/
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
-import TopicsProvider from './topicsProvider'; // Make sure `topicsProvider.ts` has a default export
-import { InstanceConfig } from '../utils/types';
-import DocumentationItem from './documentationItem'; // Moved into its own file to fix max-classes-per-file
-import { DocumentationService } from './DocumentationService';
+import TopicsProvider from './topicsProvider';
+import DocumentationItem from './documentationItem';
+import DocumentationService from './DocumentationService';
 
 export default class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {
   private onDidChangeTreeDataEmitter = new vscode.EventEmitter<DocumentationItem | undefined | void>();
-  
-  public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
-  private instances: InstanceConfig[] = [];
+  public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
   constructor(
     private readonly docService: DocumentationService,
@@ -20,29 +21,16 @@ export default class DocumentationProvider implements vscode.TreeDataProvider<Do
   }
 
   public refresh(): void {
-    this.instances = this.docService.getAllDocuments();
     this.onDidChangeTreeDataEmitter.fire();
   }
 
+  // eslint-disable-next-line class-methods-use-this
   public getTreeItem(element: DocumentationItem): vscode.TreeItem {
     return element;
   }
 
   public async getChildren(): Promise<DocumentationItem[]> {
-    return this.instances.map((instance) => {
-      const item = new DocumentationItem(
-        instance.id,
-        instance.name,
-        vscode.TreeItemCollapsibleState.None
-      );
-      item.command = {
-        command: 'authordDocsExtension.selectInstance',
-        title: 'Select Instance',
-        arguments: [instance.id],
-      };
-      item.contextValue = 'documentation';
-      return item;
-    });
+    return this.docService.getDocumentationItems();
   }
 
   public async deleteDoc(item: DocumentationItem): Promise<void> {
@@ -131,9 +119,7 @@ export default class DocumentationProvider implements vscode.TreeDataProvider<Do
 
     // Check uniqueness of ID
     let counter = 1;
-    const existingIds = this.instances.map((doc) => doc.id);
-
-    while (existingIds.includes(docId)) {
+    while (!this.docService.isDocIdUnique(docId)) {
       defaultId = `${defaultId}${counter}`;
       counter += 1;
       docId = await vscode.window.showInputBox({
@@ -145,32 +131,12 @@ export default class DocumentationProvider implements vscode.TreeDataProvider<Do
         return;
       }
     }
-
-    const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
-    const aboutTitle = `About ${title}`;
-
-    // Create a minimal TOC for the new doc
-    const tocElements = [
-      {
-        topic: startPageFileName,
-        title: aboutTitle,
-        children: [],
-      },
-    ];
-
-    const newDocument: InstanceConfig = {
-      id: docId,
-      name: title,
-      'start-page': startPageFileName,
-      'toc-elements': tocElements,
-    };
-
     try {
-      const added = await this.docService.addDoc(newDocument);
-      if (added) {
+      const newDocument = await this.docService.addDoc(docId, title);
+      if (newDocument) {
         this.refresh();
         // Let TopicsProvider know about the new doc/toc
-        this.topicsProvider.refresh(tocElements, docId);
+        this.topicsProvider.refresh(newDocument['toc-elements'], docId);
         vscode.window.showInformationMessage(
           `Documentation "${title}" created successfully with ID "${docId}".`
         );

@@ -107,11 +107,11 @@ export default class AuthordConfigurationManager extends AbstractConfigManager {
     );
   }
 
-  async addDocument(newDocument: InstanceConfig): Promise<boolean> {
+  async addDocument(newDocument: InstanceConfig): Promise<void> {
     try {
       if (!this.configData) {
         vscode.window.showErrorMessage('Configuration data not initialized.');
-        return false;
+        return;
       }
       this.instances.push(newDocument);
 
@@ -120,22 +120,17 @@ export default class AuthordConfigurationManager extends AbstractConfigManager {
         await this.writeTopicFile(firstTopic);
       }
 
-      if (
-        firstTopic &&
-        (await FileService.fileExists(
-          path.join(this.getTopicsDir(), firstTopic.topic)
-        ))
+      if (firstTopic &&
+        (await FileService.fileExists(path.join(this.getTopicsDir(), firstTopic.topic)))
       ) {
         // Persist changes to config
         this.configData.instances = this.instances;
         await this.writeConfig();
-        return true;
+        return;
       }
       vscode.window.showErrorMessage('Error adding document');
-      return false;
     } catch (error: any) {
       vscode.window.showErrorMessage(`Error adding document: ${error.message}`);
-      return false;
     }
   }
 
