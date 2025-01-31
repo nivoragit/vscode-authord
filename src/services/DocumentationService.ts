@@ -15,7 +15,7 @@ export default class DocumentationService {
   ) {
     this.configManager = configManager;
   }
-
+  
   public async deleteDoc(docId: string): Promise<boolean> {
     // Leverages deleteDocument(docId: string)
     return this.configManager.deleteDocument(docId);
