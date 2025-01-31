@@ -7,6 +7,7 @@ import Ajv from 'ajv';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/fileService';
 import AbstractConfigManager from './AbstractConfigManager';
+import TopicsService from '../services/TopicsService';
 
 export default class XMLConfigurationManager extends AbstractConfigManager {
   private ihpData: any;
@@ -163,7 +164,7 @@ export default class XMLConfigurationManager extends AbstractConfigManager {
     return Promise.all(tasks);
   }
 
-  protected async writeConfig(doc: InstanceConfig, customFilePath?: string): Promise<void> {
+  public async writeConfig(doc: InstanceConfig, customFilePath?: string): Promise<void> {
     try {
       let filePath = customFilePath;
       if (!filePath) {
@@ -292,10 +293,10 @@ export default class XMLConfigurationManager extends AbstractConfigManager {
         const treeSrc = arr[idx]['@_src'];
         const doc = this.instances.find((d) => d.id === docId);
         if (doc) {
-          const allTopics = this.getAllTopicsFromDoc(doc['toc-elements']);
+          const allTopics = TopicsService.getAllTopicsFromTocElement(doc['toc-elements']);
           const topicsDir = this.getTopicsDir();
           await Promise.all(
-            allTopics.map(async (tFile) => {
+            allTopics.map(async (tFile:string) => {
               const p = path.join(topicsDir, tFile);
               await FileService.deleteFileIfExists(p);
             })

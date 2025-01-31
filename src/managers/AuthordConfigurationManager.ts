@@ -6,6 +6,7 @@ import Ajv from 'ajv';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/fileService';
 import AbstractConfigManager from './AbstractConfigManager';
+import TopicsService from '../services/TopicsService';
 
 export interface AuthordConfig {
   topics?: { dir: string };
@@ -81,7 +82,7 @@ export default class AuthordConfigurationManager extends AbstractConfigManager {
     }
   }
 
-  protected async writeConfig(): Promise<void> {
+  public async writeConfig(): Promise<void> {
     try {
       if (!this.configData) {
         return;
@@ -136,12 +137,12 @@ export default class AuthordConfigurationManager extends AbstractConfigManager {
 
   async deleteDocument(docId: string): Promise<boolean> {
     try {
-      const foundDoc = this.findDocById(docId);
+      const foundDoc = this.instances.find((d: InstanceConfig) => d.id === docId);
       if (!foundDoc || !this.configData) {
         return false;
       }
       const topicsDir = this.getTopicsDir();
-      const allTopics = this.getAllTopicsFromDoc(foundDoc['toc-elements']);
+      const allTopics = TopicsService.getAllTopicsFromTocElement(foundDoc['toc-elements']);
       await Promise.all(
         allTopics.map(async (topicFileName: string) => {
           await FileService.deleteFileIfExists(

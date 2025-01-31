@@ -18,6 +18,7 @@ import DocumentationService from './services/DocumentationService';
 import AbstractConfigManager from './managers/AbstractConfigManager';
 import AuthordConfigurationManager from './managers/AuthordConfigurationManager';
 import XMLConfigurationManager from './managers/XMLConfigurationManager';
+import CacheService from './services/cacheService';
 
 // Using a default export to comply with `import/prefer-default-export`
 export default class Authord {
@@ -32,6 +33,8 @@ export default class Authord {
   private documentationProvider: DocumentationProvider | undefined;
 
   private topicsProvider: TopicsProvider | undefined;
+
+  private cacheService: CacheService | undefined;
 
   private configCode = 0;
 
@@ -67,9 +70,10 @@ export default class Authord {
       }
 
       if (this.configManager) {
-        this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager));
+        this.cacheService = new CacheService(this.configManager);
+        this.topicsProvider = new TopicsProvider(new TopicsService(this.cacheService, this.configManager));
         this.documentationProvider = new DocumentationProvider(
-          new DocumentationService(this.configManager),
+          new DocumentationService(this.cacheService, this.configManager),
           this.topicsProvider
         );
 
@@ -99,10 +103,11 @@ export default class Authord {
       if (!this.configCode) {
         vscode.window.showErrorMessage('config file does not exist');
       } else {
-        if (!this.documentationProvider || !this.topicsProvider) {
-          this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager!));
+        if (!this.documentationProvider || !this.topicsProvider || !this.cacheService) {
+          this.cacheService = new CacheService(this.configManager!);
+          this.topicsProvider = new TopicsProvider(new TopicsService(this.cacheService, this.configManager!));
           this.documentationProvider = new DocumentationProvider(
-            new DocumentationService(this.configManager!),
+            new DocumentationService(this.cacheService, this.configManager!),
             this.topicsProvider
           );
         }
@@ -283,7 +288,7 @@ export default class Authord {
     const selectInstanceCommand = vscode.commands.registerCommand(
       'authordDocsExtension.selectInstance',
       (docId: string) => {
-        const doc = this.configManager!.getDocuments().find((d) => d.id === docId);
+        const doc = this.cacheService!.instances.find((d) => d.id === docId);
         if (!doc) {
           vscode.window.showErrorMessage(`No document found with id ${docId}`);
           return;
@@ -344,6 +349,7 @@ export default class Authord {
 
       vscode.commands.registerCommand('extension.reloadConfiguration', () => {
         this.reinitialize();
+        this.cacheService?.refresh();
         this.topicsProvider?.refresh([]);
       }),
 

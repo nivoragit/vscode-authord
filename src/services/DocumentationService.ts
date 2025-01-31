@@ -4,17 +4,16 @@ import * as vscode from 'vscode';
 import AbstractConfigManager from "../managers/AbstractConfigManager";
 import { InstanceConfig } from "../utils/types";
 import DocumentationItem from "./documentationItem";
+import CacheService from './cacheService';
 
 export default class DocumentationService {
   readonly configManager: AbstractConfigManager;
 
-  constructor(configManager: AbstractConfigManager) {
+  constructor(
+    private readonly cacheService: CacheService,
+    configManager: AbstractConfigManager
+  ) {
     this.configManager = configManager;
-  }
-
-  public getAllDocuments(): InstanceConfig[] {
-    // Leverages getDocuments() from the new AbstractConfigManager interface
-    return this.configManager.getDocuments();
   }
 
   public async deleteDoc(docId: string): Promise<boolean> {
@@ -23,9 +22,23 @@ export default class DocumentationService {
   }
 
   public async renameDoc(docId: string, newName: string): Promise<boolean> {
-    // Leverages renameDocument(docId: string, newName: string)
-    return this.configManager.renameDocument(docId, newName);
+    try {
+      const doc = this.cacheService.instances.find((d: InstanceConfig) => d.id === docId);
+      if (!doc) {
+        vscode.window.showErrorMessage(`Document "${docId}" not found for rename.`);
+        return false;
+      }
+      this.configManager.writeConfig(doc);
+      return true;
+
+    } catch (err: any) {
+      vscode.window.showErrorMessage(
+        `Failed to rename document "${docId}" -> "${newName}": ${err.message}`
+      );
+      return false;
+    }
   }
+
 
   public async addDoc(docId: string, title: string): Promise<InstanceConfig> {
     const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
@@ -52,7 +65,7 @@ export default class DocumentationService {
   }
 
   public getDocumentationItems(): DocumentationItem[] {
-    return this.getAllDocuments().map((instance) => {
+    return this.cacheService.instances.map((instance) => {
       const item = new DocumentationItem(
         instance.id,
         instance.name,
@@ -69,7 +82,7 @@ export default class DocumentationService {
   }
 
   public isDocIdUnique(docId: string): boolean {
-    const existingIds = this.getAllDocuments().map((doc) => doc.id);
+    const existingIds = this.cacheService.instances.map((doc) => doc.id);
     return !existingIds.includes(docId);
   }
 }
