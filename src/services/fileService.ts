@@ -47,6 +47,22 @@ export default class FileService {
       throw error;
     }
   }
+  
+  /**
+ * Updates a file in place by applying a transformation function to its content.
+ */
+public static async updateFile(filePath: string, transformFn: (content: string) => string): Promise<void> {
+  try {
+    const fileUri = vscode.Uri.file(filePath);
+    const content = await FileService.readFileAsString(filePath);
+    const newContent = transformFn(content);
+
+    await vscode.workspace.fs.writeFile(fileUri, Buffer.from(newContent, 'utf-8'));
+  } catch (error: any) {
+    vscode.window.showErrorMessage(`Failed to update file at "${filePath}": ${error.message}`);
+    throw error;
+  }
+}
 
   /**
    * Deletes a file if it exists.

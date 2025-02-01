@@ -66,7 +66,6 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       vscode.window.showWarningMessage('Failed to add root topic.');
       return;
     }
-    this.tocTree.push(newTopic);
     this.onDidChangeTreeDataEmitter.fire();
   }
 
@@ -119,8 +118,8 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
 
   public async editTopicTitle(item: TopicsItem): Promise<void> {
     try {
-      const fileName = item.topic;
-      if (!fileName) {
+
+      if (!item.topic) {
         vscode.window.showErrorMessage('Failed to get topic by title');
         return;
       }
@@ -142,6 +141,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
         vscode.window.showWarningMessage('Edit title canceled.');
         return;
       }
+      await this.topicsService.updateMarkdownTitle(item.topic, newName);
       if (enteredFileName === item.topic) {
         // rename without changing file name
         await this.renameTopic(item.topic, newName);

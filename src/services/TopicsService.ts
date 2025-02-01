@@ -148,7 +148,6 @@ export default class TopicsService {
           );
           return false;
         }
-
         const newTopicFile = newTopicFilename || TopicsService.formatTitleAsFilename(newName);
 
         if (doc['toc-elements'].length === 1) {
@@ -191,6 +190,10 @@ export default class TopicsService {
       vscode.window.showErrorMessage(`Failed to set start page:${err}`);
       return false;
     }
+  }
+
+  public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
+    await this.configManager.updateMarkdownTitle(topicFile, newTitle);
   }
 
   private static formatTitleAsFilename(title: string): string {

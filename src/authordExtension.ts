@@ -9,21 +9,18 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import { configFiles, focusOrShowPreview } from './utils/helperFunctions';
-import DocumentationProvider from './services/DocumentationProvider';
-import TopicsProvider from './services/TopicsProvider';
-import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import DocumentationItem from './services/DocumentationItem';
 import TopicsItem from './services/TopicsItem';
 import TopicsService from './services/TopicsService';
 import DocumentationService from './services/DocumentationService';
-// import AbstractConfigManager from './managers/AbstractConfigManager';
-// import AuthordConfigurationManager from './managers/AuthordConfigurationManager';
-// import XMLConfigurationManager from './managers/XMLConfigurationManager';
-// import CacheService from './services/cacheService';
 import { authortdSchemaValidator, writersideSchemaValidator } from './validators/schemaValidators';
 import BaseConfigurationManager from './managers/BaseConfigurationManager';
 import AuthordJsonConfigurationManager from './managers/AuthordJsonConfigurationManager';
 import XmlIhpConfigurationManager from './managers/XmlIhpConfigurationManager';
+import DocumentationProvider from './services/DocumentationProvider';
+import TopicsDragAndDropController from './services/TopicsDragAndDropController';
+import TopicsProvider from './services/TopicsProvider';
+
 
 // Using a default export to comply with `import/prefer-default-export`
 export default class Authord {

@@ -100,6 +100,27 @@ export default abstract class BaseConfigurationManager {
         return `<${path.basename(topicFile)}>`;
     }
 
+    public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
+        const mdFilePath = path.join(this.getTopicsDirectory(), topicFile);
+      
+        await FileService.updateFile(mdFilePath, (content) => {
+          const lines = content.split('\n');
+          
+          for (let i = 0; i < lines.length; i += 1) {
+            if (lines[i].trim().startsWith('# ')) {
+              lines[i] = `# ${newTitle}`;
+              return lines.join('\n');
+            }
+            if (lines[i].trim().length > 0) break;
+          }
+      
+          // No title found, prepend it
+          return `# ${newTitle}\n${content}`;
+        });
+      }
+      
+
+
     /**
      * Writes a new .md file for the topic, if it doesn’t exist.
      */
