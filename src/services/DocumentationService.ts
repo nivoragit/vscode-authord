@@ -1,36 +1,34 @@
 // Application Layer
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
-import AbstractConfigManager from "../managers/AbstractConfigManager";
+import BaseConfigurationManager from "../managers/BaseConfigurationManager";
 import { InstanceConfig } from "../utils/types";
-import DocumentationItem from "./documentationItem";
-import CacheService from './cacheService';
+import DocumentationItem from "./DocumentationItem";
 
 export default class DocumentationService {
-  readonly configManager: AbstractConfigManager;
+  readonly configManager: BaseConfigurationManager;
 
-  constructor(
-    private readonly cacheService: CacheService,
-    configManager: AbstractConfigManager
-  ) {
+  constructor(configManager: BaseConfigurationManager) {
     this.configManager = configManager;
   }
   
   public async deleteDoc(docId: string): Promise<boolean> {
-    // Leverages deleteDocument(docId: string)
-    return this.configManager.deleteDocument(docId);
+    // Leverages removeDocument(docId: string)
+    return this.configManager.removeDocument(docId);
   }
 
   public async renameDoc(docId: string, newName: string): Promise<boolean> {
     try {
-      const doc = this.cacheService.instances.find((d: InstanceConfig) => d.id === docId);
+      const doc = this.configManager.instances.find(
+        (d: InstanceConfig) => d.id === docId
+      );
       if (!doc) {
         vscode.window.showErrorMessage(`Document "${docId}" not found for rename.`);
         return false;
       }
-      this.configManager.writeConfig(doc);
+      doc.name = newName;
+      this.configManager.saveDocumentConfig(doc);
       return true;
-
     } catch (err: any) {
       vscode.window.showErrorMessage(
         `Failed to rename document "${docId}" -> "${newName}": ${err.message}`
@@ -38,7 +36,6 @@ export default class DocumentationService {
       return false;
     }
   }
-
 
   public async addDoc(docId: string, title: string): Promise<InstanceConfig> {
     const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
@@ -53,19 +50,20 @@ export default class DocumentationService {
       },
     ];
 
-    const newDocument = {
+    const newDocument: InstanceConfig = {
       id: docId,
       name: title,
       'start-page': startPageFileName,
       'toc-elements': tocElements,
     };
-    // Leverages addDocument(newDocument: InstanceConfig)
-    await this.configManager.addDocument(newDocument);
+
+    // Leverages createDocument(newDocument: InstanceConfig)
+    await this.configManager.createDocument(newDocument);
     return newDocument;
   }
 
   public getDocumentationItems(): DocumentationItem[] {
-    return this.cacheService.instances.map((instance) => {
+    return this.configManager.instances.map((instance) => {
       const item = new DocumentationItem(
         instance.id,
         instance.name,
@@ -82,7 +80,7 @@ export default class DocumentationService {
   }
 
   public isDocIdUnique(docId: string): boolean {
-    const existingIds = this.cacheService.instances.map((doc) => doc.id);
+    const existingIds = this.configManager.instances.map((doc) => doc.id);
     return !existingIds.includes(docId);
   }
 }

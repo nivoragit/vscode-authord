@@ -4,8 +4,8 @@
 */
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
-import TopicsProvider from './topicsProvider';
-import DocumentationItem from './documentationItem';
+import TopicsProvider from './TopicsProvider';
+import DocumentationItem from './DocumentationItem';
 import DocumentationService from './DocumentationService';
 
 export default class DocumentationProvider implements vscode.TreeDataProvider<DocumentationItem> {

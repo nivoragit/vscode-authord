@@ -1,7 +1,7 @@
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
 import { TocElement } from '../utils/types';
-import TopicsItem from './topicsItem';
+import TopicsItem from './TopicsItem';
 import TopicsService from './TopicsService';
 
 export default class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {

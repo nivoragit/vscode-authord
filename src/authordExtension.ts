@@ -1,3 +1,4 @@
+
 /*
     Presentation Layer
     ├─ Command Handlers
@@ -8,17 +9,21 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import { configFiles, focusOrShowPreview } from './utils/helperFunctions';
-import DocumentationProvider from './services/documentationProvider';
-import TopicsProvider from './services/topicsProvider';
-import TopicsDragAndDropController from './services/topicsDragAndDropController';
-import DocumentationItem from './services/documentationItem';
-import TopicsItem from './services/topicsItem';
+import DocumentationProvider from './services/DocumentationProvider';
+import TopicsProvider from './services/TopicsProvider';
+import TopicsDragAndDropController from './services/TopicsDragAndDropController';
+import DocumentationItem from './services/DocumentationItem';
+import TopicsItem from './services/TopicsItem';
 import TopicsService from './services/TopicsService';
 import DocumentationService from './services/DocumentationService';
-import AbstractConfigManager from './managers/AbstractConfigManager';
-import AuthordConfigurationManager from './managers/AuthordConfigurationManager';
-import XMLConfigurationManager from './managers/XMLConfigurationManager';
-import CacheService from './services/cacheService';
+// import AbstractConfigManager from './managers/AbstractConfigManager';
+// import AuthordConfigurationManager from './managers/AuthordConfigurationManager';
+// import XMLConfigurationManager from './managers/XMLConfigurationManager';
+// import CacheService from './services/cacheService';
+import { authortdSchemaValidator, writersideSchemaValidator } from './validators/schemaValidators';
+import BaseConfigurationManager from './managers/BaseConfigurationManager';
+import AuthordJsonConfigurationManager from './managers/AuthordJsonConfigurationManager';
+import XmlIhpConfigurationManager from './managers/XmlIhpConfigurationManager';
 
 // Using a default export to comply with `import/prefer-default-export`
 export default class Authord {
@@ -34,11 +39,11 @@ export default class Authord {
 
   private topicsProvider: TopicsProvider | undefined;
 
-  private cacheService: CacheService | undefined;
+  // private cacheService: CacheService | undefined;
 
   private configCode = 0;
 
-  configManager: AbstractConfigManager | undefined;
+  configManager: BaseConfigurationManager | undefined;
 
   currentFileName = '';
 
@@ -70,10 +75,10 @@ export default class Authord {
       }
 
       if (this.configManager) {
-        this.cacheService = new CacheService(this.configManager);
-        this.topicsProvider = new TopicsProvider(new TopicsService(this.cacheService, this.configManager));
+        // this.cacheService = new CacheService(this.configManager);
+        this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager));
         this.documentationProvider = new DocumentationProvider(
-          new DocumentationService(this.cacheService, this.configManager),
+          new DocumentationService(this.configManager),
           this.topicsProvider
         );
 
@@ -103,11 +108,11 @@ export default class Authord {
       if (!this.configCode) {
         vscode.window.showErrorMessage('config file does not exist');
       } else {
-        if (!this.documentationProvider || !this.topicsProvider || !this.cacheService) {
-          this.cacheService = new CacheService(this.configManager!);
-          this.topicsProvider = new TopicsProvider(new TopicsService(this.cacheService, this.configManager!));
+        if (!this.documentationProvider || !this.topicsProvider) {
+          // this.cacheService = new CacheService(this.configManager!);
+          this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager!));
           this.documentationProvider = new DocumentationProvider(
-            new DocumentationService(this.cacheService, this.configManager!),
+            new DocumentationService(this.configManager!),
             this.topicsProvider
           );
         }
@@ -128,7 +133,7 @@ export default class Authord {
             this.listenersSubscribed = true;
           }
 
-          this.configManager.refresh();
+          this.configManager.reloadConfiguration();
         }
 
         this.documentationProvider?.refresh();
@@ -288,7 +293,7 @@ export default class Authord {
     const selectInstanceCommand = vscode.commands.registerCommand(
       'authordDocsExtension.selectInstance',
       (docId: string) => {
-        const doc = this.cacheService!.instances.find((d) => d.id === docId);
+        const doc = this.configManager!.instances.find((d) => d.id === docId);
         if (!doc) {
           vscode.window.showErrorMessage(`No document found with id ${docId}`);
           return;
@@ -349,7 +354,6 @@ export default class Authord {
 
       vscode.commands.registerCommand('extension.reloadConfiguration', () => {
         this.reinitialize();
-        this.cacheService?.refresh();
         this.topicsProvider?.refresh([]);
       }),
 
@@ -386,8 +390,9 @@ export default class Authord {
    */
   private async createConfigFile(): Promise<void> {
     const filePath = path.join(this.workspaceRoot, configFiles[0]);
-    this.configManager = await new AuthordConfigurationManager(filePath).createConfigFile();
-    await this.configManager.refresh();
+    this.configManager = new AuthordJsonConfigurationManager(filePath);
+    await (this.configManager as AuthordJsonConfigurationManager).initializeConfigurationFile();
+    await this.configManager.reloadConfiguration();
     await this.reinitialize();
   }
 
@@ -427,8 +432,6 @@ export default class Authord {
    *  - 0 if no valid config file is found
    *  - 1 if an XML config file is found (configFiles[1])
    *  - 2 if an Authord config file is found (configFiles[0])
-   * 
-   * The most efficient approach here is using fs.promises.access for file existence checks.
    */
   private async checkConfigFiles(): Promise<void> {
     if (this.configManager && this.configCode) {
@@ -452,8 +455,8 @@ export default class Authord {
 
         if (fileName === configFiles[1]) {
           // XML config
-          this.configManager = new XMLConfigurationManager(filePath);
-          await this.configManager.refresh();
+          this.configManager = new XmlIhpConfigurationManager(filePath);
+          await this.configManager.reloadConfiguration();
           vscode.commands.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
@@ -463,7 +466,8 @@ export default class Authord {
 
           // Validate against schema
           try {
-            await this.configManager.validateAgainstSchema(schemaPath);
+            const configManager = this.configManager as XmlIhpConfigurationManager; 
+            await writersideSchemaValidator(schemaPath, configManager.ihpData, configManager.instances);
           } catch (error: any) {
             vscode.commands.executeCommand('workbench.action.reloadWindow');
             vscode.window.showErrorMessage('Failed to initialize extension');
@@ -475,8 +479,8 @@ export default class Authord {
           foundConfig = true;
         } else {
           // Authord config (default / fallback)
-          this.configManager = new AuthordConfigurationManager(filePath);
-          await this.configManager.refresh();
+          this.configManager = new AuthordJsonConfigurationManager(filePath);
+          await this.configManager.reloadConfiguration();
           vscode.commands.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
@@ -485,7 +489,7 @@ export default class Authord {
           }
 
           try {
-            await this.configManager.validateAgainstSchema(schemaPath);
+            await authortdSchemaValidator(schemaPath, (this.configManager as AuthordJsonConfigurationManager).configData!);
           } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to validate: ${error.message}`);
             break;

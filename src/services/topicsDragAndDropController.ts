@@ -1,7 +1,7 @@
 /* eslint-disable import/no-unresolved */ // For 'vscode' if needed
 import * as vscode from 'vscode';
-import TopicsProvider from './topicsProvider';
-import TopicsItem from './topicsItem';
+import TopicsProvider from './TopicsProvider';
+import TopicsItem from './TopicsItem';
 
 export default class TopicsDragAndDropController implements vscode.TreeDragAndDropController<TopicsItem> {
   private readonly topicsProvider: TopicsProvider;

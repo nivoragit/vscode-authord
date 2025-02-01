@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import AbstractConfigManager from '../managers/AbstractConfigManager';
+import BaseConfigurationManager from '../managers/BaseConfigurationManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
@@ -81,7 +81,7 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: AbstractConfigManager | undefined
+  configManager: BaseConfigurationManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customImageRenderer(
@@ -98,8 +98,8 @@ export function createCustomImageRenderer(
     const token = tokens[idx];
     const srcIndex = token.attrIndex('src');
     const { path: currentDocumentPath } = env.currentDocument;
-    const imageFolder = path.basename(configManager.getImageDir());
-    const topicsFolder = path.basename(configManager.getTopicsDir());
+    const imageFolder = path.basename(configManager.getImagesDirectory());
+    const topicsFolder = path.basename(configManager.getTopicsDirectory());
 
     if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
@@ -128,7 +128,7 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: AbstractConfigManager | undefined
+  configManager: BaseConfigurationManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customHtmlRenderer(
@@ -143,8 +143,8 @@ export function createCustomHtmlRenderer(
     }
 
     const { path: currentDocumentPath } = env.currentDocument;
-    const imageFolder = path.basename(configManager.getImageDir());
-    const topicsFolder = path.basename(configManager.getTopicsDir());
+    const imageFolder = path.basename(configManager.getImagesDirectory());
+    const topicsFolder = path.basename(configManager.getTopicsDirectory());
 
     // Use object destructuring to satisfy "prefer-destructuring"
     const { content: originalContent } = tokens[idx];
