@@ -14,12 +14,12 @@ import TopicsItem from './services/TopicsItem';
 import TopicsService from './services/TopicsService';
 import DocumentationService from './services/DocumentationService';
 import { authortdSchemaValidator, writersideSchemaValidator } from './validators/schemaValidators';
-import BaseConfigurationManager from './managers/BaseConfigurationManager';
 import AuthordJsonConfigurationManager from './managers/AuthordJsonConfigurationManager';
 import XmlIhpConfigurationManager from './managers/XmlIhpConfigurationManager';
 import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
+import { IBaseConfigurationManager } from './managers/IBaseConfigurationManager';
 
 
 // Using a default export to comply with `import/prefer-default-export`
@@ -40,7 +40,7 @@ export default class Authord {
 
   private configCode = 0;
 
-  configManager: BaseConfigurationManager | undefined;
+  configManager: IBaseConfigurationManager | undefined;
 
   currentFileName = '';
 

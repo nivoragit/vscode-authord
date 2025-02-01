@@ -4,14 +4,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import { InstanceConfig, TocElement } from "../utils/types";
-import BaseConfigurationManager from '../managers/BaseConfigurationManager';
 import TopicsItem from './TopicsItem';
+import { IBaseConfigurationManager } from '../managers/IBaseConfigurationManager';
 
 export default class TopicsService {
   readonly topicDir: string;
 
   constructor(
-    private readonly configManager: BaseConfigurationManager
+    private readonly configManager: IBaseConfigurationManager
   ) {
     this.topicDir = this.configManager.getTopicsDirectory();
   }

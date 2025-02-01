@@ -1,14 +1,14 @@
 // Application Layer
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
-import BaseConfigurationManager from "../managers/BaseConfigurationManager";
 import { InstanceConfig } from "../utils/types";
 import DocumentationItem from "./DocumentationItem";
+import { IBaseConfigurationManager } from '../managers/IBaseConfigurationManager';
 
 export default class DocumentationService {
-  readonly configManager: BaseConfigurationManager;
+  readonly configManager: IBaseConfigurationManager;
 
-  constructor(configManager: BaseConfigurationManager) {
+  constructor(configManager: IBaseConfigurationManager) {
     this.configManager = configManager;
   }
   
