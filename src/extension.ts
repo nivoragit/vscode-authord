@@ -2,7 +2,7 @@
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/helperFunctions';
-import Authord from './AuthordExtension';
+import Authord from './authordExtension';
 
 let extensionInitializer: Authord | undefined;
 
