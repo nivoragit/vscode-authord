@@ -37,6 +37,7 @@ export default class AuthordJsonConfigurationManager extends BaseConfigurationMa
 
     async initializeConfigurationFile(): Promise<void> {
         this.configData = AuthordJsonConfigurationManager.defaultConfigJson();
+        await FileService.writeNewFile(this.configPath,'{}');
         await this.saveConfigurationFile();
     }
 
