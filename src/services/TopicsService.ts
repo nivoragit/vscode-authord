@@ -5,13 +5,13 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { InstanceConfig, TocElement } from "../utils/types";
 import TopicsItem from './TopicsItem';
-import { IBaseConfigurationManager } from '../managers/IBaseConfigurationManager';
+import { IBaseFileManager } from '../managers/IFileManager';
 
 export default class TopicsService {
   readonly topicDir: string;
 
   constructor(
-    private readonly configManager: IBaseConfigurationManager
+    private readonly configManager: IBaseFileManager
   ) {
     this.topicDir = this.configManager.getTopicsDirectory();
   }

@@ -19,7 +19,7 @@ import XmlIhpConfigurationManager from './managers/XmlIhpConfigurationManager';
 import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
-import { IBaseConfigurationManager } from './managers/IBaseConfigurationManager';
+import { IBaseFileManager } from './managers/IFileManager';
 
 
 // Using a default export to comply with `import/prefer-default-export`
@@ -40,7 +40,7 @@ export default class Authord {
 
   private configCode = 0;
 
-  configManager: IBaseConfigurationManager | undefined;
+  configManager: IBaseFileManager | undefined;
 
   currentFileName = '';
 

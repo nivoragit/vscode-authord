@@ -3,10 +3,10 @@ import * as path from 'path';
 import { XMLBuilder } from 'fast-xml-parser';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import BaseConfigurationManager from './BaseConfigurationManager';
+import FileManager from './FileManager';
 import TopicsService from '../services/TopicsService';
 
-export default class XmlIhpConfigurationManager extends BaseConfigurationManager {
+export default class XmlIhpConfigurationManager extends FileManager {
     public ihpData: any;
 
     constructor(configPath: string) {

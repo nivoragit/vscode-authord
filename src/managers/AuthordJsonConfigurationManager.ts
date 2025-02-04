@@ -3,10 +3,10 @@ import * as path from 'path';
 import Ajv from 'ajv';
 import { AuthordConfig, InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import BaseConfigurationManager from './BaseConfigurationManager';
+import FileManager from './FileManager';
 import TopicsService from '../services/TopicsService';
 
-export default class AuthordJsonConfigurationManager extends BaseConfigurationManager {
+export default class AuthordJsonConfigurationManager extends FileManager {
     public configData: AuthordConfig | undefined;
 
     constructor(configPath: string) {

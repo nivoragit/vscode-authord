@@ -3,12 +3,12 @@
 import * as vscode from 'vscode';
 import { InstanceConfig } from "../utils/types";
 import DocumentationItem from "./DocumentationItem";
-import { IBaseConfigurationManager } from '../managers/IBaseConfigurationManager';
+import { IBaseFileManager } from '../managers/IFileManager';
 
 export default class DocumentationService {
-  readonly configManager: IBaseConfigurationManager;
+  readonly configManager: IBaseFileManager;
 
-  constructor(configManager: IBaseConfigurationManager) {
+  constructor(configManager: IBaseFileManager) {
     this.configManager = configManager;
   }
   

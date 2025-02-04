@@ -2,7 +2,7 @@
 
 import { InstanceConfig, TocElement } from '../utils/types';
 
-export interface IBaseConfigurationManager {
+export interface IBaseFileManager {
   
   configPath: string;
   instances: InstanceConfig[];

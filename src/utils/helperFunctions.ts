@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import { IBaseConfigurationManager } from '../managers/IBaseConfigurationManager';
+import { IBaseFileManager } from '../managers/IFileManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
@@ -81,7 +81,7 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: IBaseConfigurationManager | undefined
+  configManager: IBaseFileManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customImageRenderer(
@@ -128,7 +128,7 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: IBaseConfigurationManager | undefined
+  configManager: IBaseFileManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customHtmlRenderer(

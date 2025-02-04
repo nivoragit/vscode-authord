@@ -3,9 +3,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import { IBaseConfigurationManager } from './IBaseConfigurationManager';
+import { IBaseFileManager as IFileManager } from './IFileManager';
 
-export default abstract class BaseConfigurationManager implements IBaseConfigurationManager{
+export default abstract class FileManager implements IFileManager{
     configPath: string;
 
     instances: InstanceConfig[] = [];
