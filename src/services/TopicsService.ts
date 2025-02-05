@@ -10,194 +10,8 @@ import { IBaseFileManager } from '../managers/IFileManager';
 export default class TopicsService {
   readonly topicDir: string;
 
-  constructor(
-    private readonly configManager: IBaseFileManager
-  ) {
+  constructor(private readonly configManager: IBaseFileManager) {
     this.topicDir = this.configManager.getTopicsDirectory();
-  }
-
-  public async moveTopic(
-    docId: string,
-    sourceTopicId: string,
-    targetTopicId: string
-  ): Promise<TocElement[]> {
-    if (sourceTopicId === targetTopicId) {
-      return [];
-    }
-    const doc = this.configManager.instances.find((d: InstanceConfig) => d.id === docId);
-    if (!doc) {
-      throw new Error(`Document "${docId}" not found for moveTopicInDoc.`);
-    }
-
-    const targetTopic = await this.findTopicInTocElements(
-      doc['toc-elements'],
-      targetTopicId,
-      sourceTopicId
-    );
-    if (!targetTopic) {
-      return [];
-    }
-
-    if (!(targetTopic as TocElement).children) {
-      (targetTopic as TocElement).children = [];
-    }
-
-    const sourceTopic = await this.removeTopicFromDoc(
-      doc['toc-elements'],
-      sourceTopicId
-    );
-    if (!sourceTopic) {
-      return [];
-    }
-
-    (targetTopic as TocElement).children.push(sourceTopic);
-    this.configManager.saveDocumentConfig(doc);
-    return doc['toc-elements'];
-  }
-
-  public async deleteTopic(docId: string, topicFileName: string): Promise<boolean> {
-    const doc = this.configManager.instances.find((d: InstanceConfig) => d.id === docId);
-    if (!doc) {
-      vscode.window.showErrorMessage(`Document "${docId}" not found.`);
-      return false;
-    }
-    if (doc['start-page'] === topicFileName) {
-      await vscode.window.showWarningMessage(
-        "Home page can't be deleted",
-        { modal: true }
-      );
-      return false;
-    }
-    const removedTopic = this.removeTopicByFilename(
-      doc['toc-elements'],
-      topicFileName
-    );
-    if (!removedTopic) {
-      vscode.window.showErrorMessage(
-        `Topic "${topicFileName}" not found in document "${docId}".`
-      );
-      return false;
-    }
-    const topicsFilestoBeRemoved = TopicsService.getAllTopicsFromTocElement([removedTopic]);
-    try {
-      this.configManager.removeTopicFiles(topicsFilestoBeRemoved, doc);
-      return true;
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to delete topics: ${err.message}`);
-      return false;
-    }
-  }
-
-  public async addChildTopic(
-    docId: string,
-    parentTopic: string | null
-  ): Promise<TocElement | null> {
-    const newTopic = await TopicsService.createTopic();
-    if (docId && newTopic) {
-      try {
-        const doc = this.configManager.instances.find((d: InstanceConfig) => d.id === docId);
-        if (!doc) {
-          vscode.window.showErrorMessage(`Document "${docId}" not found.`);
-          throw new Error('child topic creation failed');
-        }
-        let parentArray: TocElement[];
-        if (parentTopic) {
-          const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
-          if (!parent) {
-            vscode.window.showErrorMessage(
-              `Parent topic "${parentTopic}" not found.`
-            );
-            throw new Error('child topic creation failed');
-          }
-          parentArray = parent.children;
-        } else {
-          parentArray = doc['toc-elements'];
-          parentArray.push(newTopic);
-        }
-        this.configManager.createChildTopicFile(newTopic, doc);
-        return newTopic;
-      } catch (err: any) {
-        vscode.window.showErrorMessage(
-          `Failed to add topic "${newTopic.title}": ${err.message}`
-        );
-        return null;
-      }
-    }
-    return null;
-  }
-
-  public async renameTopic(
-    docId: string,
-    oldTopicFile: string,
-    newName: string,
-    tree: TocElement[],
-    newTopicFilename?: string
-  ): Promise<boolean> {
-    try {
-      if (newTopicFilename) {
-        const doc = this.configManager.instances.find((d: InstanceConfig) => d.id === docId);
-        if (!doc) {
-          vscode.window.showErrorMessage(`Document "${docId}" not found for renameTopic.`);
-          return false;
-        }
-
-        const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
-        if (!topic) {
-          vscode.window.showErrorMessage(
-            `Topic "${oldTopicFile}" not found in doc "${docId}".`
-          );
-          return false;
-        }
-        const newTopicFile = newTopicFilename || TopicsService.formatTitleAsFilename(newName);
-
-        if (doc['toc-elements'].length === 1) {
-          doc['start-page'] = newTopicFile;
-        }
-
-        topic.topic = newTopicFile;
-        topic.title = newName;
-        const renameSuccess = this.configManager.renameTopicFile(oldTopicFile, newTopicFile, doc);
-
-        if (!renameSuccess) {
-          vscode.window.showWarningMessage('Failed to rename topic via config manager.');
-          return false;
-        }
-
-        await vscode.commands.executeCommand('workbench.action.closeEditorsToTheRight');
-        return this.renameTopicInTree(oldTopicFile, newName, tree, newTopicFilename);
-      }
-
-      return this.renameTopicInTree(oldTopicFile, newName, tree);
-    } catch (err: any) {
-      vscode.window.showErrorMessage(
-        `Failed to rename topic "${oldTopicFile}" to "${newName}": ${err.message}`
-      );
-      return false;
-    }
-  }
-
-  public async setAsStartPage(docId: string, topic: string): Promise<boolean> {
-    try {
-      const doc = this.configManager.instances.find((d: InstanceConfig) => d.id === docId);
-      if (!doc) {
-        vscode.window.showWarningMessage(`Document "${docId}" not found.`);
-        return false;
-      }
-      doc['start-page'] = topic;
-      await this.configManager.saveDocumentConfig(doc);
-      return true;
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to set start page:${err}`);
-      return false;
-    }
-  }
-
-  public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
-    await this.configManager.updateMarkdownTitle(topicFile, newTitle);
-  }
-
-  private static formatTitleAsFilename(title: string): string {
-    return `${title.trim().toLowerCase().replace(/\s+/g, '-')}.md`;
   }
 
   public findTopicItemByFilename(fileName: string, searchTree: TocElement[]): TocElement | undefined {
@@ -269,30 +83,6 @@ export default class TopicsService {
     return false; // Return false if no match is found in the tree
   }
 
-  private static async createTopic(): Promise<TocElement | undefined> {
-    const topicTitle = await vscode.window.showInputBox({ prompt: 'Enter Topic Title' });
-    if (!topicTitle) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return undefined;
-    }
-
-    const defaultFileName = TopicsService.formatTitleAsFilename(topicTitle);
-    const enteredFileName = await vscode.window.showInputBox({
-      prompt: 'Enter file name',
-      value: defaultFileName,
-    });
-    if (!enteredFileName) {
-      vscode.window.showWarningMessage('Topic creation canceled.');
-      return undefined;
-    }
-
-    return {
-      topic: enteredFileName,
-      title: topicTitle,
-      children: [],
-    };
-  }
-
   public createTreeItem(item: TocElement): TopicsItem {
     const collapsibleState = item.children?.length
       ? vscode.TreeItemCollapsibleState.Collapsed
@@ -312,17 +102,6 @@ export default class TopicsService {
     };
 
     return treeItem;
-  }
-
-  public async topicExists(enteredFileName: string): Promise<boolean> {
-    const topicPath = path.join(this.topicDir, enteredFileName);
-    try {
-      await fs.access(topicPath);
-      vscode.window.showInformationMessage(`File "${enteredFileName}" already exists. Please choose a different file name.`);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private removeTopicByFilename(
@@ -407,4 +186,112 @@ export default class TopicsService {
       return this.findTopicByFilename(t.children, fileName);
     }, undefined);
   }
+
+  public static formatTitleAsFilename(title: string): string {
+    return `${title.trim().toLowerCase().replace(/\s+/g, '-')}.md`;
+  }
+
+  public async moveTopic(
+    docId: string,
+    sourceTopicId: string,
+    targetTopicId: string
+  ): Promise<TocElement[]> {
+    if (sourceTopicId === targetTopicId) return [];
+    
+    const doc = this.getDocument(docId);
+    const targetTopic = await this.findTopicInTocElements(doc['toc-elements'], targetTopicId, sourceTopicId);
+    if (!targetTopic) return [];
+
+    const sourceTopic = await this.removeTopicFromDoc(doc['toc-elements'], sourceTopicId);
+    if (!sourceTopic) return [];
+
+    (targetTopic as TocElement).children.push(sourceTopic);
+    this.configManager.saveDocumentConfig(doc);
+    return doc['toc-elements'];
+  }
+
+  public async deleteTopic(docId: string, topicFileName: string): Promise<boolean> {
+    const doc = this.getDocument(docId);
+    if (doc['start-page'] === topicFileName) {
+      throw new Error("Home page can't be deleted");
+    }
+
+    const removedTopic = this.removeTopicByFilename(doc['toc-elements'], topicFileName);
+    if (!removedTopic) throw new Error(`Topic "${topicFileName}" not found`);
+
+    const topicsToRemove = TopicsService.getAllTopicsFromTocElement([removedTopic]);
+    this.configManager.removeTopicFiles(topicsToRemove, doc);
+    return true;
+  }
+
+  public async addChildTopic(
+    docId: string,
+    parentTopic: string | null,
+    title: string,
+    fileName: string
+  ): Promise<TocElement> {
+    const doc = this.getDocument(docId);
+    const newTopic = { topic: fileName, title, children: [] };
+
+    if (parentTopic) {
+      const parent = this.findTopicByFilename(doc['toc-elements'], parentTopic);
+      if (!parent) throw new Error(`Parent topic "${parentTopic}" not found`);
+      parent.children.push(newTopic);
+    } else {
+      doc['toc-elements'].push(newTopic);
+    }
+
+    this.configManager.createChildTopicFile(newTopic, doc);
+    return newTopic;
+  }
+
+  public async renameTopic(
+    docId: string,
+    oldTopicFile: string,
+    newName: string,
+    tree: TocElement[],
+    newTopicFilename?: string
+  ): Promise<boolean> {
+    const doc = this.getDocument(docId);
+    const topic = this.findTopicByFilename(doc['toc-elements'], oldTopicFile);
+    if (!topic) throw new Error(`Topic "${oldTopicFile}" not found`);
+
+    const newTopicFile = newTopicFilename || TopicsService.formatTitleAsFilename(newName);
+    if (doc['toc-elements'].length === 1) doc['start-page'] = newTopicFile;
+
+    topic.topic = newTopicFile;
+    topic.title = newName;
+    this.configManager.renameTopicFile(oldTopicFile, newTopicFile, doc);
+    return this.renameTopicInTree(oldTopicFile, newName, tree, newTopicFilename);
+  }
+
+  public async setAsStartPage(docId: string, topic: string): Promise<boolean> {
+    const doc = this.getDocument(docId);
+    doc['start-page'] = topic;
+    await this.configManager.saveDocumentConfig(doc);
+    return true;
+  }
+
+  public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
+    await this.configManager.updateMarkdownTitle(topicFile, newTitle);
+  }
+
+  public async topicExists(enteredFileName: string): Promise<boolean> {
+    try {
+      await fs.access(path.join(this.topicDir, enteredFileName));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Existing helper methods remain the same (findTopicItemByFilename, getParentByTopic,
+  // removeTopicFromTree, renameTopicInTree, getAllTopicsFromTocElement, etc.)
+
+  private getDocument(docId: string): InstanceConfig {
+    const doc = this.configManager.instances.find(d => d.id === docId);
+    if (!doc) throw new Error(`Document "${docId}" not found`);
+    return doc;
+  }
+
 }
