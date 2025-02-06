@@ -1,11 +1,10 @@
 /* eslint-disable */
 import { mocked } from 'jest-mock';
 import * as path from 'path';
-import XmlIhpConfigurationManager from './XmlIhpConfigurationManager';
+import WriterSideDocumentManager from './WriterSideDocumentManager';
 import FileService from '../services/FileService';
 import TopicsService from '../services/TopicsService';
-import { InstanceConfig, TocElement } from '../utils/types';
-import FileManager from './FileManager';
+import { InstanceConfig } from '../utils/types';
 
 jest.mock('../services/FileService');
 jest.mock('../services/TopicsService');
@@ -15,15 +14,15 @@ jest.mock('fast-xml-parser', () => ({
     })),
 }));
 
-describe('XmlIhpConfigurationManager', () => {
+describe('WriterSideDocumentManager', () => {
     const mockConfigPath = '/project/config.ihp';
     const mockIhpDir = path.dirname(mockConfigPath);
 
-    let manager: XmlIhpConfigurationManager;
+    let manager: WriterSideDocumentManager;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        manager = new XmlIhpConfigurationManager(mockConfigPath);
+        manager = new WriterSideDocumentManager(mockConfigPath);
     });
 
     describe('reloadConfiguration', () => {
@@ -218,7 +217,7 @@ describe('XmlIhpConfigurationManager', () => {
             };
             jest.spyOn(manager as any, 'retrieveFilePathForDocument').mockResolvedValue('/path/to/doc1.tree');
 
-            await manager.saveDocumentConfig(mockDoc);
+            await manager.saveDocumentationConfig(mockDoc);
             expect(manager['retrieveFilePathForDocument']).toHaveBeenCalledWith('doc1');
             expect(FileService.writeNewFile).toHaveBeenCalledWith(
                 '/path/to/doc1.tree',
@@ -233,7 +232,7 @@ describe('XmlIhpConfigurationManager', () => {
                 'start-page': '',
                 'toc-elements': [],
             };
-            await manager.saveDocumentConfig(mockDoc, '/custom/doc2.tree');
+            await manager.saveDocumentationConfig(mockDoc, '/custom/doc2.tree');
             expect(FileService.writeNewFile).toHaveBeenCalledWith(
                 '/custom/doc2.tree',
                 expect.stringContaining('<!DOCTYPE instance-profile SYSTEM')
@@ -244,7 +243,7 @@ describe('XmlIhpConfigurationManager', () => {
     describe('convertToXmlString', () => {
         it('should build XML string with the correct formatting', async () => {
             mocked(FileService.getIndentationSetting).mockResolvedValue('  ');
-            const result = await (XmlIhpConfigurationManager as any).convertToXmlString({
+            const result = await (WriterSideDocumentManager as any).convertToXmlString({
                 test: { '@_attr': 'value' },
             });
             expect(result).toBe('<xml/>'); // Because we mock fast-xml-parser's builder
@@ -290,14 +289,14 @@ describe('XmlIhpConfigurationManager', () => {
             mocked(FileService.fileExists).mockResolvedValue(false);
             // Mock createTopicMarkdownFile
             jest.spyOn(manager as any, 'createTopicMarkdownFile').mockResolvedValue(undefined);
-            await manager.createDocument(newDoc);
+            await manager.createDocumentation(newDoc);
             expect(manager.ihpData.ihp.instance).toEqual([{ '@_src': 'new-doc.tree' }]);
             // The second saveDocumentConfig call occurs after the topic is created
-            expect(FileService.writeNewFile).toHaveBeenCalledTimes(1)            
+            expect(FileService.writeNewFile).toHaveBeenCalledTimes(1)
             expect(manager.instances[0].id).toBe('new-doc');
         });
     });
-    
+
 
     describe('removeDocument', () => {
         it('should remove the document and associated .tree file', async () => {
@@ -313,7 +312,7 @@ describe('XmlIhpConfigurationManager', () => {
             mocked(FileService.fileExists).mockResolvedValue(true);
             mocked(TopicsService.getAllTopicsFromTocElement).mockReturnValue(['topic1.md']);
 
-            const result = await manager.removeDocument('doc1');
+            const result = await manager.removeDocumentation('doc1');
             expect(result).toBe(true);
             expect(manager.ihpData.ihp.instance).toEqual([]);
             expect(manager.instances).toEqual([]);
@@ -324,17 +323,17 @@ describe('XmlIhpConfigurationManager', () => {
         it('should return false if document is not found', async () => {
             // Directly assign ihpData since it's a normal object property
             manager.ihpData = { ihp: { instance: [{ '@_src': 'other.tree' }] } };
-        
+
             // Directly assign instances instead of spying on it
             manager.instances = [{ id: 'other-doc' } as InstanceConfig];
-            const result = await manager.removeDocument('doc');
-        
+            const result = await manager.removeDocumentation('doc');
+
             expect(result).toBe(false);
             expect(FileService.deleteFileIfExists).not.toHaveBeenCalled();
         });
-        
-        
-        
+
+
+
     });
 
     describe('locateDocumentIndex', () => {

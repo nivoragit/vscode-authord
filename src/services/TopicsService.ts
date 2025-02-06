@@ -5,7 +5,7 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { InstanceConfig, TocElement } from "../utils/types";
 import TopicsItem from './TopicsItem';
-import { IBaseFileManager } from '../managers/IFileManager';
+import { IBaseFileManager } from '../managers/IDocumentManager';
 
 export default class TopicsService {
   readonly topicDir: string;
@@ -206,7 +206,7 @@ export default class TopicsService {
     if (!sourceTopic) return [];
 
     (targetTopic as TocElement).children.push(sourceTopic);
-    this.configManager.saveDocumentConfig(doc);
+    this.configManager.saveDocumentationConfig(doc);
     return doc['toc-elements'];
   }
 
@@ -268,7 +268,7 @@ export default class TopicsService {
   public async setAsStartPage(docId: string, topic: string): Promise<boolean> {
     const doc = this.getDocument(docId);
     doc['start-page'] = topic;
-    await this.configManager.saveDocumentConfig(doc);
+    await this.configManager.saveDocumentationConfig(doc);
     return true;
   }
 

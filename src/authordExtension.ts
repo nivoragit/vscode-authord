@@ -14,12 +14,12 @@ import TopicsItem from './services/TopicsItem';
 import TopicsService from './services/TopicsService';
 import DocumentationService from './services/DocumentationService';
 import { authortdSchemaValidator, writersideSchemaValidator } from './validators/schemaValidators';
-import AuthordJsonConfigurationManager from './managers/AuthordJsonConfigurationManager';
-import XmlIhpConfigurationManager from './managers/XmlIhpConfigurationManager';
+import AuthordDocumentManager from './managers/AuthordDocumentManager';
+import WriterSideDocumentManager from './managers/WriterSideDocumentManager';
 import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
-import { IBaseFileManager } from './managers/IFileManager';
+import { IDocumentManager } from './managers/IDocumentManager';
 
 
 // Using a default export to comply with `import/prefer-default-export`
@@ -40,7 +40,7 @@ export default class Authord {
 
   private configCode = 0;
 
-  configManager: IBaseFileManager | undefined;
+  documentManager: IDocumentManager | undefined;
 
   currentFileName = '';
 
@@ -71,11 +71,11 @@ export default class Authord {
         return;
       }
 
-      if (this.configManager) {
+      if (this.documentManager) {
         // this.cacheService = new CacheService(this.configManager);
-        this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager));
+        this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager));
         this.documentationProvider = new DocumentationProvider(
-          new DocumentationService(this.configManager),
+          new DocumentationService(this.documentManager),
           this.topicsProvider
         );
 
@@ -107,14 +107,14 @@ export default class Authord {
       } else {
         if (!this.documentationProvider || !this.topicsProvider) {
           // this.cacheService = new CacheService(this.configManager!);
-          this.topicsProvider = new TopicsProvider(new TopicsService(this.configManager!));
+          this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!));
           this.documentationProvider = new DocumentationProvider(
-            new DocumentationService(this.configManager!),
+            new DocumentationService(this.documentManager!),
             this.topicsProvider
           );
         }
 
-        if (this.configManager) {
+        if (this.documentManager) {
           if (!this.providersRegistered) {
             this.registerProviders();
             this.providersRegistered = true;
@@ -130,7 +130,7 @@ export default class Authord {
             this.listenersSubscribed = true;
           }
 
-          this.configManager.reloadConfiguration();
+          this.documentManager.reloadConfiguration();
         }
 
         this.documentationProvider?.refresh();
@@ -290,7 +290,7 @@ export default class Authord {
     const selectInstanceCommand = vscode.commands.registerCommand(
       'authordDocsExtension.selectInstance',
       (docId: string) => {
-        const doc = this.configManager!.instances.find((d) => d.id === docId);
+        const doc = this.documentManager!.instances.find((d: any) => d.id === docId);
         if (!doc) {
           vscode.window.showErrorMessage(`No document found with id ${docId}`);
           return;
@@ -386,10 +386,10 @@ export default class Authord {
    * Creates a config file in the workspace and reinitializes.
    */
   private async createConfigFile(): Promise<void> {
-    const filePath = joipath.n(this.workspaceRoot, configFiles[0]);
-    this.configManager = new AuthordJsonConfigurationManager(filePath);
-    await (this.configManager as AuthordJsonConfigurationManager).initializeConfigurationFile();
-    await this.configManager.reloadConfiguration();
+    const filePath = path.join(this.workspaceRoot, configFiles[0]);
+    this.documentManager = new AuthordDocumentManager(filePath);
+    await (this.documentManager as AuthordDocumentManager).initializeConfigurationFile();
+    await this.documentManager.reloadConfiguration();
     await this.reinitialize();
   }
 
@@ -431,7 +431,7 @@ export default class Authord {
    *  - 2 if an Authord config file is found (configFiles[0])
    */
   private async checkConfigFiles(): Promise<void> {
-    if (this.configManager && this.configCode) {
+    if (this.documentManager && this.configCode) {
       return;
     }
 
@@ -452,8 +452,8 @@ export default class Authord {
 
         if (fileName === configFiles[1]) {
           // XML config
-          this.configManager = new XmlIhpConfigurationManager(filePath);
-          await this.configManager.reloadConfiguration();
+          this.documentManager = new WriterSideDocumentManager(filePath);
+          await this.documentManager.reloadConfiguration();
           vscode.commands.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
@@ -463,7 +463,7 @@ export default class Authord {
 
           // Validate against schema
           try {
-            const configManager = this.configManager as XmlIhpConfigurationManager; 
+            const configManager = this.documentManager as WriterSideDocumentManager; 
             await writersideSchemaValidator(schemaPath, configManager.ihpData, configManager.instances);
           } catch (error: any) {
             vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -476,8 +476,8 @@ export default class Authord {
           foundConfig = true;
         } else {
           // Authord config (default / fallback)
-          this.configManager = new AuthordJsonConfigurationManager(filePath);
-          await this.configManager.reloadConfiguration();
+          this.documentManager = new AuthordDocumentManager(filePath);
+          await this.documentManager.reloadConfiguration();
           vscode.commands.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
@@ -486,7 +486,7 @@ export default class Authord {
           }
 
           try {
-            await authortdSchemaValidator(schemaPath, (this.configManager as AuthordJsonConfigurationManager).configData!);
+            await authortdSchemaValidator(schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
           } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to validate: ${error.message}`);
             break;

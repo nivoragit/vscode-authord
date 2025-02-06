@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { InstanceConfig } from "../utils/types";
 import DocumentationItem from "./DocumentationItem";
-import { IBaseFileManager } from '../managers/IFileManager';
+import { IBaseFileManager } from '../managers/IDocumentManager';
 
 export default class DocumentationService {
   readonly configManager: IBaseFileManager;
@@ -14,7 +14,7 @@ export default class DocumentationService {
   
   public async deleteDoc(docId: string): Promise<boolean> {
     // Leverages removeDocument(docId: string)
-    return this.configManager.removeDocument(docId);
+    return this.configManager.removeDocumentation(docId);
   }
 
   public async renameDoc(docId: string, newName: string): Promise<boolean> {
@@ -27,7 +27,7 @@ export default class DocumentationService {
         return false;
       }
       doc.name = newName;
-      this.configManager.saveDocumentConfig(doc);
+      this.configManager.saveDocumentationConfig(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(
@@ -58,7 +58,7 @@ export default class DocumentationService {
     };
 
     // Leverages createDocument(newDocument: InstanceConfig)
-    await this.configManager.createDocument(newDocument);
+    await this.configManager.createDocumentation(newDocument);
     return newDocument;
   }
 

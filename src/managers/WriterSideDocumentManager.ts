@@ -3,12 +3,12 @@ import * as path from 'path';
 import { XMLBuilder } from 'fast-xml-parser';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import FileManager from './FileManager';
+import DocumentManager from './DocumentManager';
 import TopicsService from '../services/TopicsService';
 
-export default class XmlIhpConfigurationManager extends FileManager {
+export default class WriterSideDocumentManager extends DocumentManager {
     public ihpData: any;
-    
+
     constructor(configPath: string) {
         super(configPath);
     }
@@ -133,7 +133,7 @@ export default class XmlIhpConfigurationManager extends FileManager {
         return Promise.all(tasks);
     }
 
-    public async saveDocumentConfig(doc: InstanceConfig, customFilePath?: string): Promise<void> {
+    public async saveDocumentationConfig(doc: InstanceConfig, customFilePath?: string): Promise<void> {
         let filePath = customFilePath;
         if (!filePath) {
             filePath = await this.retrieveFilePathForDocument(doc.id);
@@ -150,7 +150,7 @@ export default class XmlIhpConfigurationManager extends FileManager {
             }
         };
 
-        const xmlContent = await XmlIhpConfigurationManager.convertToXmlString(profileObj);
+        const xmlContent = await WriterSideDocumentManager.convertToXmlString(profileObj);
         const doctype = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE instance-profile SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">\n\n`;
         const fullContent = doctype + xmlContent;
 
@@ -206,11 +206,11 @@ export default class XmlIhpConfigurationManager extends FileManager {
         throw new Error(`No .tree file found for docId ${docId}`);
     }
 
-    async createDocument(newDocument: InstanceConfig): Promise<void> {
+    async createDocumentation(newDocument: InstanceConfig): Promise<void> {
         const treeFileName = `${newDocument.id}.tree`;
         const treeFilePath = path.join(this.getIhpDir(), treeFileName);
 
-        await this.saveDocumentConfig(newDocument, treeFilePath);
+        await this.saveDocumentationConfig(newDocument, treeFilePath);
 
         if (!this.ihpData.ihp.instance) {
             this.ihpData.ihp.instance = [];
@@ -231,7 +231,7 @@ export default class XmlIhpConfigurationManager extends FileManager {
         // }
     }
 
-    async removeDocument(docId: string): Promise<boolean> {
+    async removeDocumentation(docId: string): Promise<boolean> {
         const ihp = this.ihpData?.ihp;
         if (!ihp.instance) {
             return false;

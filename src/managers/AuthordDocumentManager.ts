@@ -3,10 +3,10 @@ import * as path from 'path';
 import Ajv from 'ajv';
 import { AuthordConfig, InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import FileManager from './FileManager';
+import DocumentManager from './DocumentManager';
 import TopicsService from '../services/TopicsService';
 
-export default class AuthordJsonConfigurationManager extends FileManager {
+export default class AuthordDocumentManager extends DocumentManager {
     public configData: AuthordConfig | undefined;
 
     constructor(configPath: string) {
@@ -36,7 +36,7 @@ export default class AuthordJsonConfigurationManager extends FileManager {
     }
 
     async initializeConfigurationFile(): Promise<void> {
-        this.configData = AuthordJsonConfigurationManager.defaultConfigJson();
+        this.configData = AuthordDocumentManager.defaultConfigJson();
         await FileService.writeNewFile(this.configPath,'{}');
         await this.saveConfigurationFile();
     }
@@ -80,7 +80,7 @@ export default class AuthordJsonConfigurationManager extends FileManager {
         );
     }
 
-    async createDocument(newDocument: InstanceConfig): Promise<void> {
+    async createDocumentation(newDocument: InstanceConfig): Promise<void> {
         if (!this.configData) {
             return;
         }
@@ -101,7 +101,7 @@ export default class AuthordJsonConfigurationManager extends FileManager {
         }
     }
 
-    async removeDocument(docId: string): Promise<boolean> {
+    async removeDocumentation(docId: string): Promise<boolean> {
         const foundDoc = this.instances.find((d: InstanceConfig) => d.id === docId);
         if (!foundDoc || !this.configData) {
             return false;
@@ -119,7 +119,7 @@ export default class AuthordJsonConfigurationManager extends FileManager {
         return true;
     }
 
-    public async saveDocumentConfig(doc: InstanceConfig, _filePath?: string): Promise<void> {
+    public async saveDocumentationConfig(doc: InstanceConfig, _filePath?: string): Promise<void> {
         if (!this.configData) {
             return;
         }

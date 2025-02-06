@@ -3,9 +3,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import { IBaseFileManager as IFileManager } from './IFileManager';
+import { IDocumentManager } from './IDocumentManager';
 
-export default abstract class FileManager implements IFileManager{
+export default abstract class DocumentManager implements IDocumentManager{
     configPath: string;
 
     instances: InstanceConfig[] = [];
@@ -14,7 +14,7 @@ export default abstract class FileManager implements IFileManager{
         this.configPath = configPath;
     }
 
-    public abstract saveDocumentConfig(
+    public abstract saveDocumentationConfig(
         _doc: InstanceConfig,
         _filePath?: string
     ): Promise<void>;
@@ -24,14 +24,14 @@ export default abstract class FileManager implements IFileManager{
     abstract getImagesDirectory(): string;
 
     // Document-specific methods
-    abstract createDocument(newDocument: InstanceConfig): Promise<void>;
+    abstract createDocumentation(newDocument: InstanceConfig): Promise<void>;
 
-    abstract removeDocument(docId: string): Promise<boolean>;
+    abstract removeDocumentation(docId: string): Promise<boolean>;
 
     // Refresh configuration
     abstract reloadConfiguration(): Promise<void>;
 
-    fetchAllDocuments(): InstanceConfig[] {
+    fetchAllDocumentations(): InstanceConfig[] {
         return this.instances;
     }
 
@@ -47,7 +47,7 @@ export default abstract class FileManager implements IFileManager{
         const oldFileUri = vscode.Uri.file(path.join(topicsDir, oldTopicFile));
         const newFileUri = vscode.Uri.file(path.join(topicsDir, newTopicFile));
         await vscode.workspace.fs.rename(oldFileUri, newFileUri);
-        await this.saveDocumentConfig(doc);
+        await this.saveDocumentationConfig(doc);
     }
 
     /**
@@ -60,7 +60,7 @@ export default abstract class FileManager implements IFileManager{
                 FileService.deleteFileIfExists(path.join(topicsDir, tFile))
             )
         );
-        await this.saveDocumentConfig(doc);
+        await this.saveDocumentationConfig(doc);
         return true;
     }
 
@@ -74,7 +74,7 @@ export default abstract class FileManager implements IFileManager{
         await this.createTopicMarkdownFile(newTopic);
         const fileExists = await FileService.fileExists(path.join(this.getTopicsDirectory(), newTopic.topic));
         if (fileExists) {
-            await this.saveDocumentConfig(doc);
+            await this.saveDocumentationConfig(doc);
         }
     }
 

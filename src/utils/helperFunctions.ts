@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import { IBaseFileManager } from '../managers/IFileManager';
+import { IBaseFileManager } from '../managers/IDocumentManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 

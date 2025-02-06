@@ -22,17 +22,17 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(m
     const {renderer} = md;
     renderer.rules.image = createCustomImageRenderer(
       renderer.rules.image,
-      extensionInitializer?.configManager
+      extensionInitializer?.documentManager
     );
   
     renderer.rules.html_block = createCustomHtmlRenderer(
       renderer.rules.html_block,
-      extensionInitializer?.configManager
+      extensionInitializer?.documentManager
     );
   
     renderer.rules.html_inline = createCustomHtmlRenderer(
       renderer.rules.html_inline,
-      extensionInitializer?.configManager
+      extensionInitializer?.documentManager
     );
   
     // Return the original md instance and apply markdown-it plugins

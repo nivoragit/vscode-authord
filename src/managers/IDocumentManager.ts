@@ -2,24 +2,24 @@
 
 import { InstanceConfig, TocElement } from '../utils/types';
 
-export interface IBaseFileManager {
+export interface IDocumentManager {
   
   configPath: string;
   instances: InstanceConfig[];
 
-  saveDocumentConfig(doc: InstanceConfig, filePath?: string): Promise<void>;
+  saveDocumentationConfig(doc: InstanceConfig, filePath?: string): Promise<void>;
   getTopicsDirectory(): string;
   getImagesDirectory(): string;
 
 
   // Document-specific methods
-  createDocument(newDocument: InstanceConfig): Promise<void>;
-  removeDocument(docId: string): Promise<boolean>;
+  createDocumentation(newDocument: InstanceConfig): Promise<void>;
+  removeDocumentation(docId: string): Promise<boolean>;
 
   // Refresh configuration
   reloadConfiguration(): Promise<void>;
 
-  fetchAllDocuments(): InstanceConfig[];
+  fetchAllDocumentations(): InstanceConfig[];
 
   // Topic-related methods
   renameTopicFile(
