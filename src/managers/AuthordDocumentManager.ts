@@ -1,6 +1,5 @@
 /* eslint-disable no-param-reassign, no-useless-constructor, @typescript-eslint/no-unused-vars */
 import * as path from 'path';
-import Ajv from 'ajv';
 import { AuthordConfig, InstanceConfig, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
 import DocumentManager from './DocumentManager';

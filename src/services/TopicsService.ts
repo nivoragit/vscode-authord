@@ -5,12 +5,12 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { InstanceConfig, TocElement } from "../utils/types";
 import TopicsItem from './TopicsItem';
-import { IBaseFileManager } from '../managers/IDocumentManager';
+import { IDocumentManager } from '../managers/IDocumentManager';
 
 export default class TopicsService {
   readonly topicDir: string;
 
-  constructor(private readonly configManager: IBaseFileManager) {
+  constructor(private readonly configManager: IDocumentManager) {
     this.topicDir = this.configManager.getTopicsDirectory();
   }
 
