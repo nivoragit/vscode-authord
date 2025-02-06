@@ -65,9 +65,8 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       if (!topicTitle) return;
 
       const defaultFileName = TopicsService.formatTitleAsFilename(topicTitle);
-      const enteredFileName = await this.promptForFileName(defaultFileName);
+      const enteredFileName = await this.promptForFileName(defaultFileName); 
       if (!enteredFileName) return;
-
       const newTopic = await this.topicsService.addChildTopic(
         this.currentDocId,
         null,
@@ -221,7 +220,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
   }
 
   private async promptForFileName(defaultName: string): Promise<string | undefined> {
-    const enteredFileName = await vscode.window.showInputBox({
+    let enteredFileName = await vscode.window.showInputBox({
       prompt: 'Enter file name',
       value: defaultName,
     });
@@ -235,7 +234,9 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       vscode.window.showWarningMessage(`File "${enteredFileName}" already exists.`);
       return this.promptForFileName(defaultName);
     }
-
+    if(enteredFileName !== defaultName || !enteredFileName.endsWith('.md')){
+      enteredFileName = TopicsService.formatTitleAsFilename(enteredFileName);
+    }
     return enteredFileName;
   }
 
