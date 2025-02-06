@@ -8,7 +8,7 @@ import TopicsService from '../services/TopicsService';
 
 export default class XmlIhpConfigurationManager extends FileManager {
     public ihpData: any;
-
+    
     constructor(configPath: string) {
         super(configPath);
     }
@@ -225,10 +225,10 @@ export default class XmlIhpConfigurationManager extends FileManager {
             await this.createTopicMarkdownFile(newDocument['toc-elements'][0]);
         }
 
-        if (await FileService.fileExists(treeFilePath)) {
-            // Re-write in case the firstTopic was just created
-            await this.saveDocumentConfig(newDocument, treeFilePath);
-        }
+        // if (await FileService.fileExists(treeFilePath)) {
+        //     // Re-write in case the firstTopic was just created
+        //     await this.saveDocumentConfig(newDocument, treeFilePath);
+        // }
     }
 
     async removeDocument(docId: string): Promise<boolean> {

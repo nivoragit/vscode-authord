@@ -386,7 +386,7 @@ export default class Authord {
    * Creates a config file in the workspace and reinitializes.
    */
   private async createConfigFile(): Promise<void> {
-    const filePath = path.join(this.workspaceRoot, configFiles[0]);
+    const filePath = joipath.n(this.workspaceRoot, configFiles[0]);
     this.configManager = new AuthordJsonConfigurationManager(filePath);
     await (this.configManager as AuthordJsonConfigurationManager).initializeConfigurationFile();
     await this.configManager.reloadConfiguration();
