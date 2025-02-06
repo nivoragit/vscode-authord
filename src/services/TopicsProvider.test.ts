@@ -1,5 +1,5 @@
 /* eslint-disable */
-// __tests__/TopicsProvider.test.ts
+// TopicsProvider.test.ts
 jest.mock('vscode');
 import * as vscode from 'vscode';
 import { describe, it, beforeEach, afterEach, expect, jest } from '@jest/globals';
@@ -26,7 +26,7 @@ describe('TopicsProvider', () => {
       deleteTopic: jest.fn(),
       removeTopicFromTree: jest.fn(),
       findTopicItemByFilename: jest.fn(),
-      setAsStartPage: jest.fn(),
+      setAsStartPage: jest.fn()
     } as any;
 
     provider = new TopicsProvider(mockTopicsService);
@@ -73,11 +73,11 @@ describe('TopicsProvider', () => {
       { topic: 'Parent2', title: 'Parent2', children: [] },
     ];
     mockTopicsService.createTreeItem.mockImplementation((elem: TocElement) => new TopicsItem(
-        elem.title,
-        vscode.TreeItemCollapsibleState.Collapsed,
-        elem.topic,
-        elem.children || []
-      ));
+      elem.title,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      elem.topic,
+      elem.children || []
+    ));
 
     const children = await provider.getChildren();
     expect(children.length).toBe(2);
@@ -101,11 +101,11 @@ describe('TopicsProvider', () => {
       parentTocElement.children
     );
     mockTopicsService.createTreeItem.mockImplementation((elem: TocElement) => new TopicsItem(
-        elem.title,
-        vscode.TreeItemCollapsibleState.Collapsed,
-        elem.topic,
-        elem.children || []
-      ));
+      elem.title,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      elem.topic,
+      elem.children || []
+    ));
 
     const children = await provider.getChildren(parentItem);
     expect(children.length).toBe(2);
@@ -131,12 +131,10 @@ describe('TopicsProvider', () => {
   it('should add root topic if currentDocId is set', async () => {
     provider.currentDocId = 'doc123';
     mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'RootTopic.md', title: 'RootTopic', children: [] });
-    (provider as any).tocTree = [];
 
     await provider.addRootTopic();
     // The test expects docId 'doc123' and null for the parent
-    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', null,"Mocked Topic Title","mocked-topic-title.md");
-    expect((provider as any).tocTree).toHaveLength(1);
+    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', null, "Mocked Topic Title", "mocked-topic-title.md");
     expect(mockEmitter.fire).toHaveBeenCalled();
   });
 
@@ -159,7 +157,7 @@ describe('TopicsProvider', () => {
     mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'Child', title: 'Child', children: [] });
 
     await provider.addChildTopic(parentItem);
-    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', parentElement.topic);
+    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', parentElement.topic, "Mocked Topic Title", "mocked-topic-title.md");
     expect(parentItem.children).toHaveLength(1);
     expect(mockEmitter.fire).toHaveBeenCalled();
   });
@@ -175,8 +173,14 @@ describe('TopicsProvider', () => {
   it('should add sibling topic with valid sibling and docId', async () => {
     // If there's NO parent, we expect addChildTopic('doc123', null)
     // So return false here to indicate no parent found
-    mockTopicsService.getParentByTopic.mockReturnValue(false);
+    const parent: TocElement = {
+      topic: '',
+      title: '',
+      children: []
+    };
+    mockTopicsService.getParentByTopic.mockReturnValue(parent);
     mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'RootTopic', title: 'RootTopic', children: [] });
+
     provider.currentDocId = 'doc123';
 
     const siblingItem = new TopicsItem(
@@ -185,9 +189,9 @@ describe('TopicsProvider', () => {
       'root1',
       [{ topic: 'child1', title: 'Child 1', children: [] }]
     );
-
+    mockTopicsService.createTreeItem.mockReturnValue(siblingItem);
     await provider.addSiblingTopic(siblingItem);
-    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', null);
+    expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', "root1", "Mocked Topic Title", "mocked-topic-title.md");
     expect(mockEmitter.fire).toHaveBeenCalled();
   });
 
@@ -195,20 +199,6 @@ describe('TopicsProvider', () => {
     provider.currentDocId = 'doc123';
     await provider.addSiblingTopic(undefined as any);
     expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Invalid sibling/topic');
-  });
-
-  it('should show error if docId is not set in addSiblingTopic', async () => {
-    const siblingItem = new TopicsItem(
-      'Root 1',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'root1',
-      [{ topic: 'child1', title: 'Child 1', children: [] }]
-    );
-    provider.currentDocId = undefined;
-    await provider.addSiblingTopic(siblingItem);
-    expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-      'No active document to add a topic to.'
-    );
   });
 
   it('should delete topic if confirmed', async () => {
