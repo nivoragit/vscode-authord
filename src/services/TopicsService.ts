@@ -229,7 +229,7 @@ export default class TopicsService {
     parentTopic: string | null,
     title: string,
     fileName: string
-  ): Promise<TocElement> {
+  ): Promise<void> {
     const doc = this.getDocument(docId);
     const newTopic = { topic: fileName, title, children: [] };
 
@@ -240,9 +240,7 @@ export default class TopicsService {
     } else {
       doc['toc-elements'].push(newTopic);
     }
-
     this.configManager.createChildTopicFile(newTopic, doc);
-    return newTopic;
   }
 
   public async renameTopic(

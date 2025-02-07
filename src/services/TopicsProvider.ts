@@ -67,14 +67,14 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       const defaultFileName = TopicsService.formatTitleAsFilename(topicTitle);
       const enteredFileName = await this.promptForFileName(defaultFileName); 
       if (!enteredFileName) return;
-      const newTopic = await this.topicsService.addChildTopic(
+      await this.topicsService.addChildTopic(
         this.currentDocId,
         null,
         topicTitle,
         enteredFileName
       );
       
-      if (newTopic) this.onDidChangeTreeDataEmitter.fire();
+      this.onDidChangeTreeDataEmitter.fire();
     } catch (error) {
       TopicsProvider.showError(error, 'Failed to add root topic');
     }
@@ -96,18 +96,14 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
       const enteredFileName = await this.promptForFileName(defaultFileName);
       if (!enteredFileName) return;
 
-      const newTopic = await this.topicsService.addChildTopic(
+      await this.topicsService.addChildTopic(
         this.currentDocId!,
         parent.topic,
         topicTitle,
         enteredFileName
       );
 
-      if (newTopic) {
-        parent.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-        parent.children.push(newTopic);
-        this.onDidChangeTreeDataEmitter.fire();
-      }
+      this.onDidChangeTreeDataEmitter.fire();
     } catch (error) {
       TopicsProvider.showError(error, 'Failed to add child topic');
     }

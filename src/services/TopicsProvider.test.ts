@@ -129,8 +129,6 @@ describe('TopicsProvider', () => {
 
   it('should add root topic if currentDocId is set', async () => {
     provider.currentDocId = 'doc123';
-    mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'RootTopic.md', title: 'RootTopic', children: [] });
-
     await provider.addRootTopic();
     // The test expects docId 'doc123' and null for the parent
     expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', null, "Mocked Topic Title", "mocked-topic-title.md");
@@ -153,11 +151,8 @@ describe('TopicsProvider', () => {
       parentElement.topic,
       parentElement.children
     );
-    mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'Child', title: 'Child', children: [] });
-
     await provider.addChildTopic(parentItem);
     expect(mockTopicsService.addChildTopic).toHaveBeenCalledWith('doc123', parentElement.topic, "Mocked Topic Title", "mocked-topic-title.md");
-    expect(parentItem.children).toHaveLength(1);
     expect(mockEmitter.fire).toHaveBeenCalled();
   });
 
@@ -178,8 +173,6 @@ describe('TopicsProvider', () => {
       children: []
     };
     mockTopicsService.getParentByTopic.mockReturnValue(parent);
-    mockTopicsService.addChildTopic.mockResolvedValue({ topic: 'RootTopic', title: 'RootTopic', children: [] });
-
     provider.currentDocId = 'doc123';
 
     const siblingItem = new TopicsItem(
