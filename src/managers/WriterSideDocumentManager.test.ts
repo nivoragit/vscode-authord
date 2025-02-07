@@ -1,4 +1,6 @@
-/* eslint-disable */
+/* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable dot-notation */
+
 import { mocked } from 'jest-mock';
 import * as path from 'path';
 import WriterSideDocumentManager from './WriterSideDocumentManager';

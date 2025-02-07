@@ -1,5 +1,5 @@
-
-import * as mockVSCode from '../../__mocks__/vscode';
+// eslint-disable-next-line import/no-unresolved
+import * as vscode from 'vscode';
 import DocumentationProvider from './DocumentationProvider';
 import TopicsProvider from './TopicsProvider';
 import DocumentationService from './DocumentationService';
@@ -12,6 +12,7 @@ import AuthordDocumentManager from '../managers/AuthordDocumentManager';
 // Mock external services/classes
 jest.mock('./DocumentationService');
 jest.mock('./TopicsProvider');
+jest.mock('vscode');
 
 // Utility function to build a DocumentationItem
 function createDocItem(
@@ -19,7 +20,7 @@ function createDocItem(
     label: string
 ): DocumentationItem {
     // In your actual code, ensure DocumentationItem's constructor accepts (label: string, collapsibleState: number, id?: string)
-    return new DocumentationItem(id!, label, mockVSCode.TreeItemCollapsibleState.Collapsed);
+    return new DocumentationItem(id!, label, vscode.TreeItemCollapsibleState.Collapsed);
 }
 
 describe('DocumentationProvider', () => {
@@ -96,55 +97,55 @@ describe('DocumentationProvider', () => {
         it('should warn if item has no id', async () => {
             const item = createDocItem(undefined, 'No ID');
             await documentationProvider.deleteDoc(item);
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith('No document selected for deletion.');
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('No document selected for deletion.');
             expect(mockDocService.deleteDoc).not.toHaveBeenCalled();
         });
 
         it('should confirm deletion and delete if user chooses Yes', async () => {
-            (mockVSCode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
+            (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
             mockDocService.deleteDoc.mockResolvedValue(true);
 
             const item = createDocItem('doc1', 'Doc 1');
             await documentationProvider.deleteDoc(item);
 
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
                 'Are you sure you want to delete documentation "Doc 1"?',
                 { modal: true },
                 'Yes'
             );
             expect(mockDocService.deleteDoc).toHaveBeenCalledWith('doc1');
-            expect(mockVSCode.window.showInformationMessage).toHaveBeenCalledWith('Deleted documentation "Doc 1".');
+            expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Deleted documentation "Doc 1".');
             expect(mockTopicsProvider.refresh).toHaveBeenCalled();
         });
 
         it('should abort if user does not select Yes', async () => {
-            (mockVSCode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
+            (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
 
             const item = createDocItem('doc1', 'Doc 1');
             await documentationProvider.deleteDoc(item);
 
             expect(mockDocService.deleteDoc).not.toHaveBeenCalled();
-            expect(mockVSCode.window.showInformationMessage).not.toHaveBeenCalled();
+            expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
         });
 
         it('should show error message if deletion fails', async () => {
-            (mockVSCode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
+            (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
             mockDocService.deleteDoc.mockResolvedValue(false);
 
             const item = createDocItem('doc1', 'Doc 1');
             await documentationProvider.deleteDoc(item);
 
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith('Failed to delete documentation "Doc 1".');
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Failed to delete documentation "Doc 1".');
         });
 
         it('should catch and display error message if an error is thrown', async () => {
-            (mockVSCode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
+            (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue('Yes');
             mockDocService.deleteDoc.mockRejectedValue(new Error('Deletion error'));
 
             const item = createDocItem('doc1', 'Doc 1');
             await documentationProvider.deleteDoc(item);
 
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Error while deleting documentation: Error: Deletion error'
             );
         });
@@ -155,55 +156,55 @@ describe('DocumentationProvider', () => {
             const item = createDocItem(undefined, 'No ID');
             await documentationProvider.renameDoc(item);
 
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith('No document selected for rename.');
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('No document selected for rename.');
             expect(mockDocService.renameDoc).not.toHaveBeenCalled();
         });
 
         it('should prompt for new name and rename doc successfully', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
+            (vscode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
             mockDocService.renameDoc.mockResolvedValue(true);
 
             const item = createDocItem('doc1', 'Old Name');
             await documentationProvider.renameDoc(item);
 
-            expect(mockVSCode.window.showInputBox).toHaveBeenCalledWith({
+            expect(vscode.window.showInputBox).toHaveBeenCalledWith({
                 prompt: 'Enter new documentation name',
                 value: 'Old Name',
             });
             expect(mockDocService.renameDoc).toHaveBeenCalledWith('doc1', 'New Name');
-            expect(mockVSCode.window.showInformationMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
                 'Renamed documentation "Old Name" to "New Name".'
             );
         });
 
         it('should do nothing if user cancels input', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock).mockResolvedValue('');
+            (vscode.window.showInputBox as jest.Mock).mockResolvedValue('');
 
             const item = createDocItem('doc1', 'Old Name');
             await documentationProvider.renameDoc(item);
 
             expect(mockDocService.renameDoc).not.toHaveBeenCalled();
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith('Rename canceled.');
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Rename canceled.');
         });
 
         it('should show error message on rename failure', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
+            (vscode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
             mockDocService.renameDoc.mockResolvedValue(false);
 
             const item = createDocItem('doc1', 'Old Name');
             await documentationProvider.renameDoc(item);
 
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith('Failed to rename documentation "Old Name".');
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Failed to rename documentation "Old Name".');
         });
 
         it('should catch and show error message if renameDoc throws', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
+            (vscode.window.showInputBox as jest.Mock).mockResolvedValue('New Name');
             mockDocService.renameDoc.mockRejectedValue(new Error('Rename error'));
 
             const item = createDocItem('doc1', 'Old Name');
             await documentationProvider.renameDoc(item);
 
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Error while renaming documentation: Error: Rename error'
             );
         });
@@ -220,25 +221,25 @@ describe('DocumentationProvider', () => {
         });
 
         it('should warn if user cancels doc name input', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock).mockResolvedValueOnce('');
+            (vscode.window.showInputBox as jest.Mock).mockResolvedValueOnce('');
 
             await documentationProvider.addDoc();
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith('Document creation canceled.');
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Document creation canceled.');
             expect(mockDocService.addDoc).not.toHaveBeenCalled();
         });
 
         it('should warn if user cancels doc ID input', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock)
+            (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('My Doc') // doc name
                 .mockResolvedValueOnce(''); // doc ID
 
             await documentationProvider.addDoc();
-            expect(mockVSCode.window.showWarningMessage).toHaveBeenCalledWith('Document creation canceled.');
+            expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Document creation canceled.');
             expect(mockDocService.addDoc).not.toHaveBeenCalled();
         });
 
         it('should prompt again if ID is not unique, then create doc when unique', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock)
+            (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('My Doc') // doc name
                 .mockResolvedValueOnce('md')     // doc ID
                 .mockResolvedValueOnce('md1');   // second ID attempt
@@ -249,13 +250,13 @@ describe('DocumentationProvider', () => {
 
             await documentationProvider.addDoc();
             expect(mockDocService.addDoc).toHaveBeenCalledWith('md1', 'My Doc');
-            expect(mockVSCode.window.showInformationMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
                 'Documentation "My Doc" created successfully with ID "md1".'
             );
         });
 
         it('should show error message if addDoc returns false or undefined', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock)
+            (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('My Doc')
                 .mockResolvedValueOnce('md');
 
@@ -263,25 +264,25 @@ describe('DocumentationProvider', () => {
             mockDocService.addDoc.mockResolvedValue(false as unknown as InstanceConfig);
 
             await documentationProvider.addDoc();
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Failed to create documentation "My Doc" with ID "md".'
             );
         });
 
         it('should catch and show error message if addDoc throws', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock)
+            (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('My Doc')
                 .mockResolvedValueOnce('md');
             mockDocService.addDoc.mockRejectedValue(new Error('Creation error'));
 
             await documentationProvider.addDoc();
-            expect(mockVSCode.window.showErrorMessage).toHaveBeenCalledWith(
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Error while creating documentation: Error: Creation error'
             );
         });
 
         it('should refresh topicsProvider if creation succeeds', async () => {
-            (mockVSCode.window.showInputBox as jest.Mock)
+            (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('Doc Title')
                 .mockResolvedValueOnce('docT');
             const createdDoc: InstanceConfig = {

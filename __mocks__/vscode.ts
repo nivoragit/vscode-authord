@@ -1,9 +1,9 @@
 // __mocks__/vscode.ts
 export class TreeItem {
   label: string;
-  
+
   collapsibleState: number;
-  
+
   constructor(label: string, collapsibleState: number) {
     this.label = label;
     this.collapsibleState = collapsibleState;
@@ -29,9 +29,20 @@ export const window = {
 };
 
 export const workspace = {
+  fs: {
+    rename: jest.fn().mockResolvedValue(undefined),
+    createDirectory: jest.fn().mockResolvedValue(undefined),
+  },
   getConfiguration: jest.fn().mockReturnValue({
     get: jest.fn(),
     update: jest.fn(),
   }),
+};
+
+export const Uri = {
+  file: jest.fn().mockImplementation((p) => ({ path: p })),
+};
+export const commands = {
+  executeCommand: jest.fn(),
 };
 
