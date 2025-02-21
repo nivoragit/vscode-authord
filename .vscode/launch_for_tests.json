@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Debug Jest Tests (npm run t)",
+        "runtimeExecutable": "/Users/madushika/.nvm/versions/node/v23.3.0/bin/node",
+        "args": [
+          "node_modules/.bin/jest",
+          "--runInBand"
+        ],
+        "console": "integratedTerminal",
+        "internalConsoleOptions": "neverOpen"
+      },
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Debug Single Jest Test",
+        "runtimeExecutable": "/Users/madushika/.nvm/versions/node/v23.3.0/bin/node",
+        "args": [
+          "node_modules/.bin/jest",
+          "--runInBand",
+          "${relativeFile}"
+        ],
+        "console": "integratedTerminal",
+        "internalConsoleOptions": "neverOpen"
+      },
+      {
+        "request": "launch",
+        "name": "Debug Application",
+      }
+    ]
+  }

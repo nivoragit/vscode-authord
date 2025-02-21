@@ -45,6 +45,7 @@ export default class Authord {
   currentFileName = '';
 
   currentTopicTitle = '';
+  schemaPath  = '';
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -104,9 +105,22 @@ export default class Authord {
 
       if (!this.configCode) {
         vscode.window.showErrorMessage('config file does not exist');
-      } else {
+      }else {
+        try{
+          if(this.configCode === 1){
+            const configManager = this.documentManager as WriterSideDocumentManager; 
+            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
+          }else if(this.configCode === 2){
+            await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
+          }
+        } catch (error: any) {
+          vscode.commands.executeCommand('workbench.action.reloadWindow');
+          vscode.window.showErrorMessage('Failed to initialize extension');
+          vscode.window.showErrorMessage(`Invalid configuration file: ${error.message}`);
+        }
+        
+
         if (!this.documentationProvider || !this.topicsProvider) {
-          // this.cacheService = new CacheService(this.configManager!);
           this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!));
           this.documentationProvider = new DocumentationProvider(
             new DocumentationService(this.documentManager!),
@@ -444,7 +458,7 @@ export default class Authord {
       const filePath = path.join(this.workspaceRoot, fileName);
       try {
         await fs.access(filePath);
-        const schemaPath = path.join(
+        this.schemaPath = path.join(
           this.context.extensionPath,
           'schemas',
           'authord-config-schema.json'
@@ -464,7 +478,7 @@ export default class Authord {
           // Validate against schema
           try {
             const configManager = this.documentManager as WriterSideDocumentManager; 
-            await writersideSchemaValidator(schemaPath, configManager.ihpData, configManager.instances);
+            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
           } catch (error: any) {
             vscode.commands.executeCommand('workbench.action.reloadWindow');
             vscode.window.showErrorMessage('Failed to initialize extension');
@@ -486,7 +500,7 @@ export default class Authord {
           }
 
           try {
-            await authortdSchemaValidator(schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
+            await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
           } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to validate: ${error.message}`);
             break;
