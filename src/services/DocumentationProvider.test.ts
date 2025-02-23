@@ -14,7 +14,7 @@ jest.mock('./DocumentationService');
 jest.mock('./TopicsProvider');
 jest.mock('vscode');
 
-// Utility function to build a DocumentationItem
+
 function createDocItem(
     id: string | undefined,
     label: string

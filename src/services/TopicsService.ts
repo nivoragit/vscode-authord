@@ -66,17 +66,17 @@ export default class TopicsService {
   ): boolean {
     for (let i = 0; i < tree.length; i += 1) {
       if (tree[i].topic === topicId) {
-        tree[i].title = newName; // Rename the title
+        tree[i].title = newName;  
         if (newTopic) {
-          tree[i].topic = newTopic; // Update the topic ID if provided
+          tree[i].topic = newTopic; 
         }
-        return true; // Indicate successful rename
+        return true; 
       }
       if (tree[i].children && tree[i].children.length > 0) {
-        // Recursively check in the children
+         
         const renamed = this.renameTopicInTree(topicId, newName, tree[i].children, newTopic);
         if (renamed) {
-          return true; // If renamed in children, return true
+          return true;  
         }
       }
     }
@@ -282,9 +282,6 @@ export default class TopicsService {
       return false;
     }
   }
-
-  // Existing helper methods remain the same (findTopicItemByFilename, getParentByTopic,
-  // removeTopicFromTree, renameTopicInTree, getAllTopicsFromTocElement, etc.)
 
   private getDocument(docId: string): InstanceConfig {
     const doc = this.configManager.instances.find(d => d.id === docId);

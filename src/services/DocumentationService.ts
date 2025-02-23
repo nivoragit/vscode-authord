@@ -13,7 +13,6 @@ export default class DocumentationService {
   }
   
   public async deleteDoc(docId: string): Promise<boolean> {
-    // Leverages removeDocument(docId: string)
     return this.configManager.removeDocumentation(docId);
   }
 
@@ -41,7 +40,6 @@ export default class DocumentationService {
     const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
     const aboutTitle = `About ${title}`;
 
-    // Create a minimal TOC for the new doc
     const tocElements = [
       {
         topic: startPageFileName,
@@ -57,7 +55,6 @@ export default class DocumentationService {
       'toc-elements': tocElements,
     };
 
-    // Leverages createDocument(newDocument: InstanceConfig)
     await this.configManager.createDocumentation(newDocument);
     return newDocument;
   }

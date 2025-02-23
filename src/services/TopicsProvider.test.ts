@@ -14,7 +14,6 @@ describe('TopicsProvider', () => {
   let mockEmitter: any;
 
   beforeEach(() => {
-    // Mocked TopicsService
     mockTopicsService = {
       createTreeItem: jest.fn(),
       moveTopic: jest.fn(),

@@ -2,21 +2,17 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import { IBaseFileManager } from '../managers/IDocumentManager';
+import { IDocumentManager } from '../managers/IDocumentManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
-/**
- * Closes extra Markdown preview editors, keeping only the one in column two.
- * Defined before usage to satisfy no-use-before-define.
- */
+
 async function closeExtraPreviews(): Promise<void> {
   const previewEditors = vscode.window.visibleTextEditors.filter(
     (editor) => editor.document.uri.scheme === 'markdown-preview'
   );
 
   if (previewEditors.length > 1) {
-    // Avoid for..of by using array methods to satisfy no-restricted-syntax
     const extraEditors = previewEditors.filter(
       (editor) => editor.viewColumn !== vscode.ViewColumn.Two
     );
@@ -28,9 +24,6 @@ async function closeExtraPreviews(): Promise<void> {
   }
 }
 
-/**
- * Shows the Markdown preview in column two (or focuses/updates it if already open).
- */
 export async function showPreviewInColumnTwo(): Promise<void> {
   const previewEditors = vscode.window.visibleTextEditors.filter(
     (editor) =>
@@ -81,7 +74,7 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: IBaseFileManager | undefined
+  documentManager: IDocumentManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customImageRenderer(
@@ -91,15 +84,15 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) {
-    if (!configManager) {
+    if (!documentManager) {
       return defaultRender(tokens, idx, options, env, self);
     }
 
     const token = tokens[idx];
     const srcIndex = token.attrIndex('src');
     const { path: currentDocumentPath } = env.currentDocument;
-    const imageFolder = path.basename(configManager.getImagesDirectory());
-    const topicsFolder = path.basename(configManager.getTopicsDirectory());
+    const imageFolder = path.basename(documentManager.getImagesDirectory());
+    const topicsFolder = path.basename(documentManager.getTopicsDirectory());
 
     if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
@@ -128,7 +121,7 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) => string,
-  configManager: IBaseFileManager | undefined
+  documentManager: IDocumentManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customHtmlRenderer(
@@ -138,13 +131,13 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) {
-    if (!configManager) {
+    if (!documentManager) {
       return defaultRender(tokens, idx, options, env, self);
     }
 
     const { path: currentDocumentPath } = env.currentDocument;
-    const imageFolder = path.basename(configManager.getImagesDirectory());
-    const topicsFolder = path.basename(configManager.getTopicsDirectory());
+    const imageFolder = path.basename(documentManager.getImagesDirectory());
+    const topicsFolder = path.basename(documentManager.getTopicsDirectory());
 
     // Use object destructuring to satisfy "prefer-destructuring"
     const { content: originalContent } = tokens[idx];
@@ -165,10 +158,6 @@ export function createCustomHtmlRenderer(
         return match;
       }
     );
-
-    // Update token’s content
-    // ESLint no-param-reassign rule can be relaxed or disabled for library mutation usage
-    // eslint-disable-next-line no-param-reassign
     tokens[idx].content = content;
 
     return defaultRender(tokens, idx, options, env, self);

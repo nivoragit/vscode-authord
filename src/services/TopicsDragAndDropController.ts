@@ -23,11 +23,6 @@ export default class TopicsDragAndDropController implements vscode.TreeDragAndDr
       return;
     }
 
-    // Reference this.dragMimeTypes to satisfy "class-methods-use-this"
-    if (this.dragMimeTypes.length === 0) {
-      // Just a no-op to show we use `this`
-    }
-
     const draggedIds = sourceItems.map((item) => item.topic);
     dataTransfer.set(
       'application/json',
@@ -55,7 +50,7 @@ export default class TopicsDragAndDropController implements vscode.TreeDragAndDr
 
     const draggedIds: string[] = JSON.parse(rawData.value.toString());
 
-    // Replace 'for-of' with a traditional 'for' loop to avoid no-restricted-syntax
+   
     for (let i = 0; i < draggedIds.length; i += 1) {
       if (token.isCancellationRequested) {
         return;

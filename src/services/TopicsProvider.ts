@@ -241,7 +241,7 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
     vscode.window.showErrorMessage(message);
   }
 
-  // Existing helper methods remain the same
+ 
   public findTopicItemByFilename(fileName: string): TocElement | undefined {
     return this.topicsService.findTopicItemByFilename(fileName, this.tocTree);
   }

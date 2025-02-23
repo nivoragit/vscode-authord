@@ -1,4 +1,3 @@
-
 /*
     Presentation Layer
     ├─ Command Handlers
@@ -21,39 +20,36 @@ import TopicsDragAndDropController from './services/TopicsDragAndDropController'
 import TopicsProvider from './services/TopicsProvider';
 import { IDocumentManager } from './managers/IDocumentManager';
 
-
-// Using a default export to comply with `import/prefer-default-export`
 export default class Authord {
   private commandsRegistered = false;
-
   private listenersSubscribed = false;
-
   private providersRegistered = false;
-
   private setupConfigWatchers = false;
-
   private documentationProvider: DocumentationProvider | undefined;
-
   private topicsProvider: TopicsProvider | undefined;
-
-  // private cacheService: CacheService | undefined;
-
   private configCode = 0;
-
   documentManager: IDocumentManager | undefined;
-
   currentFileName = '';
-
   currentTopicTitle = '';
-  schemaPath  = '';
+  schemaPath = '';
+
+  private fsModule: typeof fs;
+  private notifier: typeof vscode.window;
+  private commandExecutor: typeof vscode.commands;
 
   constructor(
     private context: vscode.ExtensionContext,
-    private workspaceRoot: string
+    private workspaceRoot: string,
+    fsModule: typeof fs = fs,
+    notifier: typeof vscode.window = vscode.window,
+    commandExecutor: typeof vscode.commands = vscode.commands
   ) {
     if (!workspaceRoot) {
       throw new Error('Workspace root is required to initialize InitializeExtension.');
     }
+    this.fsModule = fsModule;
+    this.notifier = notifier;
+    this.commandExecutor = commandExecutor;
   }
 
   /**
@@ -68,12 +64,11 @@ export default class Authord {
       await this.checkConfigFiles();
 
       if (!this.configCode) {
-        vscode.window.showErrorMessage('config file does not exist');
+        this.notifier.showErrorMessage('config file does not exist');
         return;
       }
 
       if (this.documentManager) {
-        // this.cacheService = new CacheService(this.configManager);
         this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager));
         this.documentationProvider = new DocumentationProvider(
           new DocumentationService(this.documentManager),
@@ -91,8 +86,8 @@ export default class Authord {
       this.subscribeListeners();
       this.listenersSubscribed = true;
     } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to initialize extension: ${error.message}`);
-      vscode.commands.executeCommand('setContext', 'authord.configExists', false);
+      this.notifier.showErrorMessage(`Failed to initialize extension: ${error.message}`);
+      this.commandExecutor.executeCommand('setContext', 'authord.configExists', false);
     }
   }
 
@@ -104,22 +99,23 @@ export default class Authord {
       await this.checkConfigFiles();
 
       if (!this.configCode) {
-        vscode.window.showErrorMessage('config file does not exist');
-      }else {
-        try{
-          if(this.configCode === 1){
+        this.notifier.showErrorMessage('config file does not exist');
+      } else {
+        try {
+          if (this.configCode === 1) {
             const configManager = this.documentManager as WriterSideDocumentManager; 
             await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
-          }else if(this.configCode === 2){
+          } else if (this.configCode === 2) {
             await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
           }
         } catch (error: any) {
-          vscode.commands.executeCommand('workbench.action.reloadWindow');
-          vscode.window.showErrorMessage('Failed to initialize extension');
-          vscode.window.showErrorMessage(`Invalid configuration file: ${error.message}`);
+          if (process.env.NODE_ENV !== 'test') {
+            this.commandExecutor.executeCommand('workbench.action.reloadWindow');
+          }
+          this.notifier.showErrorMessage('Failed to initialize extension');
+          this.notifier.showErrorMessage(`Invalid configuration file: ${error.message}`);
         }
         
-
         if (!this.documentationProvider || !this.topicsProvider) {
           this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!));
           this.documentationProvider = new DocumentationProvider(
@@ -148,11 +144,11 @@ export default class Authord {
         }
 
         this.documentationProvider?.refresh();
-        vscode.window.showInformationMessage('extension reinitialized');
+        this.notifier.showInformationMessage('extension reinitialized');
       }
     } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to reinitialize extension: ${error.message}`);
-      vscode.commands.executeCommand('setContext', 'authord.configExists', false);
+      this.notifier.showErrorMessage(`Failed to reinitialize extension: ${error.message}`);
+      this.commandExecutor.executeCommand('setContext', 'authord.configExists', false);
     }
   }
 
@@ -169,7 +165,7 @@ export default class Authord {
           tabGroups[0].tabs.length === 0 &&
           tabGroups[1].tabs[0].label.startsWith('Preview')
         ) {
-          vscode.commands.executeCommand('workbench.action.closeAllEditors');
+          this.commandExecutor.executeCommand('workbench.action.closeAllEditors');
         }
       }),
 
@@ -179,7 +175,6 @@ export default class Authord {
           this.topicsProvider &&
           this.topicsProvider.currentDocId
         ) {
-          // Set this.currentFileName and this.currentTopicTitle for the first time
           let topicTitle = editor.document.lineAt(0).text.trim();
           if (!topicTitle) {
             for (let i = 1; i < editor.document.lineCount; i += 1) {
@@ -192,7 +187,6 @@ export default class Authord {
           if (topicTitle.startsWith('#') && !topicTitle.startsWith('##')) {
             const fileName = path.basename(editor.document.fileName);
             if (this.currentFileName !== fileName) {
-              // Document has changed
               this.currentFileName = fileName;
               this.currentTopicTitle = topicTitle.substring(1).trim() || fileName;
             }
@@ -227,15 +221,11 @@ export default class Authord {
             return;
           }
 
-          // 1. Find the corresponding tree item by comparing 'topic' with the saved filename
           const matchingItem = this.topicsProvider.findTopicItemByFilename(fileName);
-
-          // 2. Read the title from the first line or parse frontmatter
           if (!matchingItem) {
             return;
           }
 
-          // 3. Update the in-memory model
           matchingItem.title = topicTitle || `<${fileName}>`;
           this.topicsProvider.renameTopic(
             matchingItem.topic,
@@ -253,7 +243,7 @@ export default class Authord {
    */
   private registerProviders(): void {
     if (!this.topicsProvider || !this.documentationProvider) {
-      vscode.window.showErrorMessage('topicsProvider or documentationProvider not created');
+      this.notifier.showErrorMessage('topicsProvider or documentationProvider not created');
       return;
     }
 
@@ -284,8 +274,8 @@ export default class Authord {
    */
   private registerCreateProjectCommand(): void {
     this.context.subscriptions.push(
-      vscode.commands.registerCommand('extension.createProject', async () => {
-        vscode.window.showInformationMessage('Creating a new project...');
+      this.commandExecutor.registerCommand('extension.createProject', async () => {
+        this.notifier.showInformationMessage('Creating a new project...');
         await this.createConfigFile();
         await this.documentationProvider!.addDoc();
       })
@@ -297,16 +287,16 @@ export default class Authord {
    */
   private registerCommands(): void {
     if (!this.topicsProvider || !this.documentationProvider) {
-      vscode.window.showErrorMessage('topicsProvider or documentationProvider not created');
+      this.notifier.showErrorMessage('topicsProvider or documentationProvider not created');
       return;
     }
 
-    const selectInstanceCommand = vscode.commands.registerCommand(
+    const selectInstanceCommand = this.commandExecutor.registerCommand(
       'authordDocsExtension.selectInstance',
       (docId: string) => {
         const doc = this.documentManager!.instances.find((d: any) => d.id === docId);
         if (!doc) {
-          vscode.window.showErrorMessage(`No document found with id ${docId}`);
+          this.notifier.showErrorMessage(`No document found with id ${docId}`);
           return;
         }
         const tocElements = doc['toc-elements'];
@@ -314,7 +304,7 @@ export default class Authord {
       }
     );
 
-    const moveTopicCommand = vscode.commands.registerCommand(
+    const moveTopicCommand = this.commandExecutor.registerCommand(
       'extension.moveTopic',
       async (sourceTopicId: string, targetTopicId: string) => {
         await this.topicsProvider!.moveTopic(sourceTopicId, targetTopicId);
@@ -325,70 +315,70 @@ export default class Authord {
     this.context.subscriptions.push(moveTopicCommand);
 
     this.context.subscriptions.push(
-      vscode.commands.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
+      this.commandExecutor.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
         const document = await vscode.workspace.openTextDocument(resourceUri);
         await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
         await focusOrShowPreview();
       }),
 
-      vscode.commands.registerCommand('extension.addChildTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.addChildTopic', (item: TopicsItem) => {
         this.topicsProvider!.addChildTopic(item);
       }),
 
-      vscode.commands.registerCommand('extension.addContextMenuChildTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.addContextMenuChildTopic', (item: TopicsItem) => {
         this.topicsProvider!.addChildTopic(item);
       }),
 
-      vscode.commands.registerCommand('extension.addContextMenuTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.addContextMenuTopic', (item: TopicsItem) => {
         this.topicsProvider!.addSiblingTopic(item);
       }),
 
-      vscode.commands.registerCommand('extension.ContextMenuSetasStartPage', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.ContextMenuSetasStartPage', (item: TopicsItem) => {
         this.topicsProvider!.setAsStartPage(item.topic);
       }),
 
-      vscode.commands.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.deleteTopic', (item: TopicsItem) => {
         this.topicsProvider!.deleteTopic(item);
       }),
 
-      vscode.commands.registerCommand('extension.deleteContextMenuTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.deleteContextMenuTopic', (item: TopicsItem) => {
         this.topicsProvider!.deleteTopic(item);
       }),
 
-      vscode.commands.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
+      this.commandExecutor.registerCommand('extension.renameContextMenuTopic', (item: TopicsItem) => {
         this.topicsProvider!.editTopicTitle(item);
       }),
 
-      vscode.commands.registerCommand('extension.addDocumentation', () => {
+      this.commandExecutor.registerCommand('extension.addDocumentation', () => {
         this.documentationProvider!.addDoc();
       }),
 
-      vscode.commands.registerCommand('extension.reloadConfiguration', () => {
+      this.commandExecutor.registerCommand('extension.reloadConfiguration', () => {
         this.reinitialize();
         this.topicsProvider?.refresh([]);
       }),
 
-      vscode.commands.registerCommand('extension.addContextMenuDocumentation', () => {
+      this.commandExecutor.registerCommand('extension.addContextMenuDocumentation', () => {
         this.documentationProvider!.addDoc();
       }),
 
-      vscode.commands.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
+      this.commandExecutor.registerCommand('extension.deleteDocumentation', (item: DocumentationItem) => {
         this.documentationProvider!.deleteDoc(item);
       }),
 
-      vscode.commands.registerCommand('extension.deleteContextMenuDocumentation', (item: DocumentationItem) => {
+      this.commandExecutor.registerCommand('extension.deleteContextMenuDocumentation', (item: DocumentationItem) => {
         this.documentationProvider!.deleteDoc(item);
       }),
 
-      vscode.commands.registerCommand('extension.rootTopic', () => {
+      this.commandExecutor.registerCommand('extension.rootTopic', () => {
         this.topicsProvider!.addRootTopic();
       }),
 
-      vscode.commands.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
+      this.commandExecutor.registerCommand('extension.renameContextMenuDoc', (item: DocumentationItem) => {
         this.documentationProvider!.renameDoc(item);
       }),
 
-      vscode.commands.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
+      this.commandExecutor.registerCommand('extension.renameDoc', (item: DocumentationItem) => {
         this.documentationProvider!.renameDoc(item);
       })
     );
@@ -418,20 +408,22 @@ export default class Authord {
 
     configWatcher.onDidChange(async () => {
       await this.reinitialize();
-      vscode.window.showInformationMessage('config file has been modified.');
+      this.notifier.showInformationMessage('config file has been modified.');
     });
 
     configWatcher.onDidCreate(async () => {
       await this.reinitialize();
-      vscode.commands.executeCommand('setContext', 'authord.configExists', true);
-      vscode.window.showInformationMessage('config file has been created.');
+      this.commandExecutor.executeCommand('setContext', 'authord.configExists', true);
+      this.notifier.showInformationMessage('config file has been created.');
     });
 
     configWatcher.onDidDelete(async () => {
       await this.reinitialize();
-      vscode.commands.executeCommand('setContext', 'authord.configExists', false);
-      vscode.commands.executeCommand('workbench.action.reloadWindow');
-      vscode.window.showInformationMessage('config file has been deleted.');
+      this.commandExecutor.executeCommand('setContext', 'authord.configExists', false);
+      if (process.env.NODE_ENV !== 'test') {
+        this.commandExecutor.executeCommand('workbench.action.reloadWindow');
+      }
+      this.notifier.showInformationMessage('config file has been deleted.');
     });
 
     this.context.subscriptions.push(configWatcher);
@@ -449,7 +441,7 @@ export default class Authord {
       return;
     }
 
-    vscode.commands.executeCommand('setContext', 'authord.configExists', false);
+    this.commandExecutor.executeCommand('setContext', 'authord.configExists', false);
     this.configCode = 0;
 
     let foundConfig = false;
@@ -457,7 +449,7 @@ export default class Authord {
       const fileName = configFiles[i];
       const filePath = path.join(this.workspaceRoot, fileName);
       try {
-        await fs.access(filePath);
+        await this.fsModule.access(filePath);
         this.schemaPath = path.join(
           this.context.extensionPath,
           'schemas',
@@ -468,7 +460,7 @@ export default class Authord {
           // XML config
           this.documentManager = new WriterSideDocumentManager(filePath);
           await this.documentManager.reloadConfiguration();
-          vscode.commands.executeCommand('setContext', 'authord.configExists', true);
+          this.commandExecutor.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
             this.setupWatchers(fileName);
@@ -480,9 +472,11 @@ export default class Authord {
             const configManager = this.documentManager as WriterSideDocumentManager; 
             await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
           } catch (error: any) {
-            vscode.commands.executeCommand('workbench.action.reloadWindow');
-            vscode.window.showErrorMessage('Failed to initialize extension');
-            vscode.window.showErrorMessage(`Invalid configuration file: ${error.message}`);
+            if (process.env.NODE_ENV !== 'test') {
+              this.commandExecutor.executeCommand('workbench.action.reloadWindow');
+            }
+            this.notifier.showErrorMessage('Failed to initialize extension');
+            this.notifier.showErrorMessage(`Invalid configuration file: ${error.message}`);
             break;
           }
 
@@ -492,7 +486,7 @@ export default class Authord {
           // Authord config (default / fallback)
           this.documentManager = new AuthordDocumentManager(filePath);
           await this.documentManager.reloadConfiguration();
-          vscode.commands.executeCommand('setContext', 'authord.configExists', true);
+          this.commandExecutor.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
             this.setupWatchers(fileName);
@@ -502,7 +496,7 @@ export default class Authord {
           try {
             await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
           } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to validate: ${error.message}`);
+            this.notifier.showErrorMessage(`Failed to validate: ${error.message}`);
             break;
           }
 
@@ -514,7 +508,7 @@ export default class Authord {
           break;
         }
       } catch {
-        // Instead of `continue`, we simply do nothing here and move to the next iteration.
+        // Continue to next file if not found
       }
     }
   }
