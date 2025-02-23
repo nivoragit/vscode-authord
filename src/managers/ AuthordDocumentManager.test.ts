@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { AuthordConfig, InstanceConfig } from '../utils/types';
+import { AuthordConfig, InstanceProfile } from '../utils/types';
 import FileService from '../services/FileService';
 import TopicsService from '../services/TopicsService';
 import AuthordDocumentManager from './AuthordDocumentManager';
@@ -43,7 +43,7 @@ describe('AuthordDocumentManager', () => {
         .fn()
         .mockImplementation((topic: string) => Promise.resolve(`Title for ${topic}`));
 
-      await manager.reloadConfiguration();
+      await manager.reload();
 
       expect(manager.configData).toEqual(mockConfig);
       // Ensure titles were updated
@@ -55,7 +55,7 @@ describe('AuthordDocumentManager', () => {
     it('should handle missing config file', async () => {
       (FileService.fileExists as jest.Mock).mockResolvedValue(false);
 
-      await manager.reloadConfiguration();
+      await manager.reload();
 
       expect(manager.configData).toBeUndefined();
     });
@@ -143,7 +143,7 @@ describe('AuthordDocumentManager', () => {
   });
 
   describe('createDocumentation', () => {
-    const newDoc: InstanceConfig = {
+    const newDoc: InstanceProfile = {
       id: 'doc1',
       name: 'Documentation One',
       'toc-elements': [
@@ -162,7 +162,7 @@ describe('AuthordDocumentManager', () => {
         .spyOn(manager as any, 'createTopicMarkdownFile')
         .mockResolvedValue(undefined);
 
-      await manager.createDocumentation(newDoc);
+      await manager.createInstance(newDoc);
 
       expect(manager.instances).toContainEqual(newDoc);
       expect(createTopicMarkdownFileSpy).toHaveBeenCalledWith({ topic: 'topic1.md', title: '', children: [] });
@@ -177,7 +177,7 @@ describe('AuthordDocumentManager', () => {
         .spyOn(manager as any, 'createTopicMarkdownFile')
         .mockResolvedValue(undefined);
 
-      await manager.createDocumentation(newDoc);
+      await manager.createInstance(newDoc);
 
       expect(manager.instances).toContainEqual(newDoc);
       expect(createTopicMarkdownFileSpy).toHaveBeenCalledWith({ topic: 'topic1.md', title: '', children: [] });
@@ -186,13 +186,13 @@ describe('AuthordDocumentManager', () => {
     });
 
     it('should handle the case where no firstTopic exists', async () => {
-      const docWithoutTopics: InstanceConfig = {
+      const docWithoutTopics: InstanceProfile = {
         id: 'doc2',
         name: 'Documentation Two',
         'toc-elements': [],
       };
 
-      await manager.createDocumentation(docWithoutTopics);
+      await manager.createInstance(docWithoutTopics);
 
       expect(manager.instances).toContainEqual(docWithoutTopics);
       // No topic to create => no checks for file existence
@@ -202,7 +202,7 @@ describe('AuthordDocumentManager', () => {
   });
 
   describe('removeDocumentation', () => {
-    const doc: InstanceConfig = {
+    const doc: InstanceProfile = {
       id: 'doc1',
       name: 'Documentation One',
       'toc-elements': [{ topic: 'topic1.md', title: '', children: [] }],
@@ -213,7 +213,7 @@ describe('AuthordDocumentManager', () => {
       manager.configData = { instances: manager.instances } as AuthordConfig;
       (TopicsService.getAllTopicsFromTocElement as jest.Mock).mockReturnValue(['topic1.md']);
 
-      const result = await manager.removeDocumentation('doc1');
+      const result = await manager.removeInstance('doc1');
       expect(result).toBe(true);
       expect(manager.instances).not.toContainEqual(doc);
       expect(FileService.deleteFileIfExists).toHaveBeenCalledWith('/mock/dir/topics/topic1.md');
@@ -221,7 +221,7 @@ describe('AuthordDocumentManager', () => {
     });
 
     it('should return false if documentation is not found', async () => {
-      const result = await manager.removeDocumentation('docX');
+      const result = await manager.removeInstance('docX');
       expect(result).toBe(false);
       expect(FileService.deleteFileIfExists).not.toHaveBeenCalled();
       expect(FileService.updateJsonFile).not.toHaveBeenCalled();
@@ -237,7 +237,7 @@ describe('AuthordDocumentManager', () => {
         },
       ];
 
-      const result = await manager.removeDocumentation('doc2');
+      const result = await manager.removeInstance('doc2');
       expect(result).toBe(false);
       expect(FileService.deleteFileIfExists).not.toHaveBeenCalled();
       expect(FileService.updateJsonFile).not.toHaveBeenCalled();
@@ -246,8 +246,8 @@ describe('AuthordDocumentManager', () => {
 
   describe('saveDocumentationConfig', () => {
     const docId = 'docA';
-    let existingDoc: InstanceConfig;
-    let updatedDoc: InstanceConfig;
+    let existingDoc: InstanceProfile;
+    let updatedDoc: InstanceProfile;
 
     beforeEach(() => {
       manager.configData = { instances: [] } as AuthordConfig;
@@ -269,14 +269,14 @@ describe('AuthordDocumentManager', () => {
       manager.instances = [existingDoc];
       manager.configData!.instances = manager.instances;
 
-      await manager.saveDocumentationConfig(updatedDoc);
+      await manager.saveInstance(updatedDoc);
 
       expect(manager.instances).toContainEqual(updatedDoc);
       expect(FileService.updateJsonFile).toHaveBeenCalled();
     });
 
     it('should add new documentation if it does not exist', async () => {
-      await manager.saveDocumentationConfig(updatedDoc);
+      await manager.saveInstance(updatedDoc);
 
       expect(manager.instances).toContainEqual(updatedDoc);
       expect(FileService.updateJsonFile).toHaveBeenCalled();
@@ -285,7 +285,7 @@ describe('AuthordDocumentManager', () => {
     it('should do nothing if configData is undefined', async () => {
       manager.configData = undefined;
 
-      await manager.saveDocumentationConfig(updatedDoc);
+      await manager.saveInstance(updatedDoc);
 
       expect(FileService.updateJsonFile).not.toHaveBeenCalled();
       expect(manager.instances.length).toBe(0);

@@ -1,32 +1,33 @@
 // Application Layer
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
-import { InstanceConfig } from "../utils/types";
+import { InstanceProfile } from "../utils/types";
 import DocumentationItem from "./DocumentationItem";
-import { IDocumentManager } from '../managers/IDocumentManager';
+import { DocumentationManager } from '../managers/DocumentationManager';
 
 export default class DocumentationService {
-  readonly configManager: IDocumentManager;
 
-  constructor(configManager: IDocumentManager) {
+  readonly configManager: DocumentationManager;
+
+  constructor(configManager: DocumentationManager) {
     this.configManager = configManager;
   }
   
   public async deleteDoc(docId: string): Promise<boolean> {
-    return this.configManager.removeDocumentation(docId);
+    return this.configManager.removeInstance(docId);
   }
 
   public async renameDoc(docId: string, newName: string): Promise<boolean> {
     try {
-      const doc = this.configManager.instances.find(
-        (d: InstanceConfig) => d.id === docId
+      const doc = this.configManager.getInstances().find(
+        (d: InstanceProfile) => d.id === docId
       );
       if (!doc) {
         vscode.window.showErrorMessage(`Document "${docId}" not found for rename.`);
         return false;
       }
       doc.name = newName;
-      this.configManager.saveDocumentationConfig(doc);
+      this.configManager.saveInstance(doc);
       return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(
@@ -36,7 +37,7 @@ export default class DocumentationService {
     }
   }
 
-  public async addDoc(docId: string, title: string): Promise<InstanceConfig> {
+  public async addDoc(docId: string, title: string): Promise<InstanceProfile> {
     const startPageFileName = `${title.replace(/\s+/g, '-').toLowerCase()}.md`;
     const aboutTitle = `About ${title}`;
 
@@ -48,19 +49,19 @@ export default class DocumentationService {
       },
     ];
 
-    const newDocument: InstanceConfig = {
+    const newDocument: InstanceProfile = {
       id: docId,
       name: title,
       'start-page': startPageFileName,
       'toc-elements': tocElements,
     };
 
-    await this.configManager.createDocumentation(newDocument);
+    await this.configManager.createInstance(newDocument);
     return newDocument;
   }
 
   public getDocumentationItems(): DocumentationItem[] {
-    return this.configManager.instances.map((instance) => {
+    return this.configManager.getInstances().map((instance) => {
       const item = new DocumentationItem(
         instance.id,
         instance.name,
@@ -77,7 +78,7 @@ export default class DocumentationService {
   }
 
   public isDocIdUnique(docId: string): boolean {
-    const existingIds = this.configManager.instances.map((doc) => doc.id);
+    const existingIds = this.configManager.getInstances().map((doc) => doc.id);
     return !existingIds.includes(docId);
   }
 }

@@ -7,9 +7,9 @@
 import 'jest';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { InstanceConfig, TocElement } from '../utils/types';
+import { InstanceProfile, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import DocumentManager from './DocumentManager';
+import AbstractDocumentationManager from './AbstractDocumentationManager';
 
 jest.mock('vscode');
 // Mock the FileService default export with `__esModule: true`
@@ -28,8 +28,8 @@ jest.mock('../services/FileService', () => ({
 }));
 
 
-class MockDocumentManager extends DocumentManager {
-  async saveDocumentationConfig(_doc: InstanceConfig, _filePath?: string): Promise<void> {
+class MockDocumentManager extends AbstractDocumentationManager {
+  async saveInstance(_doc: InstanceProfile, _filePath?: string): Promise<void> {
     // Mock implementation
   }
 
@@ -41,15 +41,15 @@ class MockDocumentManager extends DocumentManager {
     return '/mock/images';
   }
 
-  async createDocumentation(_newDocument: InstanceConfig): Promise<void> {
+  async createInstance(_newDocument: InstanceProfile): Promise<void> {
     // Mock implementation
   }
 
-  async removeDocumentation(_docId: string): Promise<boolean> {
+  async removeInstance(_docId: string): Promise<boolean> {
     return true;
   }
 
-  async reloadConfiguration(): Promise<void> {
+  async reload(): Promise<void> {
     // Mock implementation
   }
 
@@ -71,50 +71,50 @@ describe('DocumentManager', () => {
     jest.clearAllMocks();
 
     // Make saveDocumentationConfig a Jest spy so .toHaveBeenCalledWith() will work
-    jest.spyOn(manager, 'saveDocumentationConfig').mockResolvedValue(undefined);
+    jest.spyOn(manager, 'saveInstance').mockResolvedValue(undefined);
   });
 
   describe('fetchAllDocumentations', () => {
     it('should return all instances', () => {
-      const mockInstances: InstanceConfig[] = [
+      const mockInstances: InstanceProfile[] = [
         { id: '1', name: 'Test', 'toc-elements': [] },
       ];
       manager.instances = mockInstances;
-      expect(manager.fetchAllDocumentations()).toEqual(mockInstances);
+      expect(manager.getInstances()).toEqual(mockInstances);
     });
   });
 
   describe('renameTopicFile', () => {
     it('should rename the file and save config', async () => {
-      const mockDoc: InstanceConfig = { id: '1', name: 'Doc', 'toc-elements': [] };
+      const mockDoc: InstanceProfile = { id: '1', name: 'Doc', 'toc-elements': [] };
       const oldFile = 'old.md';
       const newFile = 'new.md';
       const topicsDir = manager.getTopicsDirectory();
 
-      await manager.renameTopicFile(oldFile, newFile, mockDoc);
+      await manager.moveTopic(oldFile, newFile, mockDoc);
 
       expect(vscode.workspace.fs.rename).toHaveBeenCalledWith(
         expect.objectContaining({ path: path.join(topicsDir, oldFile) }),
         expect.objectContaining({ path: path.join(topicsDir, newFile) })
       );
-      expect(manager.saveDocumentationConfig).toHaveBeenCalledWith(mockDoc);
+      expect(manager.saveInstance).toHaveBeenCalledWith(mockDoc);
     });
   });
 
   describe('removeTopicFiles', () => {
     it('should delete files and save config', async () => {
-      const mockDoc: InstanceConfig = { id: '1', name: 'Doc', 'toc-elements': [] };
+      const mockDoc: InstanceProfile = { id: '1', name: 'Doc', 'toc-elements': [] };
       const files = ['file1.md', 'file2.md'];
       const topicsDir = manager.getTopicsDirectory();
 
       // This call is expected to resolve to `true`
-      await expect(manager.removeTopicFiles(files, mockDoc)).resolves.toBe(true);
+      await expect(manager.removeTopics(files, mockDoc)).resolves.toBe(true);
 
       // Now check our mocks
       expect(FileService.deleteFileIfExists).toHaveBeenCalledTimes(2);
       expect(FileService.deleteFileIfExists).toHaveBeenCalledWith(path.join(topicsDir, files[0]));
       expect(FileService.deleteFileIfExists).toHaveBeenCalledWith(path.join(topicsDir, files[1]));
-      expect(manager.saveDocumentationConfig).toHaveBeenCalledWith(mockDoc);
+      expect(manager.saveInstance).toHaveBeenCalledWith(mockDoc);
     });
   });
 
@@ -129,27 +129,27 @@ describe('DocumentManager', () => {
       
       
       // Act
-      await manager.createChildTopicFile(mockTopic, mockDoc);
+      await manager.createChildTopic(mockTopic, mockDoc);
     
       // Assert
       // Now we check that the protected method was called
       expect(
         Object.getPrototypeOf(manager).createTopicMarkdownFile
       ).toHaveBeenCalledWith(mockTopic);
-      expect(manager.saveDocumentationConfig).toHaveBeenCalledWith(mockDoc);
+      expect(manager.saveInstance).toHaveBeenCalledWith(mockDoc);
     });
    
     it('should not save config if file creation failed (file does not exist)', async () => {
       const mockTopic: TocElement = { topic: 'new.md', title: 'New', children: [] };
-      const mockDoc: InstanceConfig = { id: '1', name: 'Doc', 'toc-elements': [] };
+      const mockDoc: InstanceProfile = { id: '1', name: 'Doc', 'toc-elements': [] };
 
       (FileService.fileExists as jest.Mock).mockResolvedValue(false);
       jest.spyOn(manager, 'testCreateTopicMarkdownFile').mockImplementation(async () => {});
 
-      await manager.createChildTopicFile(mockTopic, mockDoc);
+      await manager.createChildTopic(mockTopic, mockDoc);
 
       // config is not saved because file creation was never done
-      expect(manager.saveDocumentationConfig).not.toHaveBeenCalled();
+      expect(manager.saveInstance).not.toHaveBeenCalled();
     });
   });
 
@@ -180,7 +180,7 @@ describe('DocumentManager', () => {
         content = await updater(content);
       });
 
-      await manager.updateMarkdownTitle('test.md', 'New Title');
+      await manager.setTopicTitle('test.md', 'New Title');
       expect(content).toBe('# New Title\nContent');
     });
 
@@ -190,7 +190,7 @@ describe('DocumentManager', () => {
         content = await updater(content);
       });
 
-      await manager.updateMarkdownTitle('test.md', 'New Title');
+      await manager.setTopicTitle('test.md', 'New Title');
       expect(content).toBe('# New Title\nContent');
     });
   });

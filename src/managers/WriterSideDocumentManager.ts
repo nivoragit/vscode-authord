@@ -1,19 +1,21 @@
 /* eslint-disable no-useless-constructor, no-continue, prefer-destructuring */
 import * as path from 'path';
 import { XMLBuilder } from 'fast-xml-parser';
-import { InstanceConfig, TocElement } from '../utils/types';
+import {InstanceProfile, TocElement, WriterSideInstanceProfile} from '../utils/types';
 import FileService from '../services/FileService';
-import DocumentManager from './DocumentManager';
+import AbstractDocumentationManager from './AbstractDocumentationManager';
 import TopicsService from '../services/TopicsService';
+import {DocumentationManager} from "./DocumentationManager";
 
-export default class WriterSideDocumentManager extends DocumentManager {
+export default class WriterSideDocumentManager extends AbstractDocumentationManager implements DocumentationManager {
+    
     public ihpData: any;
 
     constructor(configPath: string) {
         super(configPath);
     }
 
-    async reloadConfiguration(): Promise<void> {
+    async reload(): Promise<void> {
         this.ihpData = await this.readIhpFile();
         await this.loadAllInstances();
     }
@@ -55,22 +57,22 @@ export default class WriterSideDocumentManager extends DocumentManager {
         await FileService.updateXmlFile(this.configPath, () => this.ihpData);
     }
 
-    public async loadAllInstances(): Promise<InstanceConfig[]> {
+    public async loadAllInstances(): Promise<InstanceProfile[]> {
         const ihp = this.ihpData?.ihp;
-        let arr: any[] = [];
+        let instances: any[] = [];
         if (Array.isArray(ihp?.instance)) {
-            arr = ihp.instance;
+            instances = ihp.instance;
         } else if (ihp?.instance) {
-            arr = [ihp.instance];
+            instances = [ihp.instance];
         }
 
-        if (arr.length === 0) {
+        if (instances.length === 0) {
             this.instances = [];
             return this.instances;
         }
 
         const instanceProfiles = await Promise.all(
-            arr.map(async (inst: any) => {
+            instances.map(async (inst: any) => {
                 if (!inst['@_src']) {
                     return null;
                 }
@@ -84,13 +86,13 @@ export default class WriterSideDocumentManager extends DocumentManager {
 
         const validProfiles = instanceProfiles.filter(
             (profile) => profile !== null
-        ) as InstanceConfig[];
+        ) as InstanceProfile[];
 
         this.instances = validProfiles;
         return this.instances;
     }
 
-    private async parseInstanceProfile(treeFile: string): Promise<InstanceConfig | null> {
+    private async parseInstanceProfile(treeFile: string): Promise<WriterSideInstanceProfile | null> {
         const raw = await FileService.readFileAsString(treeFile);
         const data = FileService.parseXmlString(raw);
         const profile = data['instance-profile'];
@@ -105,7 +107,13 @@ export default class WriterSideDocumentManager extends DocumentManager {
             profile['toc-element'] || []
         );
 
-        return { id: docId, name, 'start-page': startPage, 'toc-elements': tocElements };
+        return {
+            filePath: treeFile,
+            id: docId,
+            name,
+            'start-page': startPage,
+            'toc-elements': tocElements
+        };
     }
 
     /**
@@ -133,11 +141,9 @@ export default class WriterSideDocumentManager extends DocumentManager {
         return Promise.all(tasks);
     }
 
-    public async saveDocumentationConfig(doc: InstanceConfig, customFilePath?: string): Promise<void> {
-        let filePath = customFilePath;
-        if (!filePath) {
-            filePath = await this.retrieveFilePathForDocument(doc.id);
-        }
+    public async saveInstance(doc: InstanceProfile): Promise<void> {
+        const filePath = (doc as WriterSideInstanceProfile).filePath;
+
         const startPage =
             doc['toc-elements'].length === 1 ? doc['toc-elements'][0].topic : doc['start-page'];
 
@@ -177,40 +183,10 @@ export default class WriterSideDocumentManager extends DocumentManager {
         });
     }
 
-    private async retrieveFilePathForDocument(docId: string): Promise<string> {
-        const ihp = this.ihpData?.ihp;
-        let arr: any[] = [];
-        if (Array.isArray(ihp?.instance)) {
-            arr = ihp.instance;
-        } else if (ihp?.instance) {
-            arr = [ihp.instance];
-        }
-
-        for (let i = 0; i < arr.length; i += 1) {
-            const inst = arr[i];
-            const treeSrc = inst['@_src'];
-            if (!treeSrc) {
-                continue;
-            }
-            const treeFile = path.join(this.getIhpDir(), treeSrc);
-            if (!(await FileService.fileExists(treeFile))) {
-                continue;
-            }
-            const raw = await FileService.readFileAsString(treeFile);
-            const data = FileService.parseXmlString(raw);
-            const profile = data['instance-profile'];
-            if (profile && profile['@_id'] === docId) {
-                return treeFile;
-            }
-        }
-        throw new Error(`No .tree file found for docId ${docId}`);
-    }
-
-    async createDocumentation(newDocument: InstanceConfig): Promise<void> {
+    async createInstance(newDocument: InstanceProfile): Promise<void> {
         const treeFileName = `${newDocument.id}.tree`;
-        const treeFilePath = path.join(this.getIhpDir(), treeFileName);
 
-        await this.saveDocumentationConfig(newDocument, treeFilePath);
+        await this.saveInstance(newDocument);
 
         if (!this.ihpData.ihp.instance) {
             this.ihpData.ihp.instance = [];
@@ -224,14 +200,9 @@ export default class WriterSideDocumentManager extends DocumentManager {
         if (newDocument['toc-elements']?.[0]) {
             await this.createTopicMarkdownFile(newDocument['toc-elements'][0]);
         }
-
-        // if (await FileService.fileExists(treeFilePath)) {
-        //     // Re-write in case the firstTopic was just created
-        //     await this.saveDocumentConfig(newDocument, treeFilePath);
-        // }
     }
 
-    async removeDocumentation(docId: string): Promise<boolean> {
+    async removeInstance(docId: string): Promise<boolean> {
         const ihp = this.ihpData?.ihp;
         if (!ihp.instance) {
             return false;

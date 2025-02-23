@@ -18,7 +18,7 @@ import WriterSideDocumentManager from './managers/WriterSideDocumentManager';
 import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
-import { IDocumentManager } from './managers/IDocumentManager';
+import { DocumentationManager } from './managers/DocumentationManager';
 
 export default class Authord {
   private commandsRegistered = false;
@@ -28,7 +28,7 @@ export default class Authord {
   private documentationProvider: DocumentationProvider | undefined;
   private topicsProvider: TopicsProvider | undefined;
   private configCode = 0;
-  documentManager: IDocumentManager | undefined;
+  documentManager: DocumentationManager | undefined;
   currentFileName = '';
   currentTopicTitle = '';
   schemaPath = '';
@@ -140,7 +140,7 @@ export default class Authord {
             this.listenersSubscribed = true;
           }
 
-          this.documentManager.reloadConfiguration();
+          this.documentManager.reload();
         }
 
         this.documentationProvider?.refresh();
@@ -393,7 +393,7 @@ export default class Authord {
     const filePath = path.join(this.workspaceRoot, configFiles[0]);
     this.documentManager = new AuthordDocumentManager(filePath);
     await (this.documentManager as AuthordDocumentManager).initializeConfigurationFile();
-    await this.documentManager.reloadConfiguration();
+    await this.documentManager.reload();
     await this.reinitialize();
   }
 
@@ -459,7 +459,7 @@ export default class Authord {
         if (fileName === configFiles[1]) {
           // XML config
           this.documentManager = new WriterSideDocumentManager(filePath);
-          await this.documentManager.reloadConfiguration();
+          await this.documentManager.reload();
           this.commandExecutor.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {
@@ -485,7 +485,7 @@ export default class Authord {
         } else {
           // Authord config (default / fallback)
           this.documentManager = new AuthordDocumentManager(filePath);
-          await this.documentManager.reloadConfiguration();
+          await this.documentManager.reload();
           this.commandExecutor.executeCommand('setContext', 'authord.configExists', true);
 
           if (!this.setupConfigWatchers) {

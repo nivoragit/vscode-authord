@@ -3,14 +3,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { InstanceConfig, TocElement } from "../utils/types";
+import { InstanceProfile, TocElement } from "../utils/types";
 import TopicsItem from './TopicsItem';
-import { IDocumentManager } from '../managers/IDocumentManager';
+import { DocumentationManager } from '../managers/DocumentationManager';
 
 export default class TopicsService {
   readonly topicDir: string;
 
-  constructor(private readonly configManager: IDocumentManager) {
+  constructor(private readonly configManager: DocumentationManager) {
     this.topicDir = this.configManager.getTopicsDirectory();
   }
 
@@ -206,7 +206,7 @@ export default class TopicsService {
     if (!sourceTopic) return [];
 
     (targetTopic as TocElement).children.push(sourceTopic);
-    this.configManager.saveDocumentationConfig(doc);
+    this.configManager.saveInstance(doc);
     return doc['toc-elements'];
   }
 
@@ -220,7 +220,7 @@ export default class TopicsService {
     if (!removedTopic) throw new Error(`Topic "${topicFileName}" not found`);
 
     const topicsToRemove = TopicsService.getAllTopicsFromTocElement([removedTopic]);
-    this.configManager.removeTopicFiles(topicsToRemove, doc);
+    this.configManager.removeTopics(topicsToRemove, doc);
     return true;
   }
 
@@ -240,7 +240,7 @@ export default class TopicsService {
     } else {
       doc['toc-elements'].push(newTopic);
     }
-    this.configManager.createChildTopicFile(newTopic, doc);
+    this.configManager.createChildTopic(newTopic, doc);
   }
 
   public async renameTopic(
@@ -259,19 +259,19 @@ export default class TopicsService {
 
     topic.topic = newTopicFile;
     topic.title = newName;
-    this.configManager.renameTopicFile(oldTopicFile, newTopicFile, doc);
+    this.configManager.moveTopic(oldTopicFile, newTopicFile, doc);
     return this.renameTopicInTree(oldTopicFile, newName, tree, newTopicFilename);
   }
 
   public async setAsStartPage(docId: string, topic: string): Promise<boolean> {
     const doc = this.getDocument(docId);
     doc['start-page'] = topic;
-    await this.configManager.saveDocumentationConfig(doc);
+    await this.configManager.saveInstance(doc);
     return true;
   }
 
   public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
-    await this.configManager.updateMarkdownTitle(topicFile, newTitle);
+    await this.configManager.setTopicTitle(topicFile, newTitle);
   }
 
   public async topicExists(enteredFileName: string): Promise<boolean> {
@@ -283,8 +283,8 @@ export default class TopicsService {
     }
   }
 
-  private getDocument(docId: string): InstanceConfig {
-    const doc = this.configManager.instances.find(d => d.id === docId);
+  private getDocument(docId: string): InstanceProfile {
+    const doc = this.configManager.getInstances().find(d => d.id === docId);
     if (!doc) throw new Error(`Document "${docId}" not found`);
     return doc;
   }

@@ -6,7 +6,7 @@ import * as path from 'path';
 import WriterSideDocumentManager from './WriterSideDocumentManager';
 import FileService from '../services/FileService';
 import TopicsService from '../services/TopicsService';
-import { InstanceConfig } from '../utils/types';
+import { InstanceProfile } from '../utils/types';
 
 jest.mock('../services/FileService');
 jest.mock('../services/TopicsService');
@@ -37,7 +37,7 @@ describe('WriterSideDocumentManager', () => {
             jest.spyOn(manager, 'loadAllInstances').mockResolvedValue([]);
 
             // Act
-            await manager.reloadConfiguration();
+            await manager.reload();
 
             // Assert
             expect(FileService.fileExists).toHaveBeenCalledWith(mockConfigPath);
@@ -211,7 +211,7 @@ describe('WriterSideDocumentManager', () => {
 
     describe('saveDocumentConfig', () => {
         it('should save document config to existing file path', async () => {
-            const mockDoc: InstanceConfig = {
+            const mockDoc: InstanceProfile = {
                 id: 'doc1',
                 name: 'Document 1',
                 'start-page': 'start.md',
@@ -219,7 +219,7 @@ describe('WriterSideDocumentManager', () => {
             };
             jest.spyOn(manager as any, 'retrieveFilePathForDocument').mockResolvedValue('/path/to/doc1.tree');
 
-            await manager.saveDocumentationConfig(mockDoc);
+            await manager.saveInstance(mockDoc);
             expect(manager['retrieveFilePathForDocument']).toHaveBeenCalledWith('doc1');
             expect(FileService.writeNewFile).toHaveBeenCalledWith(
                 '/path/to/doc1.tree',
@@ -228,13 +228,13 @@ describe('WriterSideDocumentManager', () => {
         });
 
         it('should save document config to a custom file path if provided', async () => {
-            const mockDoc: InstanceConfig = {
+            const mockDoc: InstanceProfile = {
                 id: 'doc2',
                 name: 'Document 2',
                 'start-page': '',
                 'toc-elements': [],
             };
-            await manager.saveDocumentationConfig(mockDoc, '/custom/doc2.tree');
+            await manager.saveInstance(mockDoc, '/custom/doc2.tree');
             expect(FileService.writeNewFile).toHaveBeenCalledWith(
                 '/custom/doc2.tree',
                 expect.stringContaining('<!DOCTYPE instance-profile SYSTEM')
@@ -279,7 +279,7 @@ describe('WriterSideDocumentManager', () => {
 
     describe('createDocument', () => {
         it('should create a new document and update ihpData', async () => {
-            const newDoc: InstanceConfig = {
+            const newDoc: InstanceProfile = {
                 id: 'new-doc',
                 name: 'New Document',
                 'start-page': '',
@@ -291,7 +291,7 @@ describe('WriterSideDocumentManager', () => {
             mocked(FileService.fileExists).mockResolvedValue(false);
             // Mock createTopicMarkdownFile
             jest.spyOn(manager as any, 'createTopicMarkdownFile').mockResolvedValue(undefined);
-            await manager.createDocumentation(newDoc);
+            await manager.createInstance(newDoc);
             expect(manager.ihpData.ihp.instance).toEqual([{ '@_src': 'new-doc.tree' }]);
             // The second saveDocumentConfig call occurs after the topic is created
             expect(FileService.writeNewFile).toHaveBeenCalledTimes(1)
@@ -314,7 +314,7 @@ describe('WriterSideDocumentManager', () => {
             mocked(FileService.fileExists).mockResolvedValue(true);
             mocked(TopicsService.getAllTopicsFromTocElement).mockReturnValue(['topic1.md']);
 
-            const result = await manager.removeDocumentation('doc1');
+            const result = await manager.removeInstance('doc1');
             expect(result).toBe(true);
             expect(manager.ihpData.ihp.instance).toEqual([]);
             expect(manager.instances).toEqual([]);
@@ -327,8 +327,8 @@ describe('WriterSideDocumentManager', () => {
             manager.ihpData = { ihp: { instance: [{ '@_src': 'other.tree' }] } };
 
             // Directly assign instances instead of spying on it
-            manager.instances = [{ id: 'other-doc' } as InstanceConfig];
-            const result = await manager.removeDocumentation('doc');
+            manager.instances = [{ id: 'other-doc' } as InstanceProfile];
+            const result = await manager.removeInstance('doc');
 
             expect(result).toBe(false);
             expect(FileService.deleteFileIfExists).not.toHaveBeenCalled();

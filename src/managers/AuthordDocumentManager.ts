@@ -1,18 +1,19 @@
 /* eslint-disable no-param-reassign, no-useless-constructor, @typescript-eslint/no-unused-vars */
 import * as path from 'path';
-import { AuthordConfig, InstanceConfig, TocElement } from '../utils/types';
+import { AuthordConfig, InstanceProfile, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import DocumentManager from './DocumentManager';
+import AbstractDocumentationManager from './AbstractDocumentationManager';
 import TopicsService from '../services/TopicsService';
+import {DocumentationManager} from "./DocumentationManager";
 
-export default class AuthordDocumentManager extends DocumentManager {
+export default class AuthordDocumentManager extends AbstractDocumentationManager implements DocumentationManager {
     public configData: AuthordConfig | undefined;
 
     constructor(configPath: string) {
         super(configPath);
     }
 
-    async reloadConfiguration(): Promise<void> {
+    async reload(): Promise<void> {
         this.configData = await this.parseConfigFile();
         if (!this.configData) {
             return;
@@ -20,7 +21,7 @@ export default class AuthordDocumentManager extends DocumentManager {
         if (this.configData.instances) {
             // Load titles from each topic’s .md file
             await Promise.all(
-                this.configData.instances.map(async (inst: InstanceConfig) => {
+                this.configData.instances.map(async (inst: InstanceProfile) => {
                     await Promise.all(
                         inst['toc-elements'].map(async (element: TocElement) => {
                             if (element.topic) {
@@ -79,7 +80,7 @@ export default class AuthordDocumentManager extends DocumentManager {
         );
     }
 
-    async createDocumentation(newDocument: InstanceConfig): Promise<void> {
+    async createInstance(newDocument: InstanceProfile): Promise<void> {
         if (!this.configData) {
             return;
         }
@@ -100,8 +101,8 @@ export default class AuthordDocumentManager extends DocumentManager {
         }
     }
 
-    async removeDocumentation(docId: string): Promise<boolean> {
-        const foundDoc = this.instances.find((d: InstanceConfig) => d.id === docId);
+    async removeInstance(docId: string): Promise<boolean> {
+        const foundDoc = this.instances.find((d: InstanceProfile) => d.id === docId);
         if (!foundDoc || !this.configData) {
             return false;
         }
@@ -118,7 +119,7 @@ export default class AuthordDocumentManager extends DocumentManager {
         return true;
     }
 
-    public async saveDocumentationConfig(doc: InstanceConfig, _filePath?: string): Promise<void> {
+    public async saveInstance(doc: InstanceProfile, _filePath?: string): Promise<void> {
         if (!this.configData) {
             return;
         }

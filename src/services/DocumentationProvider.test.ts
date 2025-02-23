@@ -4,9 +4,9 @@ import DocumentationProvider from './DocumentationProvider';
 import TopicsProvider from './TopicsProvider';
 import DocumentationService from './DocumentationService';
 import DocumentationItem from './DocumentationItem';
-import { InstanceConfig } from '../utils/types';
+import { InstanceProfile } from '../utils/types';
 import TopicsService from './TopicsService';
-import { IDocumentManager } from '../managers/IDocumentManager';
+import { DocumentationManager } from '../managers/DocumentationManager';
 import AuthordDocumentManager from '../managers/AuthordDocumentManager';
 
 // Mock external services/classes
@@ -27,7 +27,7 @@ describe('DocumentationProvider', () => {
     let documentationProvider: DocumentationProvider;
     let mockDocService: jest.Mocked<DocumentationService>;
     let mockTopicsProvider: jest.Mocked<TopicsProvider>;
-    let mockConfigManager: jest.Mocked<IDocumentManager>;
+    let mockConfigManager: jest.Mocked<DocumentationManager>;
     let mockTopicsService: jest.Mocked<TopicsService>;
 
 
@@ -217,7 +217,7 @@ describe('DocumentationProvider', () => {
                 id: 'someId',
                 name: 'Some Name',
                 'toc-elements': [],
-            } as InstanceConfig);
+            } as InstanceProfile);
         });
 
         it('should warn if user cancels doc name input', async () => {
@@ -261,7 +261,7 @@ describe('DocumentationProvider', () => {
                 .mockResolvedValueOnce('md');
 
             // If addDoc returns undefined or false, it's considered a failure
-            mockDocService.addDoc.mockResolvedValue(false as unknown as InstanceConfig);
+            mockDocService.addDoc.mockResolvedValue(false as unknown as InstanceProfile);
 
             await documentationProvider.addDoc();
             expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
@@ -285,7 +285,7 @@ describe('DocumentationProvider', () => {
             (vscode.window.showInputBox as jest.Mock)
                 .mockResolvedValueOnce('Doc Title')
                 .mockResolvedValueOnce('docT');
-            const createdDoc: InstanceConfig = {
+            const createdDoc: InstanceProfile = {
                 id: 'docT',
                 name: 'Doc Title',
                 'toc-elements': [{ topic: 'topic1.md', title: '', children: [] }],

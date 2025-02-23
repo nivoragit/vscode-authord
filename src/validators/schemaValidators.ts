@@ -1,8 +1,8 @@
 import Ajv from 'ajv';
 import FileService from "../services/FileService";
-import { AuthordConfig, InstanceConfig } from '../utils/types';
+import { AuthordConfig, InstanceProfile } from '../utils/types';
 
-export async function writersideSchemaValidator(schemaPath: string, ihpData:any, instances:InstanceConfig[]): Promise<void> {
+export async function writersideSchemaValidator(schemaPath: string, ihpData:any, instances:InstanceProfile[]): Promise<void> {
     const ajv = new Ajv({ allErrors: true });
     const rawSchema = await FileService.readFileAsString(schemaPath);
     const schema = JSON.parse(rawSchema);

@@ -1,21 +1,21 @@
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { InstanceConfig, TocElement } from '../utils/types';
+import { InstanceProfile, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
-import { IDocumentManager } from './IDocumentManager';
+import { DocumentationManager } from './DocumentationManager';
 
-export default abstract class DocumentManager implements IDocumentManager{
+export default abstract class AbstractDocumentationManager implements DocumentationManager {
     configPath: string;
 
-    instances: InstanceConfig[] = [];
+    instances: InstanceProfile[] = [];
 
     constructor(configPath: string) {
         this.configPath = configPath;
     }
 
-    public abstract saveDocumentationConfig(
-        _doc: InstanceConfig,
+    public abstract saveInstance(
+        _doc: InstanceProfile,
         _filePath?: string
     ): Promise<void>;
 
@@ -24,57 +24,57 @@ export default abstract class DocumentManager implements IDocumentManager{
     abstract getImagesDirectory(): string;
 
     // Document-specific methods
-    abstract createDocumentation(newDocument: InstanceConfig): Promise<void>;
+    abstract createInstance(newDocument: InstanceProfile): Promise<void>;
 
-    abstract removeDocumentation(docId: string): Promise<boolean>;
+    abstract removeInstance(docId: string): Promise<boolean>;
 
     // Refresh configuration
-    abstract reloadConfiguration(): Promise<void>;
+    abstract reload(): Promise<void>;
 
-    fetchAllDocumentations(): InstanceConfig[] {
+    getInstances(): InstanceProfile[] {
         return this.instances;
     }
 
     /**
      * Renames a topic’s file on disk and updates config accordingly.
      */
-    async renameTopicFile(
+    async moveTopic(
         oldTopicFile: string,
         newTopicFile: string,
-        doc: InstanceConfig
+        doc: InstanceProfile
     ): Promise<void> {
         const topicsDir = this.getTopicsDirectory();
         const oldFileUri = vscode.Uri.file(path.join(topicsDir, oldTopicFile));
         const newFileUri = vscode.Uri.file(path.join(topicsDir, newTopicFile));
         await vscode.workspace.fs.rename(oldFileUri, newFileUri);
-        await this.saveDocumentationConfig(doc);
+        await this.saveInstance(doc);
     }
 
     /**
      * Deletes one or more topic files -> removes from disk -> updates .tree/config.
      */
-    async removeTopicFiles(topicsFilestoBeRemoved: string[], doc: InstanceConfig): Promise<boolean> {
+    async removeTopics(topicsFilestoBeRemoved: string[], doc: InstanceProfile): Promise<boolean> {
         const topicsDir = this.getTopicsDirectory();
         await Promise.all(
             topicsFilestoBeRemoved.map(async (tFile) =>
                 FileService.deleteFileIfExists(path.join(topicsDir, tFile))
             )
         );
-        await this.saveDocumentationConfig(doc);
+        await this.saveInstance(doc);
         return true;
     }
 
     /**
      * Adds a new child topic (and file) -> updates config if file is created.
      */
-    async createChildTopicFile(
+    async createChildTopic(
         newTopic: TocElement,
-        doc: InstanceConfig
+        doc: InstanceProfile
     ): Promise<void> {
         await this.createTopicMarkdownFile(newTopic);
         const fileExists = await FileService.fileExists(path.join(this.getTopicsDirectory(), newTopic.topic));
         if (fileExists) {
-            await this.saveDocumentationConfig(doc);
+            await this.saveInstance(doc);
         }
     }
 
@@ -101,7 +101,7 @@ export default abstract class DocumentManager implements IDocumentManager{
         return `<${path.basename(topicFile)}>`;
     }
 
-    public async updateMarkdownTitle(topicFile: string, newTitle: string): Promise<void> {
+    public async setTopicTitle(topicFile: string, newTitle: string): Promise<void> {
         const mdFilePath = path.join(this.getTopicsDirectory(), topicFile);
       
         await FileService.updateFile(mdFilePath, (content) => {

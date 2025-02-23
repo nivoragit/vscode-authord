@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Token } from 'markdown-it';
-import { IDocumentManager } from '../managers/IDocumentManager';
+import { DocumentationManager } from '../managers/DocumentationManager';
 
 export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
@@ -74,7 +74,7 @@ export function createCustomImageRenderer(
     env: any,
     self: any
   ) => string,
-  documentManager: IDocumentManager | undefined
+  documentManager: DocumentationManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customImageRenderer(
@@ -121,7 +121,7 @@ export function createCustomHtmlRenderer(
     env: any,
     self: any
   ) => string,
-  documentManager: IDocumentManager | undefined
+  documentManager: DocumentationManager | undefined
 ) {
   // Name the returned function to fix "Unexpected unnamed function" (func-names).
   return function customHtmlRenderer(
