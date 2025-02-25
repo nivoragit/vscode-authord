@@ -28,7 +28,7 @@
       },
       {
         "request": "launch",
-        "name": "Debug Application",
+        "name": "Debug Application"
       }
     ]
   }

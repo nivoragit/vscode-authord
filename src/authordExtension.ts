@@ -22,19 +22,31 @@ import { DocumentationManager } from './managers/DocumentationManager';
 
 export default class Authord {
   private commandsRegistered = false;
+
   private listenersSubscribed = false;
+
   private providersRegistered = false;
+
   private setupConfigWatchers = false;
+
   private documentationProvider: DocumentationProvider | undefined;
+
   private topicsProvider: TopicsProvider | undefined;
+
   private configCode = 0;
+
   documentManager: DocumentationManager | undefined;
+  
   currentFileName = '';
+  
   currentTopicTitle = '';
+  
   schemaPath = '';
 
   private fsModule: typeof fs;
+  
   private notifier: typeof vscode.window;
+  
   private commandExecutor: typeof vscode.commands;
 
   constructor(
@@ -104,7 +116,7 @@ export default class Authord {
         try {
           if (this.configCode === 1) {
             const configManager = this.documentManager as WriterSideDocumentManager; 
-            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
+            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.getInstances());
           } else if (this.configCode === 2) {
             await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
           }
@@ -294,7 +306,7 @@ export default class Authord {
     const selectInstanceCommand = this.commandExecutor.registerCommand(
       'authordDocsExtension.selectInstance',
       (docId: string) => {
-        const doc = this.documentManager!.instances.find((d: any) => d.id === docId);
+        const doc = this.documentManager!.getInstances().find((d: any) => d.id === docId);
         if (!doc) {
           this.notifier.showErrorMessage(`No document found with id ${docId}`);
           return;
@@ -470,7 +482,7 @@ export default class Authord {
           // Validate against schema
           try {
             const configManager = this.documentManager as WriterSideDocumentManager; 
-            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.instances);
+            await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.getInstances());
           } catch (error: any) {
             if (process.env.NODE_ENV !== 'test') {
               this.commandExecutor.executeCommand('workbench.action.reloadWindow');

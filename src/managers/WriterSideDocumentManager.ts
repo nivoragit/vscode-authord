@@ -141,9 +141,8 @@ export default class WriterSideDocumentManager extends AbstractDocumentationMana
         return Promise.all(tasks);
     }
 
-    public async saveInstance(doc: InstanceProfile): Promise<void> {
-        const filePath = (doc as WriterSideInstanceProfile).filePath;
-
+    public async saveInstance(doc: WriterSideInstanceProfile): Promise<void> {
+        const filePath = doc.filePath;
         const startPage =
             doc['toc-elements'].length === 1 ? doc['toc-elements'][0].topic : doc['start-page'];
 
@@ -183,9 +182,9 @@ export default class WriterSideDocumentManager extends AbstractDocumentationMana
         });
     }
 
-    async createInstance(newDocument: InstanceProfile): Promise<void> {
+    async createInstance(newDocument: WriterSideInstanceProfile): Promise<void> {
         const treeFileName = `${newDocument.id}.tree`;
-
+        newDocument.filePath = path.join(path.dirname(this.configPath), treeFileName); 
         await this.saveInstance(newDocument);
 
         if (!this.ihpData.ihp.instance) {
@@ -197,9 +196,17 @@ export default class WriterSideDocumentManager extends AbstractDocumentationMana
         await this.writeIhpFile();
 
         this.instances.push(newDocument);
-        if (newDocument['toc-elements']?.[0]) {
-            await this.createTopicMarkdownFile(newDocument['toc-elements'][0]);
+
+        const title = newDocument['toc-elements'][0].title;
+        let markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+        // if file name already exists
+        let i = 2
+        while(!markdownFileExists){
+            newDocument['toc-elements'][0].title = `${title} ${i}`;
+            markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+            i += 1;
         }
+        
     }
 
     async removeInstance(docId: string): Promise<boolean> {

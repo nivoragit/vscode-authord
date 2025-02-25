@@ -58,8 +58,8 @@ class MockDocumentManager extends AbstractDocumentationManager {
     return super.extractMarkdownTitle(topicFile);
   }
 
-  public testCreateTopicMarkdownFile(newTopic: TocElement): Promise<void> {
-    return super.createTopicMarkdownFile(newTopic);
+  public testcreateMarkdownFile(newTopic: TocElement): Promise<boolean> {
+    return super.createMarkdownFile(newTopic);
   }
 }
 
@@ -79,7 +79,7 @@ describe('DocumentManager', () => {
       const mockInstances: InstanceProfile[] = [
         { id: '1', name: 'Test', 'toc-elements': [] },
       ];
-      manager.instances = mockInstances;
+      (manager as any)['instances'] = mockInstances;
       expect(manager.getInstances()).toEqual(mockInstances);
     });
   });
@@ -125,7 +125,7 @@ describe('DocumentManager', () => {
       const mockTopic = { topic: 'new.md', title: 'New', children: [] };
       const mockDoc = { id: '1', name: 'Doc', 'toc-elements': [] };
       (FileService.fileExists as jest.Mock).mockResolvedValue(true);
-      jest.spyOn(Object.getPrototypeOf(manager), 'createTopicMarkdownFile').mockImplementation(async () => {});
+      jest.spyOn(Object.getPrototypeOf(manager), 'createMarkdownFile').mockImplementation(async () => {});
       
       
       // Act
@@ -134,7 +134,7 @@ describe('DocumentManager', () => {
       // Assert
       // Now we check that the protected method was called
       expect(
-        Object.getPrototypeOf(manager).createTopicMarkdownFile
+        Object.getPrototypeOf(manager).createMarkdownFile
       ).toHaveBeenCalledWith(mockTopic);
       expect(manager.saveInstance).toHaveBeenCalledWith(mockDoc);
     });
@@ -144,8 +144,7 @@ describe('DocumentManager', () => {
       const mockDoc: InstanceProfile = { id: '1', name: 'Doc', 'toc-elements': [] };
 
       (FileService.fileExists as jest.Mock).mockResolvedValue(false);
-      jest.spyOn(manager, 'testCreateTopicMarkdownFile').mockImplementation(async () => {});
-
+      jest.spyOn(manager, 'testcreateMarkdownFile').mockImplementation(async () => false);
       await manager.createChildTopic(mockTopic, mockDoc);
 
       // config is not saved because file creation was never done

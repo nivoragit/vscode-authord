@@ -4,7 +4,7 @@ import { AuthordConfig, InstanceProfile, TocElement } from '../utils/types';
 import FileService from '../services/FileService';
 import AbstractDocumentationManager from './AbstractDocumentationManager';
 import TopicsService from '../services/TopicsService';
-import {DocumentationManager} from "./DocumentationManager";
+import { DocumentationManager } from "./DocumentationManager";
 
 export default class AuthordDocumentManager extends AbstractDocumentationManager implements DocumentationManager {
     public configData: AuthordConfig | undefined;
@@ -37,7 +37,7 @@ export default class AuthordDocumentManager extends AbstractDocumentationManager
 
     async initializeConfigurationFile(): Promise<void> {
         this.configData = AuthordDocumentManager.defaultConfigJson();
-        await FileService.writeNewFile(this.configPath,'{}');
+        await FileService.writeNewFile(this.configPath, '{}');
         await this.saveConfigurationFile();
     }
 
@@ -85,20 +85,18 @@ export default class AuthordDocumentManager extends AbstractDocumentationManager
             return;
         }
         this.instances.push(newDocument);
-
-        const [firstTopic] = newDocument['toc-elements'];
-        if (firstTopic) {
-            await this.createTopicMarkdownFile(firstTopic);
+        const title = newDocument['toc-elements'][0].title;
+        let markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+        // if file name already exists
+        let i = 2
+        while(!markdownFileExists){
+            newDocument['toc-elements'][0].title = `${title} ${i}`;
+            markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+            i += 1;
         }
 
-        if (
-            firstTopic &&
-            (await FileService.fileExists(path.join(this.getTopicsDirectory(), firstTopic.topic)))
-        ) {
-            // Persist changes to config
-            this.configData.instances = this.instances;
-            await this.saveConfigurationFile();
-        }
+        this.configData.instances = this.instances;
+        await this.saveConfigurationFile();
     }
 
     async removeInstance(docId: string): Promise<boolean> {

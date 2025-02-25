@@ -8,7 +8,7 @@ import { DocumentationManager } from './DocumentationManager';
 export default abstract class AbstractDocumentationManager implements DocumentationManager {
     configPath: string;
 
-    instances: InstanceProfile[] = [];
+    protected instances: InstanceProfile[] = [];
 
     constructor(configPath: string) {
         this.configPath = configPath;
@@ -71,7 +71,7 @@ export default abstract class AbstractDocumentationManager implements Documentat
         newTopic: TocElement,
         doc: InstanceProfile
     ): Promise<void> {
-        await this.createTopicMarkdownFile(newTopic);
+        await this.createMarkdownFile(newTopic);
         const fileExists = await FileService.fileExists(path.join(this.getTopicsDirectory(), newTopic.topic));
         if (fileExists) {
             await this.saveInstance(doc);
@@ -125,7 +125,7 @@ export default abstract class AbstractDocumentationManager implements Documentat
     /**
      * Writes a new .md file for the topic, if it doesn’t exist.
      */
-    protected async createTopicMarkdownFile(newTopic: TocElement): Promise<void> {
+    protected async createMarkdownFile(newTopic: TocElement): Promise<boolean> {
         try {
             const topicsDir = this.getTopicsDirectory();
             await vscode.workspace.fs.createDirectory(vscode.Uri.file(topicsDir));
@@ -133,7 +133,7 @@ export default abstract class AbstractDocumentationManager implements Documentat
             const filePath = path.join(topicsDir, newTopic.topic);
             if (await FileService.fileExists(filePath)) {
                 vscode.window.showWarningMessage(`Topic file "${newTopic.topic}" already exists.`);
-                return;
+                return false;
             }
 
             await FileService.writeNewFile(
@@ -142,6 +142,7 @@ export default abstract class AbstractDocumentationManager implements Documentat
             );
             // Optionally open the new file in the editor:
             await vscode.commands.executeCommand('authordExtension.openMarkdownFile', filePath);
+            return true;
         } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to write topic file "${newTopic.topic}": ${err.message}`);
             throw err;
