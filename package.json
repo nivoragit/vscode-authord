@@ -1,14 +1,40 @@
 {
   "name": "vscode-authord",
-  "displayName": "vscode-authord",
-  "description": "**`vscode-authord`** is a versatile Visual Studio Code extension designed to streamline writing and documentation workflows. It provides a flexible configuration system for managing structured content and enhances productivity with intuitive tools tailored for technical writers, developers, and content creators.",
-  "version": "0.0.1",
+  "private": "true",
+  "displayName": "Authord Extension",
+  "description": "Documentation-as-code in Visual Studio Code. Provide an efficient and structured workflow for managing technical documentation within your development environment.",
+  "version": "0.1.0",
+  "preRelease": false,
+  "license": "GPL-3.0",
+  "publisher": "nivora",
+  "icon": "./resources/authord.png",
+  "keywords": [
+    "documentation",
+    "docs-as-code",
+    "markdown",
+    "tech-writing",
+    "writerside",
+    "authoring",
+    "content-management",
+    "knowledge-base",
+    "developer-tools"
+  ],
+  "author": {
+    "email": "madushika@nivora.co.uk",
+    "name": "Madushika Pramod"
+  },
+  "readme": "./README.md",
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "categories": [
+    "Other",
+    "Notebooks"
+  ],
   "engines": {
     "vscode": "^1.70.0"
   },
-  "categories": [
-    "Other"
-  ],
   "activationEvents": [
     "onLanguage:json",
     "onLanguage:markdown",
@@ -37,7 +63,7 @@
         {
           "id": "authordExtensionContainer",
           "title": "Authord",
-          "icon": "./src/media/icon.svg",
+          "icon": "./resources/authord.png",
           "when": "authord.configExists"
         }
       ]
@@ -283,13 +309,6 @@
     "type": "git",
     "url": "https://github.com/nivoragit/authord-authord.git"
   },
-  "files": [
-    "out/",
-    "schemas/",
-    "package.json",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -300,7 +319,7 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src --ext .ts",
     "test": "vscode-test",
-    "t": "jest"
+    "test:unit": "jest"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
