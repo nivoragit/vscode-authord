@@ -1,6 +1,6 @@
 # Authord VS Code Extension
 
-Authord brings documentation-as-code to VS Code, enabling a structured and efficient workflow for managing technical documentation alongside your code. It offers powerful features similar to JetBrains Writerside, tailored specifically for VS Code users.
+Authord _(pronounced "Author-ed")_ brings documentation-as-code to VS Code, enabling a structured and efficient workflow for managing technical documentation alongside your code. It offers powerful features similar to JetBrains Writerside, tailored specifically for VS Code users.
 
 ## Features
 
