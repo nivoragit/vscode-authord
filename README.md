@@ -1,29 +1,35 @@
-# Authord Docs Extension
+# Authord VS Code Extension
 
-This VS Code extension reads an `authord.json` configuration file and displays documentations and topics in the Activity Bar.
+Authord brings documentation-as-code to VS Code, enabling a structured and efficient workflow for managing technical documentation alongside your code. It offers powerful features similar to JetBrains Writerside, tailored specifically for VS Code users.
 
 ## Features
 
-- **Documentations Tree View**: Lists documentation instances defined in `authord.json`.
-- **Topics Tree View**: Displays topics corresponding to the selected documentation instance.
-- **Dynamic Updates**: Reflects changes in the topics directory and configuration file in real-time.
-- **Open Topics**: Click on a topic to open its Markdown file in the editor.
+- **Organized Documentation Management**: Maintain clear, structured documentation within your development workflow.
+- **Seamless Navigation**: Easily browse and access documentation without disrupting your coding process.
+- **Automated Synchronization**: Keep documentation up to date with minimal effort.
+- **Effortless Editing**: Quickly open and modify documentation files with built-in support.
+- **Enhanced Productivity**: Utilize live previews and intuitive controls for a smooth documentation experience.
 
-## Requirements
+## Getting Started
 
-- An `authord.json` file at the root of your workspace.
-- A topics directory containing Markdown files, as specified in `authord.json`.
+1. Install the Authord extension in VS Code.
+2. Click the Authord icon in the Activity Bar to create and manage documentation instances.
 
-## Extension Settings
+## Writerside Compatibility
 
-This extension does not contribute any settings.
+Authord allows you to continue working on JetBrains Writerside projects within VS Code. While new Writerside projects cannot be created in Authord, existing projects can be easily maintained and updated within the extension.
 
-## Known Issues
+## Known Limitations
 
-- Currently supports only one instance in `authord.json`. Future updates may include support for multiple instances.
+- Currently, only a single instance per directory is supported. Multi-instance support is under development.
 
-## Release Notes
+## Receiving Help
 
-### 1.0.0
+If you need assistance, you can:
+- Open an issue on our [GitHub repository](https://github.com/nivoragit/vscode-authord/issues)
+- Email us at [support@authord.org](mailto:support@authord.org)
 
-- Initial release of Authord Docs Extension.
+## License
+
+**"Writerside"** is a trademark of [JetBrains s.r.o.](https://www.jetbrains.com/).
+
