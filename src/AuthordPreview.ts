@@ -5,52 +5,43 @@ import { renderContent } from './utils/remarkRenderer';
 export class AuthordPreview implements vscode.Disposable {
   private static currentPanel: AuthordPreview | undefined;
   private disposables: vscode.Disposable[] = [];
-
-  // The actual WebviewPanel
   private panel: vscode.WebviewPanel;
-
-  // Simple doc cache: doc URI -> { version, html }
+  
+  // Minimal doc cache to avoid re-processing on minor changes
   private docCache = new Map<string, { version: number; html: string }>();
 
   /**
-   * Create or show the single preview panel.
-   * If it already exists, reveal it.
+   * Create or show the single custom preview panel
    */
   public static createOrShow(context: vscode.ExtensionContext): AuthordPreview {
-    // If the panel already exists, reveal it
     if (AuthordPreview.currentPanel) {
       AuthordPreview.currentPanel.panel.reveal(vscode.ViewColumn.Two);
       return AuthordPreview.currentPanel;
     }
-
-    // Otherwise, create a new one
     const panel = vscode.window.createWebviewPanel(
       'authordPreview',
       'Authord Preview',
       vscode.ViewColumn.Two,
-      {
-        enableScripts: true, // needed if you want scroll sync or message passing
-      }
+      { enableScripts: true }
     );
-
-    AuthordPreview.currentPanel = new AuthordPreview(panel, context);
+    AuthordPreview.currentPanel = new AuthordPreview(panel);
     return AuthordPreview.currentPanel;
   }
 
-  /**
-   * The constructor is private because we only create via .createOrShow()
-   */
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+  private constructor(panel: vscode.WebviewPanel) {
     this.panel = panel;
 
-    // Clean up when panel is disposed
+    // Dispose resources when the panel is closed
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-    // Handle messages from the webview if you want 2-way sync
+    // Listen for messages from the preview (two-way sync: preview -> extension)
     this.panel.webview.onDidReceiveMessage(
-      (message) => {
-        // Example:
-        // if (message.command === 'scrollToLine') { ... }
+      (msg) => {
+        if (msg.command === 'previewScrolled') {
+          // e.g. { command: 'previewScrolled', line: 14.3 }
+          // Forward this to your extension so you can call `editor.revealRange` if desired
+          vscode.commands.executeCommand('authordExtension.onPreviewScrolled', msg.line);
+        }
       },
       null,
       this.disposables
@@ -58,67 +49,43 @@ export class AuthordPreview implements vscode.Disposable {
   }
 
   /**
-   * Update the preview for the given document
+   * Re-renders or updates the preview for the given document.
    */
-  public async update(document: vscode.TextDocument) {
-    const key = document.uri.toString();
+  public async update(doc: vscode.TextDocument) {
+    const key = doc.uri.toString();
     const cached = this.docCache.get(key);
 
-    // If doc version hasn't changed, reuse cached HTML
-    if (cached && cached.version === document.version) {
-      this.panel.webview.html = this.wrapHtml(cached.html);
+    if (cached && cached.version === doc.version) {
+      this.panel.webview.html = cached.html; 
       return;
     }
 
-    // Otherwise, parse fresh
-    const markdown = document.getText();
+    // Otherwise re-render
+    const markdown = doc.getText();
     const html = await renderContent(markdown);
 
-    // Cache the result
-    this.docCache.set(key, { version: document.version, html });
-
-    // Update webview
-    this.panel.webview.html = this.wrapHtml(html);
+    this.docCache.set(key, { version: doc.version, html });
+    this.panel.webview.html = html;
   }
 
   /**
-   * Basic HTML wrapper to include your theming or styles
+   * Let the extension post messages to the preview (Editor -> Preview).
    */
-  private wrapHtml(body: string): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <style>
-    body {
-      color: var(--vscode-editor-foreground);
-      background-color: var(--vscode-editor-background);
-      font-family: var(--vscode-editor-font-family);
-      margin: 0;
-      padding: 1rem;
-    }
-    /* Additional styling, code block theming, etc. can go here */
-  </style>
-</head>
-<body>
-  ${body}
-</body>
-</html>`;
+  public postMessage(msg: any) {
+    this.panel.webview.postMessage(msg);
   }
 
   /**
-   * Dispose resources
+   * Dispose the panel and cleanup
    */
   public dispose() {
     AuthordPreview.currentPanel = undefined;
-
-    // Dispose all subscriptions
     while (this.disposables.length) {
-      const disposable = this.disposables.pop();
-      disposable && disposable.dispose();
+      const d = this.disposables.pop();
+      if (d) {
+        d.dispose();
+      }
     }
-
-    // Dispose the panel itself
     this.panel.dispose();
   }
 }

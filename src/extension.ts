@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports, global-require */
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
-import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/helperFunctions';
+import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/VsCodePreviewHelperFunctions';
 import Authord from './authordExtension';
 
 let extensionInitializer: Authord | undefined;

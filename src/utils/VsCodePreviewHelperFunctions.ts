@@ -4,25 +4,23 @@ import * as path from 'path';
 import { Token } from 'markdown-it';
 import { DocumentationManager } from '../managers/DocumentationManager';
 
-export const configFiles = ['authord.config.json', 'writerside.cfg'];
 
+// async function closeExtraPreviews(): Promise<void> {
+//   const previewEditors = vscode.window.visibleTextEditors.filter(
+//     (editor) => editor.document.uri.scheme === 'markdown-preview'
+//   );
 
-async function closeExtraPreviews(): Promise<void> {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) => editor.document.uri.scheme === 'markdown-preview'
-  );
-
-  if (previewEditors.length > 1) {
-    const extraEditors = previewEditors.filter(
-      (editor) => editor.viewColumn !== vscode.ViewColumn.Two
-    );
-    await Promise.all(
-      extraEditors.map((editor) =>
-        vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor)
-      )
-    );
-  }
-}
+//   if (previewEditors.length > 1) {
+//     const extraEditors = previewEditors.filter(
+//       (editor) => editor.viewColumn !== vscode.ViewColumn.Two
+//     );
+//     await Promise.all(
+//       extraEditors.map((editor) =>
+//         vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor)
+//       )
+//     );
+//   }
+// }
 
 // export async function showPreviewInColumnTwo(): Promise<void> {
 //   const previewEditors = vscode.window.visibleTextEditors.filter(
