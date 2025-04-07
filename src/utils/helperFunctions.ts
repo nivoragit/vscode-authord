@@ -24,24 +24,24 @@ async function closeExtraPreviews(): Promise<void> {
   }
 }
 
-export async function showPreviewInColumnTwo(): Promise<void> {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) =>
-      editor.document.uri.scheme === 'markdown-preview' &&
-      editor.viewColumn === vscode.ViewColumn.Two
-  );
+// export async function showPreviewInColumnTwo(): Promise<void> {
+//   const previewEditors = vscode.window.visibleTextEditors.filter(
+//     (editor) =>
+//       editor.document.uri.scheme === 'markdown-preview' &&
+//       editor.viewColumn === vscode.ViewColumn.Two
+//   );
 
-  if (previewEditors.length === 0) {
-    // Show the built-in markdown preview to the side (column two)
-    await vscode.commands.executeCommand('markdown.showPreviewToSide');
-  } else {
-    // Update the existing preview
-    await vscode.commands.executeCommand('markdown.updatePreview');
-  }
+//   if (previewEditors.length === 0) {
+//     // Show the built-in markdown preview to the side (column two)
+//     await vscode.commands.executeCommand('markdown.showPreviewToSide');
+//   } else {
+//     // Update the existing preview
+//     await vscode.commands.executeCommand('markdown.updatePreview');
+//   }
 
-  // Ensure that only one preview is open
-  await closeExtraPreviews();
-}
+//   // Ensure that only one preview is open
+//   await closeExtraPreviews();
+// }
 
 /**
  * Either focuses an existing preview in column two, or opens a new one there.
@@ -57,7 +57,7 @@ export async function focusOrShowPreview(): Promise<void> {
     // Focus on the existing preview editor
     await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
   } else {
-    // Show the preview to the side (column two)
+    // Open and Show the preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   }
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');

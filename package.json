@@ -40,7 +40,9 @@
     "onLanguage:markdown",
     "onStartupFinished",
     "workspaceContains:authord.json",
-    "onCommand:authordExtension.checkConfig"
+    "onCommand:authordExtension.checkConfig",
+    "onCommand:authordExtension.openMarkdownFile",
+    "onCommand:authord.refreshPreview"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -86,6 +88,11 @@
           "type": "number",
           "default": 500,
           "description": "Delay in milliseconds before shifting focus back to the editor."
+        },
+        "authord.useCustomPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the custom remark-based preview instead of VSCode's built-in Markdown preview."
         }
       }
     },
@@ -196,6 +203,10 @@
         "command": "markdownPreview.show",
         "title": "Show Markdown Preview",
         "when": "authord.configExists"
+      },
+      {
+        "command": "authord.refreshPreview",
+        "title": "Refresh Preview"
       }
     ],
     "views": {
@@ -348,7 +359,12 @@
     "fast-xml-parser": "^4.5.1",
     "markdown-it": "^13.0.1",
     "markdown-it-attrs": "^4.3.1",
-    "markdown-it-plantuml": "^1.4.1"
+    "markdown-it-plantuml": "^1.4.1",
+    "rehype-raw": "^7.0.0",
+    "rehype-stringify": "^9.0.3",
+    "remark-parse": "^10.0.1",
+    "remark-rehype": "^10.1.0",
+    "unified": "^10.1.2"
   },
   "eslintConfig": {
     "root": true,

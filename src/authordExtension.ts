@@ -3,7 +3,6 @@
     ├─ Command Handlers
     └─ UI Components
 */
-// eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
@@ -19,35 +18,26 @@ import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
 import { DocumentationManager } from './managers/DocumentationManager';
+import { AuthordPreview } from './AuthordPreview'; // NEW: Custom preview class
 
 export default class Authord {
   private commandsRegistered = false;
-
+  private useCustomPreview = true;
   private listenersSubscribed = false;
-
   private providersRegistered = false;
-
   private setupConfigWatchers = false;
-
   private documentationProvider: DocumentationProvider | undefined;
-
   private topicsProvider: TopicsProvider | undefined;
-
   private configCode = 0;
-
   documentManager: DocumentationManager | undefined;
-  
   currentFileName = '';
-  
   currentTopicTitle = '';
-  
   schemaPath = '';
-
   private fsModule: typeof fs;
-  
   private notifier: typeof vscode.window;
-  
   private commandExecutor: typeof vscode.commands;
+  private preview: AuthordPreview | undefined;
+
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -79,7 +69,7 @@ export default class Authord {
         this.notifier.showErrorMessage('config file does not exist');
         return;
       }
-
+      
       if (this.documentManager) {
         this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager));
         this.documentationProvider = new DocumentationProvider(
@@ -115,7 +105,7 @@ export default class Authord {
       } else {
         try {
           if (this.configCode === 1) {
-            const configManager = this.documentManager as WriterSideDocumentManager; 
+            const configManager = this.documentManager as WriterSideDocumentManager;
             await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.getInstances());
           } else if (this.configCode === 2) {
             await authortdSchemaValidator(this.schemaPath, (this.documentManager as AuthordDocumentManager).configData!);
@@ -127,7 +117,16 @@ export default class Authord {
           this.notifier.showErrorMessage('Failed to initialize extension');
           this.notifier.showErrorMessage(`Invalid configuration file: ${error.message}`);
         }
-        
+
+        if (vscode.workspace.getConfiguration('authord').get<boolean>('useCustomPreview', true)) {
+          this.useCustomPreview = true;
+        } else {
+          this.useCustomPreview = false;
+          if (this.preview) {
+            this.preview = undefined;
+          }
+        }
+
         if (!this.documentationProvider || !this.topicsProvider) {
           this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!));
           this.documentationProvider = new DocumentationProvider(
@@ -182,6 +181,7 @@ export default class Authord {
       }),
 
       vscode.window.onDidChangeActiveTextEditor((editor) => {
+        // Existing logic for topics and current document title sync.
         if (
           editor?.document.languageId === 'markdown' &&
           this.topicsProvider &&
@@ -244,6 +244,20 @@ export default class Authord {
             topicTitle || `<${fileName}>`
           );
           this.currentTopicTitle = topicTitle;
+        }
+      }),
+
+      // NEW: Update custom preview when the active text editor changes
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (this.useCustomPreview && this.preview && editor && editor.document.languageId === 'markdown') {
+          this.preview.update(editor.document);
+        }
+      }),
+
+      // NEW: Update custom preview when the document content changes
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        if (this.useCustomPreview && this.preview && vscode.window.activeTextEditor?.document === e.document && e.document.languageId === 'markdown') {
+          this.preview.update(e.document);
         }
       })
     );
@@ -327,10 +341,18 @@ export default class Authord {
     this.context.subscriptions.push(moveTopicCommand);
 
     this.context.subscriptions.push(
+      // NEW: Updated openMarkdownFile command to use the custom preview
       this.commandExecutor.registerCommand('authordExtension.openMarkdownFile', async (resourceUri: vscode.Uri) => {
         const document = await vscode.workspace.openTextDocument(resourceUri);
         await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
-        await focusOrShowPreview();
+        if (this.useCustomPreview) {
+          this.preview = AuthordPreview.createOrShow(this.context);
+          this.preview.update(document);
+        } else {
+          await focusOrShowPreview();
+        }
+
+
       }),
 
       this.commandExecutor.registerCommand('extension.addChildTopic', (item: TopicsItem) => {
@@ -481,7 +503,7 @@ export default class Authord {
 
           // Validate against schema
           try {
-            const configManager = this.documentManager as WriterSideDocumentManager; 
+            const configManager = this.documentManager as WriterSideDocumentManager;
             await writersideSchemaValidator(this.schemaPath, configManager.ihpData, configManager.getInstances());
           } catch (error: any) {
             if (process.env.NODE_ENV !== 'test') {

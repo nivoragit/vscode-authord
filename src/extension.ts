@@ -18,38 +18,38 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(m
   extensionInitializer.initialize();
 
   function extendMarkdownIt(md: any) {
-    // Safely override renderer rules directly on the original md instance
-    const {renderer} = md;
-    renderer.rules.image = createCustomImageRenderer(
-      renderer.rules.image,
-      extensionInitializer?.documentManager
-    );
+    const config = vscode.workspace.getConfiguration('authord');
+    // When useCustomPreview is true, we rely on our custom preview for rendering.
+    // When false, we extend the built-in markdown-it instance.
+    const useCustomPreview = config.get<boolean>('useCustomPreview', true);
+    if (!useCustomPreview) {
+      // Extend the renderer rules for the built-in Markdown preview.
+      const { renderer } = md;
+      renderer.rules.image = createCustomImageRenderer(
+        renderer.rules.image,
+        extensionInitializer?.documentManager
+      );
+      renderer.rules.html_block = createCustomHtmlRenderer(
+        renderer.rules.html_block,
+        extensionInitializer?.documentManager
+      );
+      renderer.rules.html_inline = createCustomHtmlRenderer(
+        renderer.rules.html_inline,
+        extensionInitializer?.documentManager
+      );
   
-    renderer.rules.html_block = createCustomHtmlRenderer(
-      renderer.rules.html_block,
-      extensionInitializer?.documentManager
-    );
-  
-    renderer.rules.html_inline = createCustomHtmlRenderer(
-      renderer.rules.html_inline,
-      extensionInitializer?.documentManager
-    );
-  
-    // Return the original md instance and apply markdown-it plugins
-    return md
-      .use(require('markdown-it-plantuml'))
-      .use(require('markdown-it-attrs'));
+      return md
+        .use(require('markdown-it-plantuml'))
+        .use(require('markdown-it-attrs'));
+    }
+    // Otherwise, return md unmodified (custom preview will handle rendering).
+    return md;
   }
-  
 
-  return {
-    extendMarkdownIt,
-  };
+  return { extendMarkdownIt };
 }
 
 export function deactivate() {
-  // if (extensionInitializer) {
-  //   extensionInitializer.dispose();
-  // }
+  // Optionally, dispose the extension initializer if needed:
+  // extensionInitializer?.dispose();
 }
-
