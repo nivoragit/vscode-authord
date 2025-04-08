@@ -11,6 +11,7 @@ import remarkRehype, { Options as RemarkRehypeOptions } from 'remark-rehype';
 import rehypeRaw from 'rehype-raw';
 import rehypeStringify, { Options as RehypeStringifyOptions } from 'rehype-stringify';
 import { scrollSyncPlugin } from './scrollSyncPlugin';
+import { imageRootPlugin } from './imageRootPlugin';
 
 let markdownStyles: string | null = null;
 let isCssLoaded = false;
@@ -59,7 +60,7 @@ function safeUse(
  * Renders Markdown to HTML using remark + rehype, injecting line data via scrollSyncPlugin.
  * The final HTML is wrapped with additional CSS and a script to support two-way scroll sync.
  */
-export async function renderContent(markdown: string): Promise<string> {
+export async function renderContent(markdown: string, imageFolder: string | undefined, docPath: string | undefined): Promise<string> {
   await loadMarkdownCss();
 
   const processor = unified();
@@ -71,6 +72,9 @@ export async function renderContent(markdown: string): Promise<string> {
   safeUse(processor, remarkRehype, { allowDangerousHtml: true } as RemarkRehypeOptions);
   safeUse(processor, rehypeRaw);
   safeUse(processor, rehypeStringify, { allowDangerousHtml: true } as RehypeStringifyOptions);
+  if (imageFolder) {
+    safeUse(processor, imageRootPlugin, { imageFolder, docPath });
+  }
 
   const file = await processor.process(markdown);
   const contentHtml = String(file);
@@ -118,14 +122,32 @@ function wrapWithSyncScript(innerHtml: string): string {
     const vscode = acquireVsCodeApi();
     let lines = [];
     let currentActive = null;
-    
-    function gatherLineElements() {
-      lines = Array.from(document.querySelectorAll('.code-line')).map(el => {
-        const lineVal = parseInt(el.getAttribute('data-line'), 10);
-        return { el, line: lineVal };
-      });
+
+    function isElementVisible(el) {
+      let current = el;
+      while (current) {
+        if (current.tagName === 'DETAILS' && !current.open) {
+          return false;
+        }
+        current = current.parentElement;
+      }
+      return true;
     }
-    
+
+    function gatherLineElements() {
+      const allLines = Array.from(document.querySelectorAll('.code-line'));
+      lines = [];
+      for (const el of allLines) {
+        if (!isElementVisible(el)) continue;
+        const lineVal = parseInt(el.getAttribute('data-line'), 10);
+        const rect = el.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        const height = rect.height;
+        lines.push({ el, line: lineVal, top, height });
+      }
+      lines.sort((a, b) => a.top - b.top);
+    }
+
     function findClosestLine(targetLine) {
       if (!lines.length) return null;
       let closest = lines[0];
@@ -136,49 +158,52 @@ function wrapWithSyncScript(innerHtml: string): string {
       }
       return closest;
     }
-    
+
     function markActiveLine(line) {
-      if (currentActive) {
-        currentActive.classList.remove('code-active-line');
+  if (currentActive) {
+    currentActive.classList.remove('code-active-line');
+  }
+  const closest = findClosestLine(line);
+  if (closest) {
+    closest.el.classList.add('code-active-line');
+    currentActive = closest.el;
+    // Smooth scroll such that the active line is at the top of the preview.
+    const targetTop = closest.top;
+    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+  }
+}
+
+
+    document.addEventListener('toggle', (event) => {
+      if (event.target.tagName === 'DETAILS') {
+        gatherLineElements();
       }
-      const closest = findClosestLine(line);
-      if (closest) {
-        closest.el.classList.add('code-active-line');
-        currentActive = closest.el;
-      }
-    }
-    
-    function scrollToLine(line) {
-      const closest = findClosestLine(line);
-      if (closest) {
-        closest.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-    
-    // Editor -> Preview sync: Listen for messages from the extension.
-    window.addEventListener('message', event => {
+    }, true);
+
+    window.addEventListener('message', (event) => {
       const { command, line } = event.data;
       if (command === 'syncScroll') {
         markActiveLine(line);
-        scrollToLine(line);
       }
     });
-    
-    // Preview -> Editor sync: When user scrolls the preview, post back the active line.
+
     window.addEventListener('scroll', () => {
       if (!lines.length) return;
-      const offset = window.scrollY + 50; // offset from top
-      let best = lines[0];
-      for (const item of lines) {
-        const rect = item.el.getBoundingClientRect();
-        const top = rect.top + window.scrollY;
-        if (top > offset) break;
-        best = item;
+      const offset = window.scrollY + (window.innerHeight / 2);
+      let low = 0, high = lines.length - 1, best = lines[0];
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const current = lines[mid];
+        if (current.top <= offset) {
+          best = current;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
       }
       vscode.postMessage({ command: 'previewScrolled', line: best.line });
     });
-    
-    // Gather all line elements after content is loaded.
+
     gatherLineElements();
   </script>
 </body>

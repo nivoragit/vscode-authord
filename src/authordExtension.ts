@@ -234,7 +234,7 @@ export default class Authord {
       vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (this.useCustomPreview && editor && editor.document.languageId === 'markdown') {
           if (!this.preview) {
-            this.preview = AuthordPreview.createOrShow(this.context);
+            this.preview = AuthordPreview.createOrShow(this.context,this.documentManager?.getImagesDirectory(), this.documentManager?.getTopicsDirectory());
           }
           this.preview.update(editor.document);
         }
@@ -346,7 +346,7 @@ export default class Authord {
         await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
 
         if (this.useCustomPreview) {
-          this.preview = AuthordPreview.createOrShow(this.context);
+          this.preview = AuthordPreview.createOrShow(this.context,this.documentManager?.getImagesDirectory(), this.documentManager?.getTopicsDirectory());
           this.preview.update(doc);
         } else {
           await focusOrShowPreview();
@@ -417,12 +417,13 @@ export default class Authord {
         'authordExtension.onPreviewScrolled',
         (line: number) => {
           const editor = vscode.window.activeTextEditor;
-          if (!editor || editor.document.languageId !== 'markdown') {
-            return;
+          if (editor?.document.languageId === 'markdown') {
+            const position = new vscode.Position(line - 1, 0);
+            editor.revealRange(
+              new vscode.Range(position, position),
+              vscode.TextEditorRevealType.InCenter
+            );
           }
-          // Reveal that line in the editor
-          const range = new vscode.Range(line, 0, line, 0);
-          editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
         }
       )
     );
