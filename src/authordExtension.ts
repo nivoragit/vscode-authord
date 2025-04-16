@@ -7,7 +7,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { configFiles, focusOrShowPreview } from './utils/helperFunctions';
 import DocumentationItem from './services/DocumentationItem';
 import TopicsItem from './services/TopicsItem';
 import TopicsService from './services/TopicsService';
@@ -19,6 +18,7 @@ import DocumentationProvider from './services/DocumentationProvider';
 import TopicsDragAndDropController from './services/TopicsDragAndDropController';
 import TopicsProvider from './services/TopicsProvider';
 import { DocumentationManager } from './managers/DocumentationManager';
+import { focusOrShowPreview } from './utils/VsCodePreviewHelperFunctions';
 
 export default class Authord {
   private commandsRegistered = false;
@@ -52,6 +52,7 @@ export default class Authord {
   constructor(
     private context: vscode.ExtensionContext,
     private workspaceRoot: string,
+    private configFiles:string[],
     fsModule: typeof fs = fs,
     notifier: typeof vscode.window = vscode.window,
     commandExecutor: typeof vscode.commands = vscode.commands
@@ -402,7 +403,7 @@ export default class Authord {
    * Creates a config file in the workspace and reinitializes.
    */
   private async createConfigFile(): Promise<void> {
-    const filePath = path.join(this.workspaceRoot, configFiles[0]);
+    const filePath = path.join(this.workspaceRoot, this.configFiles[0]);
     this.documentManager = new AuthordDocumentManager(filePath);
     await (this.documentManager as AuthordDocumentManager).initializeConfigurationFile();
     await this.documentManager.reload();
@@ -445,8 +446,8 @@ export default class Authord {
    * Asynchronously checks for the presence of known config files (defined in configFiles array).
    * Returns:
    *  - 0 if no valid config file is found
-   *  - 1 if an XML config file is found (configFiles[1])
-   *  - 2 if an Authord config file is found (configFiles[0])
+   *  - 1 if an XML config file is found (this.configFiles[1])
+   *  - 2 if an Authord config file is found (this.configFiles[0])
    */
   private async checkConfigFiles(): Promise<void> {
     if (this.documentManager && this.configCode) {
@@ -457,8 +458,8 @@ export default class Authord {
     this.configCode = 0;
 
     let foundConfig = false;
-    for (let i = 0; i < configFiles.length; i += 1) {
-      const fileName = configFiles[i];
+    for (let i = 0; i < this.configFiles.length; i += 1) {
+      const fileName = this.configFiles[i];
       const filePath = path.join(this.workspaceRoot, fileName);
       try {
         await this.fsModule.access(filePath);
@@ -468,7 +469,7 @@ export default class Authord {
           'authord-config-schema.json'
         );
 
-        if (fileName === configFiles[1]) {
+        if (fileName === this.configFiles[1]) {
           // XML config
           this.documentManager = new WriterSideDocumentManager(filePath);
           await this.documentManager.reload();

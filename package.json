@@ -305,10 +305,6 @@
       ]
     }
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nivoragit/authord-authord.git"
-  },
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -325,7 +321,7 @@
     "@types/jest": "^29.5.14",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.14",
-    "@types/vscode": "^1.70.0",
+    "@types/vscode": "^1.99.1",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
@@ -389,5 +385,12 @@
       "src/media/script.js",
       "webpack.config.js"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nivoragit/vscode-authord.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nivoragit/vscode-authord/issues"
   }
 }
