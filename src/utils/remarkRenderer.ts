@@ -12,9 +12,49 @@ import rehypeRaw from 'rehype-raw';
 import rehypeStringify, { Options as RehypeStringifyOptions } from 'rehype-stringify';
 import { scrollSyncPlugin } from './scrollSyncPlugin';
 import { imageRootPlugin } from './imageRootPlugin';
+import { visitParents } from 'unist-util-visit-parents';
 
 let markdownStyles: string | null = null;
 let isCssLoaded = false;
+
+// Full brace‑block attribute support for *any* element
+function braceAttributes() {
+  return (tree: any) => {
+    visitParents(tree, 'text', (textNode, ancestors) => {
+      const m = textNode.value.match(/^\{\s*([^}]*)\}/);
+      if (!m) return;
+
+      // the element immediately before this text node
+      const parent = ancestors[ancestors.length - 1];
+      const idx = parent.children.indexOf(textNode);
+      if (idx === 0) return;                 // nothing before it
+      const el = parent.children[idx - 1];
+      if (el.type !== 'element') return;     // only attach to elements
+
+      // --- parse attributes ---
+      m[1].trim().split(/\s+/).forEach((pair: string) => {
+        if (!pair) return;
+        if (pair.startsWith('.')) {
+          // class
+          el.properties.className = [
+            ...(el.properties.className || []),
+            pair.slice(1),
+          ];
+        } else if (pair.startsWith('#')) {
+          el.properties.id = pair.slice(1);
+        } else {
+          let [k, v = ''] = pair.split('=');
+          v = v.replace(/^["']|["']$/g, ''); // strip quotes
+          el.properties[k] = v;
+        }
+      });
+
+      // remove or trim brace text
+      textNode.value = textNode.value.slice(m[0].length);
+      if (!textNode.value) parent.children.splice(idx, 1);
+    });
+  };
+}
 
 /**
  * Load VS Code's built-in markdown.css for consistent styling.
@@ -71,6 +111,7 @@ export async function renderContent(markdown: string, imageFolder: string | unde
   processor.use(scrollSyncPlugin);
   safeUse(processor, remarkRehype, { allowDangerousHtml: true } as RemarkRehypeOptions);
   safeUse(processor, rehypeRaw);
+  safeUse(processor, braceAttributes);
   safeUse(processor, rehypeStringify, { allowDangerousHtml: true } as RehypeStringifyOptions);
   if (imageFolder) {
     safeUse(processor, imageRootPlugin, { imageFolder, docPath });

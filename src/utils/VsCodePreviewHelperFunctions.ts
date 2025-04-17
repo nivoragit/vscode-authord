@@ -5,42 +5,6 @@ import { Token } from 'markdown-it';
 import { DocumentationManager } from '../managers/DocumentationManager';
 
 
-// async function closeExtraPreviews(): Promise<void> {
-//   const previewEditors = vscode.window.visibleTextEditors.filter(
-//     (editor) => editor.document.uri.scheme === 'markdown-preview'
-//   );
-
-//   if (previewEditors.length > 1) {
-//     const extraEditors = previewEditors.filter(
-//       (editor) => editor.viewColumn !== vscode.ViewColumn.Two
-//     );
-//     await Promise.all(
-//       extraEditors.map((editor) =>
-//         vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor)
-//       )
-//     );
-//   }
-// }
-
-// export async function showPreviewInColumnTwo(): Promise<void> {
-//   const previewEditors = vscode.window.visibleTextEditors.filter(
-//     (editor) =>
-//       editor.document.uri.scheme === 'markdown-preview' &&
-//       editor.viewColumn === vscode.ViewColumn.Two
-//   );
-
-//   if (previewEditors.length === 0) {
-//     // Show the built-in markdown preview to the side (column two)
-//     await vscode.commands.executeCommand('markdown.showPreviewToSide');
-//   } else {
-//     // Update the existing preview
-//     await vscode.commands.executeCommand('markdown.updatePreview');
-//   }
-
-//   // Ensure that only one preview is open
-//   await closeExtraPreviews();
-// }
-
 /**
  * Either focuses an existing preview in column two, or opens a new one there.
  */
