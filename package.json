@@ -3,7 +3,7 @@
   "private": "true",
   "displayName": "Authord Extension",
   "description": "Documentation-as-code in Visual Studio Code. Provide an efficient and structured workflow for managing technical documentation within your development environment.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "preRelease": false,
   "license": "GPL-3.0",
   "publisher": "nivora",
@@ -33,7 +33,7 @@
     "Notebooks"
   ],
   "engines": {
-    "vscode": "^1.70.0"
+    "vscode": "^1.99.1"
   },
   "activationEvents": [
     "onLanguage:json",
@@ -307,7 +307,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nivoragit/authord-authord.git"
+    "url": "https://github.com/nivoragit/vscode-authord.git"
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -325,7 +325,7 @@
     "@types/jest": "^29.5.14",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.14",
-    "@types/vscode": "^1.70.0",
+    "@types/vscode": "^1.99.1",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
