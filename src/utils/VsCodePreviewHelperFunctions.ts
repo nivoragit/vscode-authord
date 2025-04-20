@@ -4,45 +4,6 @@ import * as path from 'path';
 import { Token } from 'markdown-it';
 import { DocumentationManager } from '../managers/DocumentationManager';
 
-export const configFiles = ['authord.config.json', 'writerside.cfg'];
-
-
-async function closeExtraPreviews(): Promise<void> {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) => editor.document.uri.scheme === 'markdown-preview'
-  );
-
-  if (previewEditors.length > 1) {
-    const extraEditors = previewEditors.filter(
-      (editor) => editor.viewColumn !== vscode.ViewColumn.Two
-    );
-    await Promise.all(
-      extraEditors.map((editor) =>
-        vscode.commands.executeCommand('workbench.action.closeActiveEditor', editor)
-      )
-    );
-  }
-}
-
-export async function showPreviewInColumnTwo(): Promise<void> {
-  const previewEditors = vscode.window.visibleTextEditors.filter(
-    (editor) =>
-      editor.document.uri.scheme === 'markdown-preview' &&
-      editor.viewColumn === vscode.ViewColumn.Two
-  );
-
-  if (previewEditors.length === 0) {
-    // Show the built-in markdown preview to the side (column two)
-    await vscode.commands.executeCommand('markdown.showPreviewToSide');
-  } else {
-    // Update the existing preview
-    await vscode.commands.executeCommand('markdown.updatePreview');
-  }
-
-  // Ensure that only one preview is open
-  await closeExtraPreviews();
-}
-
 /**
  * Either focuses an existing preview in column two, or opens a new one there.
  */
@@ -57,7 +18,7 @@ export async function focusOrShowPreview(): Promise<void> {
     // Focus on the existing preview editor
     await vscode.window.showTextDocument(previewEditor.document, vscode.ViewColumn.Two, false);
   } else {
-    // Show the preview to the side (column two)
+    // Open and Show the preview to the side (column two)
     await vscode.commands.executeCommand('markdown.showPreviewToSide');
   }
   await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
@@ -98,11 +59,11 @@ export function createCustomImageRenderer(
       const srcValue = token.attrs![srcIndex][1];
       if (
         srcValue &&
-        !srcValue.startsWith(`../${imageFolder}/`) &&
+        // Use forward-slash paths via `path.posix.join`
+        !srcValue.startsWith(path.posix.join('..', imageFolder)) &&
         !srcValue.startsWith('http') // skip web images
       ) {
-        // Use template string instead of string concatenation (prefer-template)
-        token.attrs![srcIndex][1] = `../${imageFolder}/${srcValue}`;
+        token.attrs![srcIndex][1] = path.posix.join('..', imageFolder, srcValue);
       }
     }
 
@@ -139,7 +100,6 @@ export function createCustomHtmlRenderer(
     const imageFolder = path.basename(documentManager.getImagesDirectory());
     const topicsFolder = path.basename(documentManager.getTopicsDirectory());
 
-    // Use object destructuring to satisfy "prefer-destructuring"
     const { content: originalContent } = tokens[idx];
     let content = originalContent;
 
@@ -150,10 +110,10 @@ export function createCustomHtmlRenderer(
         if (
           currentDocumentPath.includes(topicsFolder) &&
           srcValue &&
-          !srcValue.startsWith(`../${imageFolder}/`) &&
+          !srcValue.startsWith(path.posix.join('..', imageFolder)) &&
           !/^https?:\/\//i.test(srcValue)
         ) {
-          return `<img ${beforeSrc}../${imageFolder}/${srcValue}${afterSrc}>`;
+          return `<img ${beforeSrc}${path.posix.join('..', imageFolder, srcValue)}${afterSrc}>`;
         }
         return match;
       }

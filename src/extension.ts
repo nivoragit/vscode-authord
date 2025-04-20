@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports, global-require */
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
-import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/helperFunctions';
 import Authord from './authordExtension';
+import { createCustomImageRenderer, createCustomHtmlRenderer } from './utils/VsCodePreviewHelperFunctions';
 
 let extensionInitializer: Authord | undefined;
 
@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(m
   }
 
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-  extensionInitializer = new Authord(context, workspaceRoot);
+  extensionInitializer = new Authord(context, workspaceRoot,['authord.config.json', 'writerside.cfg']);
   extensionInitializer.initialize();
 
   function extendMarkdownIt(md: any) {
