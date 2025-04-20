@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"module": "ESNext",
+		"target": "ESNext",
+		"moduleResolution": "node",
+		"outDir": "./dist",
+		"sourceMap": true,
+		"declaration": true,
+		"strict": true,
+		"esModuleInterop": true, // Import compatibility for CommonJS and ES modules
+		"allowSyntheticDefaultImports": true, // Allow default imports from modules with no default export
+		"resolveJsonModule": true, // Allow importing JSON files
+		"skipLibCheck": true, // Skip type checking of declaration files for faster builds
+		"forceConsistentCasingInFileNames": true, // Enforce consistent file naming
+		"types": ["vscode","jest", "node"],
+		/* Additional Checks */
+		"noImplicitReturns": true, // Report errors when not all code paths in a function return a value
+		"noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statements
+		"noUnusedParameters": true // Report errors for unused parameters
+	},
+	"include": ["src/**/*.ts", "__mocks__/**/*.ts" ], // Include all TypeScript files in the src directory
+	"exclude": ["node_modules", ".vscode", "dist"]
+  }
+  
