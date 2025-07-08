@@ -86,12 +86,15 @@ export default class AuthordDocumentManager extends AbstractDocumentationManager
         }
         this.instances.push(newDocument);
         const title = newDocument['toc-elements'][0].title;
-        let markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
-        // if file name already exists
-        let i = 2
-        while(!markdownFileExists){
+        let fileCreated = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+        // if file already exists, try with incremented title and filename
+        let i = 2;
+        while(!fileCreated){
             newDocument['toc-elements'][0].title = `${title} ${i}`;
-            markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
+            const newFileName = TopicsService.formatTitleAsFilename(newDocument['toc-elements'][0].title);
+            newDocument['toc-elements'][0].topic = newFileName;
+            newDocument['start-page'] = newFileName;
+            fileCreated = await this.createMarkdownFile(newDocument['toc-elements'][0]);
             i += 1;
         }
 
