@@ -14,6 +14,7 @@ export default class TopicsDragAndDropController implements vscode.TreeDragAndDr
     this.topicsProvider = topicsProvider;
   }
 
+  // eslint-disable-next-line class-methods-use-this
   public handleDrag(
     sourceItems: readonly TopicsItem[],
     dataTransfer: vscode.DataTransfer,

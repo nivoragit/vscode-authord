@@ -118,6 +118,7 @@ export function createCustomHtmlRenderer(
         return match;
       }
     );
+    // eslint-disable-next-line no-param-reassign
     tokens[idx].content = content;
 
     return defaultRender(tokens, idx, options, env, self);

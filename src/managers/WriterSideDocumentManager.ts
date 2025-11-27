@@ -184,7 +184,8 @@ export default class WriterSideDocumentManager extends AbstractDocumentationMana
 
     async createInstance(newDocument: WriterSideInstanceProfile): Promise<void> {
         const treeFileName = `${newDocument.id}.tree`;
-        newDocument.filePath = path.join(path.dirname(this.configPath), treeFileName); 
+        // eslint-disable-next-line no-param-reassign
+        newDocument.filePath = path.join(path.dirname(this.configPath), treeFileName);
         await this.saveInstance(newDocument);
 
         if (!this.ihpData.ihp.instance) {
@@ -202,7 +203,9 @@ export default class WriterSideDocumentManager extends AbstractDocumentationMana
         // if file name already exists
         let i = 2
         while(!markdownFileExists){
+            // eslint-disable-next-line no-param-reassign
             newDocument['toc-elements'][0].title = `${title} ${i}`;
+            // eslint-disable-next-line no-param-reassign
             markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
             i += 1;
         }

@@ -61,6 +61,9 @@ export default class DocumentationService {
   }
 
   public getDocumentationItems(): DocumentationItem[] {
+    const iconName = vscode.workspace
+      .getConfiguration('authord')
+      .get<string>('documentationIcon', 'book');
     return this.configManager.getInstances().map((instance) => {
       const item = new DocumentationItem(
         instance.id,
@@ -73,6 +76,7 @@ export default class DocumentationService {
         arguments: [instance.id],
       };
       item.contextValue = 'documentation';
+      item.iconPath = new vscode.ThemeIcon(iconName);
       return item;
     });
   }

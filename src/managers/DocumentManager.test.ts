@@ -79,6 +79,7 @@ describe('DocumentManager', () => {
       const mockInstances: InstanceProfile[] = [
         { id: '1', name: 'Test', 'toc-elements': [] },
       ];
+      // eslint-disable-next-line dot-notation
       (manager as any)['instances'] = mockInstances;
       expect(manager.getInstances()).toEqual(mockInstances);
     });

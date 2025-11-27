@@ -85,6 +85,7 @@ export default class AuthordDocumentManager extends AbstractDocumentationManager
             return;
         }
         this.instances.push(newDocument);
+        // eslint-disable-next-line prefer-destructuring
         const title = newDocument['toc-elements'][0].title;
         let markdownFileExists = await this.createMarkdownFile(newDocument['toc-elements'][0]);
         // if file name already exists
