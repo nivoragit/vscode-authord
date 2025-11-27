@@ -15,6 +15,10 @@ Authord _(pronounced "Author-ed")_ brings documentation-as-code to Visual Studio
 1. Install the Authord extension in VS Code.
 2. Click the Authord icon in the Activity Bar to create and manage documentation instances.
 
+## Configuration
+
+- **authord.documentationIcon**: Sets the icon used for documentation instances in the tree view. Specify any [codicon](https://aka.ms/vscodecodicons) name. The default is `book`.
+
 ## Writerside Compatibility
 
 Authord allows you to continue working on JetBrains Writerside projects within VS Code. While new Writerside projects cannot be created in Authord, existing projects can be easily maintained and updated within the extension.

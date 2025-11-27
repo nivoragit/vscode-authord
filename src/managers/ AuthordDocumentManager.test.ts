@@ -213,6 +213,7 @@ describe('AuthordDocumentManager', () => {
     };
 
     it('should remove documentation and delete files', async () => {
+      // eslint-disable-next-line dot-notation
       (manager as any)['instances'] = [doc];
       manager.configData = { instances: manager.getInstances() } as AuthordConfig;
       (TopicsService.getAllTopicsFromTocElement as jest.Mock).mockReturnValue(['topic1.md']);
@@ -233,6 +234,7 @@ describe('AuthordDocumentManager', () => {
 
     it('should return false if configData is undefined', async () => {
       manager.configData = undefined;
+      // eslint-disable-next-line dot-notation
       (manager as any)['instances'] = [
         {
           id: 'doc2',
@@ -270,6 +272,7 @@ describe('AuthordDocumentManager', () => {
     });
 
     it('should update existing documentation', async () => {
+      // eslint-disable-next-line dot-notation
       (manager as any)['instances'] = [existingDoc];
       manager.configData!.instances = manager.getInstances();
 
