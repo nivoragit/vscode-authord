@@ -15,6 +15,23 @@ Authord _(pronounced "Author-ed")_ brings documentation-as-code to Visual Studio
 1. Install the Authord extension in VS Code.
 2. Click the Authord icon in the Activity Bar to create and manage documentation instances.
 
+
+## Developer Mode
+
+If you are developing or contributing to Authord, follow these steps:
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Compile the extension:
+
+   ```bash
+   npm run compile
+   ```
+3. Press **F5** in VS Code to start the **Extension Development Host** and begin debugging.
+
 ## Writerside Compatibility
 
 Authord allows you to continue working on JetBrains Writerside projects within VS Code. While new Writerside projects cannot be created in Authord, existing projects can be easily maintained and updated within the extension.
@@ -36,3 +53,6 @@ If you need assistance, you can:
 Authord is distributed under the AGPL-3.0 license.
 
 See [LICENSE](https://github.com/nivoragit/vscode-authord/blob/master/LICENSE.txt) for more information.
+
+
+

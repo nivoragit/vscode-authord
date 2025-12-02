@@ -3,7 +3,7 @@
   "private": "true",
   "displayName": "Authord Extension",
   "description": "Documentation-as-code in Visual Studio Code. Provide an efficient and structured workflow for managing technical documentation within your development environment.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "preRelease": false,
   "license": "GPL-3.0",
   "publisher": "nivora",
@@ -36,14 +36,26 @@
     "vscode": "^1.99.1"
   },
   "activationEvents": [
+    "onChatParticipant:authord.chat",
     "onLanguage:json",
     "onLanguage:markdown",
     "onStartupFinished",
     "workspaceContains:authord.json",
-    "onCommand:authordExtension.checkConfig"
+    "onCommand:authordExtension.checkConfig",
+    "onCommand:authordExtension.openMarkdownFile",
+    "onCommand:authord.refreshPreview"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "authord.chat",
+        "name": "authord",
+        "fullName": "Authord Docs",
+        "description": "Expert in Documentation-as-Code and Confluence sync.",
+        "isSticky": true
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "emptyProjectView",
@@ -86,6 +98,11 @@
           "type": "number",
           "default": 500,
           "description": "Delay in milliseconds before shifting focus back to the editor."
+        },
+        "authord.useCustomPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the custom remark-based preview instead of VSCode's built-in Markdown preview."
         }
       }
     },
@@ -196,6 +213,10 @@
         "command": "markdownPreview.show",
         "title": "Show Markdown Preview",
         "when": "authord.configExists"
+      },
+      {
+        "command": "authord.refreshPreview",
+        "title": "Refresh Preview"
       }
     ],
     "views": {
@@ -342,6 +363,9 @@
     "webpack": "^5.96.1",
     "webpack-cli": "^6.0.1"
   },
+  "extensionDependencies": [
+  "GitHub.copilot-chat"
+  ],
   "dependencies": {
     "@jest/globals": "^29.7.0",
     "ajv": "^8.17.1",
@@ -391,3 +415,4 @@
     ]
   }
 }
+

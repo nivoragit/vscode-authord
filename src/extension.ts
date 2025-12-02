@@ -3,10 +3,14 @@
 import * as vscode from 'vscode';
 import Authord from './authordExtension';
 import { createCustomImageRenderer, createCustomHtmlRenderer } from './utils/VsCodePreviewHelperFunctions';
+import { registerAuthordChatParticipant } from './chatParticipant';
 
 let extensionInitializer: Authord | undefined;
 
 export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(md: any): any } {
+
+  registerAuthordChatParticipant(context);
+  
   if (!vscode.workspace.workspaceFolders) {
     return {
       extendMarkdownIt: (md: any) => md,
