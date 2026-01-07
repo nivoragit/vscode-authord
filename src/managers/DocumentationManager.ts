@@ -4,6 +4,8 @@ import {InstanceProfile, TocElement} from '../utils/types';
 
 export interface DocumentationManager {
 
+    getConfigPath(): string;
+
     getTopicsDirectory(): string;
 
     getImagesDirectory(): string;

@@ -93,6 +93,15 @@
           "type": "boolean",
           "default": true,
           "description": "Use the custom remark-based preview instead of VSCode's built-in Markdown preview."
+        },
+        "authord.previewRenderMode": {
+          "type": "string",
+          "default": "simple",
+          "enum": [
+            "simple",
+            "docset"
+          ],
+          "description": "Render mode for the custom preview. Use \"docset\" to resolve Writerside includes/macros on save."
         }
       }
     },
@@ -354,6 +363,12 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@authord/render-core": "git+https://github.com/nivoragit/authord-render-core.git#main",
+
+
+"@authord/runtime-node": "git+https://github.com/nivoragit/authord-runtime-node.git#main",
+
+
     "@jest/globals": "^29.7.0",
     "ajv": "^8.17.1",
     "fast-xml-parser": "^4.5.1",

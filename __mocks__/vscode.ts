@@ -16,6 +16,11 @@ export const TreeItemCollapsibleState = {
   Expanded: 2,
 };
 
+export const ViewColumn = {
+  One: 1,
+  Two: 2,
+};
+
 export const EventEmitter = jest.fn(() => ({
   event: jest.fn(),
   fire: jest.fn(),
@@ -26,6 +31,8 @@ export const window = {
   showWarningMessage: jest.fn(),
   showErrorMessage: jest.fn(),
   showInputBox: jest.fn().mockResolvedValue("Mocked Topic Title"),
+  showTextDocument: jest.fn(),
+  visibleTextEditors: [],
 };
 
 export const workspace = {
@@ -46,3 +53,22 @@ export const commands = {
   executeCommand: jest.fn(),
 };
 
+export class DataTransferItem {
+  value: any;
+
+  constructor(value: any) {
+    this.value = value;
+  }
+}
+
+export class DataTransfer {
+  private readonly data = new Map<string, DataTransferItem>();
+
+  set(key: string, item: DataTransferItem) {
+    this.data.set(key, item);
+  }
+
+  get(key: string) {
+    return this.data.get(key);
+  }
+}

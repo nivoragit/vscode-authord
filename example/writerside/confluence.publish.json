@@ -1,0 +1,22 @@
+{
+  "baseUrl"      : "https://confluence.username.dev",
+  "username"     : "madushika",
+  "apiToken"     : "token",
+  "spaceKey"     : "TEST",
+  "parentPageId" : "360496",
+  "topicsDir"    : "topics",
+  "imagesDir"    : "images"
+}
+
+authord confluence-single \
+  --space TEST \
+  --base-url https://confluence.username.dev \
+  --token 'token'
+
+
+authord confluence-single \
+  --space     TEST \
+  --base-url https://confluence.username.dev \
+  --token     'token' \
+  --page-id   360496
+

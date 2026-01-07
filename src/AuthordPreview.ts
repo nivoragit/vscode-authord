@@ -2,40 +2,54 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { renderContent } from './utils/remarkRenderer';
+import RenderService, { type PreviewRenderMode } from './services/RenderService';
+import type { DocumentationManager } from './managers/DocumentationManager';
+
+type PreviewContext = {
+  documentManager?: DocumentationManager;
+  renderMode: PreviewRenderMode;
+};
 
 export class AuthordPreview implements vscode.Disposable {
   private static currentPanel: AuthordPreview | undefined;
   private disposables: vscode.Disposable[] = [];
   private panel: vscode.WebviewPanel;
+  private renderService: RenderService;
+  private previewContext: PreviewContext;
 
   // Minimal doc cache to avoid re-processing on minor changes
   private docCache = new Map<string, { version: number; html: string }>();
-  private static imageFolder: string | undefined;
-  private static docPath: string | undefined;
-
   /**
    * Create or show the single custom preview panel
    */
-  public static createOrShow(context: vscode.ExtensionContext,imageFolderPath: string | undefined, docPath: string | undefined): AuthordPreview {
+  public static createOrShow(
+    context: vscode.ExtensionContext,
+    renderService: RenderService,
+    previewContext: PreviewContext
+  ): AuthordPreview {
     if (AuthordPreview.currentPanel) {
+      AuthordPreview.currentPanel.updateContext(previewContext);
       AuthordPreview.currentPanel.panel.reveal(vscode.ViewColumn.Two);
       return AuthordPreview.currentPanel;
     }
-    this.imageFolder = imageFolderPath;
-    this.docPath = docPath;
     const panel = vscode.window.createWebviewPanel(
       'authordPreview',
       'Authord Preview',
       vscode.ViewColumn.Two,
       { enableScripts: true }
     );
-    AuthordPreview.currentPanel = new AuthordPreview(panel);
+    AuthordPreview.currentPanel = new AuthordPreview(panel, renderService, previewContext);
     return AuthordPreview.currentPanel;
   }
 
-  private constructor(panel: vscode.WebviewPanel) {
+  private constructor(
+    panel: vscode.WebviewPanel,
+    renderService: RenderService,
+    previewContext: PreviewContext
+  ) {
     this.panel = panel;
+    this.renderService = renderService;
+    this.previewContext = previewContext;
 
     // Dispose resources when the panel is closed
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -66,8 +80,10 @@ export class AuthordPreview implements vscode.Disposable {
       return;
     }
 
-    const markdown = doc.getText();
-    const initialHtml = await renderContent(markdown,AuthordPreview.imageFolder,AuthordPreview.docPath);
+    const initialHtml = await this.renderService.renderDocument(doc, {
+      documentManager: this.previewContext.documentManager,
+      renderMode: this.previewContext.renderMode,
+    });
     const finalHtml = this.fixImagePaths(initialHtml, doc.uri.fsPath);
 
     this.docCache.set(key, { version: doc.version, html: finalHtml });
@@ -83,6 +99,16 @@ export class AuthordPreview implements vscode.Disposable {
     this.panel.webview.postMessage(msg);
   }
 
+  public updateContext(previewContext: PreviewContext): void {
+    const shouldInvalidate =
+      this.previewContext.documentManager !== previewContext.documentManager ||
+      this.previewContext.renderMode !== previewContext.renderMode;
+    this.previewContext = previewContext;
+    if (shouldInvalidate) {
+      this.docCache.clear();
+    }
+  }
+
   /**
    * Convert any local image paths (relative or absolute) into webview URIs so
    * images render properly inside the WebView.
@@ -90,16 +116,59 @@ export class AuthordPreview implements vscode.Disposable {
    * in one pass, avoiding unnecessary transformations on valid remote or data URIs.
    */
   private fixImagePaths(html: string, docPath: string): string {
+    const imageFolder = this.previewContext.documentManager?.getImagesDirectory();
+    let out = html;
+    out = this.rewriteAttachTokens(out, imageFolder);
+    out = this.rewriteConfluenceImages(out, imageFolder);
+    out = this.rewriteImgSrc(out, docPath);
+    return out;
+  }
+
+  private rewriteAttachTokens(html: string, imageFolder?: string): string {
+    if (!imageFolder) return html;
+    const attachRegex = /@@ATTACH\|file=([^|@]+)(?:\|width=([^|@]+))?(?:\|height=([^|@]+))?@@/gi;
+    return html.replace(attachRegex, (_match, file, width, height) => {
+      const diskPath = path.join(imageFolder, file);
+      const webviewUri = this.panel.webview.asWebviewUri(vscode.Uri.file(diskPath));
+      const attrs: string[] = [];
+      if (width) attrs.push(`width="${escapeAttr(String(width))}"`);
+      if (height) attrs.push(`height="${escapeAttr(String(height))}"`);
+      return `<img src="${webviewUri.toString()}"${attrs.length ? ` ${attrs.join(' ')}` : ''} />`;
+    });
+  }
+
+  private rewriteConfluenceImages(html: string, imageFolder?: string): string {
+    if (!imageFolder) return html;
+    const acImageRegex = /<ac:image\b([^>]*)>([\s\S]*?)<\/ac:image>/gi;
+    return html.replace(acImageRegex, (match, attrText, innerHtml) => {
+      const filenameMatch = /<ri:attachment\b[^>]*ri:filename=["']([^"']+)["'][^>]*\/?>/i.exec(innerHtml);
+      if (!filenameMatch) return match;
+
+      const filename = filenameMatch[1];
+      const widthMatch = /\bac:width=["']([^"']+)["']/.exec(attrText);
+      const heightMatch = /\bac:height=["']([^"']+)["']/.exec(attrText);
+      const diskPath = path.join(imageFolder, filename);
+      const webviewUri = this.panel.webview.asWebviewUri(vscode.Uri.file(diskPath));
+
+      const attrs: string[] = [];
+      if (widthMatch?.[1]) attrs.push(`width="${escapeAttr(widthMatch[1])}"`);
+      if (heightMatch?.[1]) attrs.push(`height="${escapeAttr(heightMatch[1])}"`);
+      return `<img src="${webviewUri.toString()}"${attrs.length ? ` ${attrs.join(' ')}` : ''} />`;
+    });
+  }
+
+  private rewriteImgSrc(html: string, docPath: string): string {
     const imageTagRegex = /<img\s+[^>]*src=["']([^"']+)["']/gi;
     return html.replace(imageTagRegex, (match, src) => {
-      // Ignore data URLs or remote URLs
-      if (/^https?:\/\//.test(src) || /^data:/.test(src)) {
-        return match; // No change
+      // Ignore remote, data, or already-sanitized webview URIs.
+      if (/^(https?:|data:|vscode-resource:|vscode-webview:)/i.test(src)) {
+        return match;
       }
 
-      // Resolve absolute or relative path
       let diskPath = src;
-      if (!path.isAbsolute(src)) {
+      if (/^file:\/\//i.test(src)) {
+        diskPath = vscode.Uri.parse(src).fsPath;
+      } else if (!path.isAbsolute(src)) {
         diskPath = path.join(path.dirname(docPath), src);
       }
 
@@ -121,4 +190,8 @@ export class AuthordPreview implements vscode.Disposable {
     }
     this.panel.dispose();
   }
+}
+
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }

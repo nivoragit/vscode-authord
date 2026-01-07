@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports, global-require */
 // eslint-disable-next-line import/no-unresolved
 import * as vscode from 'vscode';
+import { setRenderRuntime } from '@authord/render-core';
+import { createNodeRuntime } from '@authord/runtime-node';
 import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/VsCodePreviewHelperFunctions';
 import Authord from './authordExtension';
 
@@ -12,6 +14,8 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(m
       extendMarkdownIt: (md: any) => md,
     };
   }
+
+  setRenderRuntime(createNodeRuntime());
 
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
   extensionInitializer = new Authord(context, workspaceRoot);

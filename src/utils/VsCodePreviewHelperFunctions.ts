@@ -58,13 +58,19 @@ export function createCustomImageRenderer(
 
     if (currentDocumentPath.includes(topicsFolder) && srcIndex >= 0) {
       const srcValue = token.attrs![srcIndex][1];
+      if (!srcValue) {
+        return defaultRender(tokens, idx, options, env, self);
+      }
+      const normalizedSrc = normalizeMarkdownPath(srcValue);
+      const imagePrefix = `${path.posix.join('..', imageFolder)}/`;
       if (
-        srcValue &&
-        !srcValue.startsWith(`../${imageFolder}/`) &&
-        !srcValue.startsWith('http') // skip web images
+        normalizedSrc &&
+        !normalizedSrc.startsWith(imagePrefix) && // todo fix paths
+        !isRemoteUrl(normalizedSrc) &&
+        !path.isAbsolute(normalizedSrc)
       ) {
         // Use template string instead of string concatenation (prefer-template)
-        token.attrs![srcIndex][1] = `../${imageFolder}/${srcValue}`;
+        token.attrs![srcIndex][1] = path.posix.join('..', imageFolder, normalizedSrc);
       }
     }
 
@@ -109,13 +115,17 @@ export function createCustomHtmlRenderer(
     content = content.replace(
       /<img\s+([^>]*src\s*=\s*["'])([^"']+)(["'][^>]*)>/gi,
       (match, beforeSrc, srcValue, afterSrc) => {
+        const normalizedSrc = normalizeMarkdownPath(srcValue);
+        const imagePrefix = `${path.posix.join('..', imageFolder)}/`;
         if (
           currentDocumentPath.includes(topicsFolder) &&
-          srcValue &&
-          !srcValue.startsWith(`../${imageFolder}/`) &&
-          !/^https?:\/\//i.test(srcValue)
+          normalizedSrc &&
+          !normalizedSrc.startsWith(imagePrefix) &&
+          !isRemoteUrl(normalizedSrc) &&
+          !path.isAbsolute(normalizedSrc)
         ) {
-          return `<img ${beforeSrc}../${imageFolder}/${srcValue}${afterSrc}>`;
+          const rewrittenSrc = path.posix.join('..', imageFolder, normalizedSrc);
+          return `<img ${beforeSrc}${rewrittenSrc}${afterSrc}>`;
         }
         return match;
       }
@@ -124,4 +134,12 @@ export function createCustomHtmlRenderer(
 
     return defaultRender(tokens, idx, options, env, self);
   };
+}
+
+function normalizeMarkdownPath(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+function isRemoteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }

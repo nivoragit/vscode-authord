@@ -19,6 +19,7 @@ import TopicsDragAndDropController from './services/TopicsDragAndDropController'
 import TopicsProvider from './services/TopicsProvider';
 import { DocumentationManager } from './managers/DocumentationManager';
 import { AuthordPreview } from './AuthordPreview';
+import RenderService, { type PreviewRenderMode } from './services/RenderService';
 
 export default class Authord {
   private commandsRegistered = false;
@@ -38,6 +39,8 @@ export default class Authord {
   private commandExecutor: typeof vscode.commands;
   private preview: AuthordPreview | undefined;
   private configFiles = ['authord.config.json', 'writerside.cfg'];
+  private renderService: RenderService;
+  private previewRenderMode: PreviewRenderMode = 'simple';
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -52,6 +55,7 @@ export default class Authord {
     this.fsModule = fsModule;
     this.notifier = notifier;
     this.commandExecutor = commandExecutor;
+    this.renderService = new RenderService();
   }
 
   /**
@@ -69,6 +73,10 @@ export default class Authord {
         this.notifier.showErrorMessage('Config file does not exist');
         return;
       }
+
+      const config = vscode.workspace.getConfiguration('authord');
+      this.useCustomPreview = config.get<boolean>('useCustomPreview', true);
+      this.previewRenderMode = config.get<PreviewRenderMode>('previewRenderMode', 'simple');
 
       if (this.documentManager) {
         this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager));
@@ -119,6 +127,7 @@ export default class Authord {
         // Read configuration setting for custom preview
         const config = vscode.workspace.getConfiguration('authord');
         this.useCustomPreview = config.get<boolean>('useCustomPreview', true);
+        this.previewRenderMode = config.get<PreviewRenderMode>('previewRenderMode', 'simple');
         // If custom preview is disabled and an instance exists, dispose it.
         if (!this.useCustomPreview && this.preview) {
           this.preview.dispose();
@@ -150,6 +159,11 @@ export default class Authord {
           }
 
           this.documentManager.reload();
+          this.renderService.invalidateDocset();
+          this.preview?.updateContext({
+            documentManager: this.documentManager,
+            renderMode: this.previewRenderMode,
+          });
         }
 
         this.documentationProvider?.refresh();
@@ -228,13 +242,29 @@ export default class Authord {
           );
           this.currentTopicTitle = topicTitle;
         }
+
+        if (this.previewRenderMode === 'docset' && this.documentManager) {
+          this.renderService.invalidateDocset(this.documentManager.getConfigPath());
+        }
+
+        if (this.useCustomPreview && this.preview && this.isPreviewableDocument(doc)) {
+          this.preview.update(doc);
+        }
       }),
 
       // NEW: Auto-update custom preview when the active text editor changes
       vscode.window.onDidChangeActiveTextEditor((editor) => {
-        if (this.useCustomPreview && editor && editor.document.languageId === 'markdown') {
+        if (this.useCustomPreview && editor && this.isPreviewableDocument(editor.document)) {
           if (!this.preview) {
-            this.preview = AuthordPreview.createOrShow(this.context,this.documentManager?.getImagesDirectory(), this.documentManager?.getTopicsDirectory());
+            this.preview = AuthordPreview.createOrShow(this.context, this.renderService, {
+              documentManager: this.documentManager,
+              renderMode: this.previewRenderMode,
+            });
+          } else {
+            this.preview.updateContext({
+              documentManager: this.documentManager,
+              renderMode: this.previewRenderMode,
+            });
           }
           this.preview.update(editor.document);
         }
@@ -246,7 +276,7 @@ export default class Authord {
           this.useCustomPreview &&
           this.preview &&
           vscode.window.activeTextEditor?.document === e.document &&
-          e.document.languageId === 'markdown'
+          this.isPreviewableDocument(e.document)
         ) {
           this.preview.update(e.document);
         }
@@ -346,7 +376,10 @@ export default class Authord {
         await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
 
         if (this.useCustomPreview) {
-          this.preview = AuthordPreview.createOrShow(this.context,this.documentManager?.getImagesDirectory(), this.documentManager?.getTopicsDirectory());
+          this.preview = AuthordPreview.createOrShow(this.context, this.renderService, {
+            documentManager: this.documentManager,
+            renderMode: this.previewRenderMode,
+          });
           this.preview.update(doc);
         } else {
           await focusOrShowPreview();
@@ -428,6 +461,11 @@ export default class Authord {
       )
     );
     this.commandsRegistered = true;
+  }
+
+  private isPreviewableDocument(doc: vscode.TextDocument): boolean {
+    const filePath = doc.uri.fsPath.toLowerCase();
+    return doc.languageId === 'markdown' || filePath.endsWith('.topic');
   }
 
   /**

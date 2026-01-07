@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head><title>Authord Settings</title>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      margin: 0;
+      padding: 1rem;
+    }
+    .code-active-line {
+      position: relative;
+    }
+    .code-active-line::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -8px;
+      width: 3px;
+      background-color: var(--vscode-scrollbarSlider-activeBackground, rgba(230, 100, 100, 0.8));
+    }
+  </style>
+</head>
+<body>
+  {"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Sample Page Title"}]},{"type":"paragraph","content":[{"type":"text","text":"This paragraph includes"},{"type":"text","marks":[{"type":"strong"}],"text":"bold"},{"type":"text","text":","},{"type":"text","marks":[{"type":"em"}],"text":"italic"},{"type":"text","text":", underline, and"},{"type":"text","marks":[{"type":"strike"}],"text":"strikethrough"},{"type":"text","text":"."}]},{"type":"paragraph","content":[{"type":"text","text":"Here is a"},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://example.com","__confluenceMetadata":null}}],"text":"link"},{"type":"text","text":", an 😄, and a mention @username."}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Bullet list item 1"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Bullet list item 2"}]}]}]},{"type":"orderedList","attrs":{"order":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Ordered list item 1"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Ordered list item 2"}]}]}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"[ ] Task list item"}]}]}]},{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"strong"}],"text":"Decision:"},{"type":"text","text":"Decision list item"}]}]},{"type":"table","attrs":{"isNumberColumnEnabled":false,"layout":"default"},"content":[{"type":"tableRow","content":[{"type":"tableHeader","attrs":{"colspan":1,"rowspan":1},"content":[{"type":"paragraph","content":[{"type":"text","text":"Header 1"}]}]},{"type":"tableHeader","attrs":{"colspan":1,"rowspan":1},"content":[{"type":"paragraph","content":[{"type":"text","text":"Header 2"}]}]}]},{"type":"tableRow","content":[{"type":"tableCell","attrs":{"colspan":1,"rowspan":1},"content":[{"type":"paragraph","content":[{"type":"text","text":"Cell 1"}]}]},{"type":"tableCell","attrs":{"colspan":1,"rowspan":1},"content":[{"type":"paragraph","content":[{"type":"text","text":"Cell 2"}]}]}]}]},{"type":"codeBlock","attrs":{"language":"javascript"},"content":[{"type":"text","text":"console.log('Hello, world!');"}]},{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"strong"}],"text":"Info:"},{"type":"text","text":"This is an info panel."}]}]},{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","text":"This is a blockquote."}]}]},{"type":"rule"},{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"strong"}],"text":"Warning:"},{"type":"text","text":"This is a warning panel."}]}]},{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"strong"}],"text":"Error:"},{"type":"text","text":"This is an error panel."}]}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"strong"}],"text":"Date:"},{"type":"text","text":"2025-06-15"}]},{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Diagram Examples"}]},{"type":"paragraph","content":[{"type":"text","text":"This document demonstrates how to embed both"},{"type":"text","marks":[{"type":"strong"}],"text":"Mermaid"},{"type":"text","text":"and"},{"type":"text","marks":[{"type":"strong"}],"text":"PlantUML"},{"type":"text","text":"diagrams in a Markdown file."}]},{"type":"rule"},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Mermaid Flowchart"}]},{"type":"paragraph","content":[{"type":"text","text":"ATTACH-STUB:2a72a6af.png@@"}]},{"type":"rule"},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"PlantUML Sequence Diagram"}]},{"type":"paragraph","content":[{"type":"text","text":"ATTACH-STUB:4f96e23ee.png@@"}]},{"type":"rule"},{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Starter"}]},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Add new topics"}]},{"type":"paragraph","content":[{"type":"text","text":"You can create empty topics, or choose a template for different types of content that contains some boilerplate structure to help you get started:"}]},{"type":"paragraph","content":[{"type":"text","text":"ATTACH-STUB:new_topic_options.png|width=290;border-effect=line@@"}]},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Write content"}]},{"type":"paragraph","content":[{"type":"text","text":"%product% supports two types of markup: Markdown and XML.\nWhen you create a new help article, you can choose between two topic types, but this doesn't mean you have to stick to a single format.\nYou can author content in Markdown and extend it with semantic attributes or inject entire XML elements."}]},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Inject XML"}]},{"type":"paragraph","content":[{"type":"text","text":"For example, this is how you inject a procedure:"}]},{"type":"paragraph","content":[{"type":"text","text":"Start typing and select a procedure type from the completion suggestions:"}]},{"type":"paragraph","content":[{"type":"text","text":"ATTACH-STUB:new_topic_options.png|width=450@@"}]},{"type":"paragraph","content":[{"type":"text","text":"@@TAB_END@@"}]},{"type":"paragraph","content":[{"type":"text","text":"@@TAB_TITLE:Semantic markup@@"}]},{"type":"paragraph","content":[{"type":"text","text":"@@TAB_END@@"}]},{"type":"paragraph","content":[{"type":"text","text":"@@TABS_END@@"}]},{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Collapsible blocks"}]},{"type":"paragraph","content":[{"type":"text","text":"Apart from injecting entire XML elements, you can use attributes to configure the behavior of certain elements.\nFor example, you can collapse a chapter that contains non-essential information:"}]},{"type":"paragraph","content":[{"type":"text","text":"Content under a collapsible header will be collapsed by default,\nbut you can modify the behavior by adding the following attribute:"},{"type":"text","marks":[{"type":"code"}],"text":"default-state=\"expanded\""}]},{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Convert selection to XML"}]},{"type":"paragraph","content":[{"type":"text","text":"If you need to extend an element with more functions, you can convert selected content from Markdown to semantic markup.\nFor example, if you want to merge cells in a table, it](completion_procedure.png)"}]},{"type":"paragraph","content":[{"type":"text","text":"Alt+Enter:"}]},{"type":"paragraph","content":[{"type":"text","text":"![Convert table to XML\" width=\"706\" border-effect=\"line\"/>"}]},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Feedback and support"}]},{"type":"paragraph","content":[{"type":"text","text":"Please report any issues, usability improvements, or feature requests to our YouTrack project\n(you will need to register)."}]},{"type":"paragraph","content":[{"type":"text","text":"You are welcome to join our\n<a href=\"https://jb.gg/WRS_Slack](convert_table_to_xml.png)"}]},{"type":"paragraph","content":[{"type":"text","text":"public Slack workspace.\nBefore you do, please read our"},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://www.jetbrains.com/help/writerside/writerside-code-of-conduct.html","__confluenceMetadata":null}}],"text":"Code of conduct"},{"type":"text","text":".\nWe assume that you’ve read and acknowledged it before joining."}]},{"type":"paragraph","content":[{"type":"text","text":"You can also always email us at"},{"type":"text","marks":[{"type":"link","attrs":{"href":"mailto:writerside@jetbrains.com","__confluenceMetadata":null}}],"text":"writerside@jetbrains.com"},{"type":"text","text":"."}]},{"type":"extension","attrs":{"extensionType":"com.writerside","extensionKey":"seealso","parameters":{"links":[{"href":"https://www.jetbrains.com/help/writerside/markup-reference.html","label":"Markup reference"},{"href":"https://www.jetbrains.com/help/writerside/manage-table-of-contents.html","label":"Reorder topics in the TOC"},{"href":"https://www.jetbrains.com/help/writerside/local-build.html","label":"Build and publish"},{"href":"https://www.jetbrains.com/help/writerside/configure-search.html","label":"Configure Search@@"}]}}},{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Empty MD Topic"}]},{"type":"paragraph","content":[{"type":"text","text":"Start typing here..."}]}],"version":1}
+  <script>
+    const vscode = acquireVsCodeApi();
+    let lines = [];
+    let currentActive = null;
+
+    function isElementVisible(el) {
+      let current = el;
+      while (current) {
+        if (current.tagName === 'DETAILS' && !current.open) {
+          return false;
+        }
+        current = current.parentElement;
+      }
+      return true;
+    }
+
+    function gatherLineElements() {
+      const allLines = Array.from(document.querySelectorAll('.code-line'));
+      lines = [];
+      for (const el of allLines) {
+        if (!isElementVisible(el)) continue;
+        const lineVal = parseInt(el.getAttribute('data-line'), 10);
+        const rect = el.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        const height = rect.height;
+        lines.push({ el, line: lineVal, top, height });
+      }
+      lines.sort((a, b) => a.top - b.top);
+    }
+
+    function findClosestLine(targetLine) {
+      if (!lines.length) return null;
+      let closest = lines[0];
+      for (const item of lines) {
+        if (Math.abs(item.line - targetLine) < Math.abs(closest.line - targetLine)) {
+          closest = item;
+        }
+      }
+      return closest;
+    }
+
+    function markActiveLine(line) {
+      if (currentActive) {
+        currentActive.classList.remove('code-active-line');
+      }
+      const closest = findClosestLine(line);
+      if (closest) {
+        closest.el.classList.add('code-active-line');
+        currentActive = closest.el;
+        window.scrollTo({ top: closest.top, behavior: 'smooth' });
+      }
+    }
+
+    document.addEventListener('toggle', (event) => {
+      if (event.target.tagName === 'DETAILS') {
+        gatherLineElements();
+      }
+    }, true);
+
+    window.addEventListener('message', (event) => {
+      const { command, line } = event.data;
+      if (command === 'syncScroll') {
+        markActiveLine(line);
+      }
+    });
+
+    window.addEventListener('scroll', () => {
+      if (!lines.length) return;
+      const offset = window.scrollY + (window.innerHeight / 2);
+      let low = 0, high = lines.length - 1, best = lines[0];
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const current = lines[mid];
+        if (current.top <= offset) {
+          best = current;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+      vscode.postMessage({ command: 'previewScrolled', line: best.line });
+    });
+
+    gatherLineElements();
+  </script>
+</body>
+</html>

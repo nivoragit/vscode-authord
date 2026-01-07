@@ -14,6 +14,10 @@ export default abstract class AbstractDocumentationManager implements Documentat
         this.configPath = configPath;
     }
 
+    getConfigPath(): string {
+        return this.configPath;
+    }
+
     public abstract saveInstance(
         _doc: InstanceProfile,
         _filePath?: string

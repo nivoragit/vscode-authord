@@ -4,4 +4,8 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'], 
+  modulePathIgnorePatterns: ['<rootDir>/out/'],
+  moduleNameMapper: {
+    '^unist-util-visit$': '<rootDir>/__mocks__/unist-util-visit.ts',
+  },
 };

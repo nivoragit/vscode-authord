@@ -1,0 +1,135 @@
+<!DOCTYPE html><html><head><title>.</title><meta charset="utf-8"/></head><body><h1>Sample Page Title</h1>
+<p>This paragraph includes <strong>bold</strong>, <em>italic</em>, <u>underline</u>, and <del>strikethrough</del>.</p>
+<p>Here is a <a href="https://example.com">link</a>, an 😄, and a mention @username.</p>
+<ul>
+<li>Bullet list item 1</li>
+<li>Bullet list item 2</li>
+</ul>
+<ol>
+<li>Ordered list item 1</li>
+<li>Ordered list item 2</li>
+</ol>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Task list item</li>
+</ul>
+<blockquote>
+<p><strong>Decision:</strong> Decision list item</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Header 1</th><th>Header 2</th></tr></thead><tbody><tr><td>Cell 1</td><td>Cell 2</td></tr></tbody></table>
+<pre><code class="language-javascript">console.log('Hello, world!');
+</code></pre>
+<blockquote>
+<p><strong>Info:</strong> This is an info panel.</p>
+</blockquote>
+<blockquote>
+<p>This is a blockquote.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Warning:</strong> This is a warning panel.</p>
+</blockquote>
+<blockquote>
+<p><strong>Error:</strong> This is an error panel.</p>
+</blockquote>
+<p><strong>Date:</strong> 2025-06-15</p>
+<h1>Diagram Examples</h1>
+<p>This document demonstrates how to embed both <strong>Mermaid</strong> and <strong>PlantUML</strong> diagrams in a Markdown file.</p>
+<hr>
+<h2>Mermaid Flowchart</h2>
+<pre><code class="language-mermaid">graph TD
+    A[Start] --> B{Is it working?}
+    B -- Yes --> C[Keep going]
+    B -- No --> D[Fix it]
+    D --> B
+</code></pre>
+<hr>
+<h2>PlantUML Sequence Diagram</h2>
+<pre><code class="language-plantuml">@startuml
+actor User
+participant "Web App" as Web
+participant "Database" as DB
+
+User -> Web: Request login
+Web -> DB: Validate credentials
+DB --> Web: Success
+Web --> User: Welcome message
+@enduml
+</code></pre>
+<hr>
+<h1>Starter</h1>
+<!--Writerside adds this topic when you create a new documentation project.
+You can use it as a sandbox to play with Writerside features, and remove it from the TOC when you don't need it anymore.-->
+<h2>Add new topics</h2>
+<p>You can create empty topics, or choose a template for different types of content that contains some boilerplate structure to help you get started:</p>
+<p><img src="/Users/madushika/vscode-authord/example/authord/images/new_topic_options.png" alt="Create new topic options" width="290" border-effect="line"></p>
+<h2>Write content</h2>
+<p>%product% supports two types of markup: Markdown and XML.
+When you create a new help article, you can choose between two topic types, but this doesn't mean you have to stick to a single format.
+You can author content in Markdown and extend it with semantic attributes or inject entire XML elements.</p>
+<h2>Inject XML</h2>
+<p>For example, this is how you inject a procedure:</p>
+<procedure title="Inject a procedure" id="inject-a-procedure">
+    <step>
+        <p>Start typing and select a procedure type from the completion suggestions:</p>
+        <img src="/Users/madushika/vscode-authord/example/authord/images/completion_procedure.png" alt="completion suggestions for procedure" border-effect="line">
+    </step>
+    <step>
+        <p>Press <shortcut>Tab</shortcut> or <shortcut>Enter</shortcut> to insert the markup.</p>
+    </step>
+</procedure>
+<h2>Add interactive elements</h2>
+<h3>Tabs</h3>
+<p>To add switchable content, you can make use of tabs (inject them by starting to type <code>tab</code> on a new line):</p>
+<tabs>
+    <tab title="Markdown">
+        <code-block lang="plain text">![Alt Text](new_topic_options.png){ width=450 }</code-block>
+    </tab>
+    <tab title="Semantic markup">
+        <code-block lang="xml">
+            <!--[CDATA[<img src="new_topic_options.png" alt="Alt text" width="450px"/-->]]></code-block>
+    </tab>
+</tabs>
+<h3>Collapsible blocks</h3>
+<p>Apart from injecting entire XML elements, you can use attributes to configure the behavior of certain elements.
+For example, you can collapse a chapter that contains non-essential information:</p>
+<h4>Supplementary info {collapsible="true"}</h4>
+<p>Content under a collapsible header will be collapsed by default,
+but you can modify the behavior by adding the following attribute:
+<code>default-state="expanded"</code></p>
+<h3>Convert selection to XML</h3>
+<p>If you need to extend an element with more functions, you can convert selected content from Markdown to semantic markup.
+For example, if you want to merge cells in a table, it's much easier to convert it to XML than do this in Markdown.
+Position the caret anywhere in the table and press <shortcut>Alt+Enter</shortcut>:</p>
+<img src="/Users/madushika/vscode-authord/example/authord/images/convert_table_to_xml.png" alt="Convert table to XML" width="706" border-effect="line">
+<h2>Feedback and support</h2>
+<p>Please report any issues, usability improvements, or feature requests to our
+<a href="https://youtrack.jetbrains.com/newIssue?project=WRS">YouTrack project</a>
+(you will need to register).</p>
+<p>You are welcome to join our
+<a href="https://jb.gg/WRS_Slack">public Slack workspace</a>.
+Before you do, please read our <a href="https://www.jetbrains.com/help/writerside/writerside-code-of-conduct.html">Code of conduct</a>.
+We assume that you’ve read and acknowledged it before joining.</p>
+<p>You can also always email us at <a href="mailto:writerside@jetbrains.com">writerside@jetbrains.com</a>.</p>
+<seealso>
+    <category ref="wrs">
+        <a href="https://www.jetbrains.com/help/writerside/markup-reference.html">Markup reference</a>
+        <a href="https://www.jetbrains.com/help/writerside/manage-table-of-contents.html">Reorder topics in the TOC</a>
+        <a href="https://www.jetbrains.com/help/writerside/local-build.html">Build and publish</a>
+        <a href="https://www.jetbrains.com/help/writerside/configure-search.html">Configure Search</a>
+    </category>
+</seealso>
+# Empty MD Topic
+<p>Start typing here...</p></body></html>
