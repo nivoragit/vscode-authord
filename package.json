@@ -33,19 +33,38 @@
     "Notebooks"
   ],
   "engines": {
-    "vscode": "^1.70.0"
+    "vscode": "^1.99.1"
   },
+  "extensionPack": [
+    "GitHub.copilot-chat"
+  ],
   "activationEvents": [
+    "onChatParticipant:authord.chat",
     "onLanguage:json",
     "onLanguage:markdown",
     "onStartupFinished",
     "workspaceContains:authord.json",
     "onCommand:authordExtension.checkConfig",
     "onCommand:authordExtension.openMarkdownFile",
+    "onCommand:authordExtension.generateCommitDocs",
+    "onCommand:authordExtension.configureAI",
+    "onCommand:authordExtension.installCodexSkill",
+    "onCommand:authordExtension.publishDocs",
+    "onCommand:authordExtension.indexDocs",
+    "onCommand:authordExtension.clearIndex",
     "onCommand:authord.refreshPreview"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "authord.chat",
+        "name": "authord",
+        "fullName": "Authord Docs",
+        "description": "Expert in Documentation-as-Code and Confluence sync.",
+        "isSticky": true
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "emptyProjectView",
@@ -102,6 +121,236 @@
             "docset"
           ],
           "description": "Render mode for the custom preview. Use \"docset\" to resolve Writerside includes/macros on save."
+        },
+        "authord.ai.provider": {
+          "type": "string",
+          "default": "copilot",
+          "enum": [
+            "copilot",
+            "vscode",
+            "custom"
+          ],
+          "description": "Preferred AI provider. \"copilot\" uses GitHub Copilot Chat models; \"vscode\" allows any installed VS Code model; \"custom\" uses a configured OpenAI-compatible endpoint."
+        },
+        "authord.ai.vendor": {
+          "type": "string",
+          "default": "",
+          "description": "Optional vendor filter for VS Code language models (e.g., \"copilot\")."
+        },
+        "authord.ai.modelId": {
+          "type": "string",
+          "default": "",
+          "description": "Optional model id to pin when selecting a language model."
+        },
+        "authord.ai.allowModelPicker": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prompt to select another model when the preferred provider is unavailable."
+        },
+        "authord.ai.custom.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL for a custom OpenAI-compatible API (e.g., https://api.deepseek.com)."
+        },
+        "authord.ai.custom.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model name to use with the custom OpenAI-compatible API."
+        },
+        "authord.ai.custom.chatEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Optional full URL for the custom chat completions endpoint. When set, this overrides the base URL resolver."
+        },
+        "authord.ai.custom.embeddingModel": {
+          "type": "string",
+          "default": "",
+          "description": "Optional embedding model name for the custom OpenAI-compatible API."
+        },
+        "authord.ai.custom.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key for the custom OpenAI-compatible API. Prefer environment variables for secrets."
+        },
+        "authord.ai.custom.requestTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "description": "Timeout (ms) for custom AI provider requests."
+        },
+        "authord.ai.embeddings.provider": {
+          "type": "string",
+          "default": "inherit",
+          "enum": [
+            "inherit",
+            "custom",
+            "local"
+          ],
+          "description": "Embedding provider selection. \"inherit\" uses the chat provider if it is custom, otherwise a local hash embedding."
+        },
+        "authord.logging.level": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "description": "Logging verbosity for the Authord output channel."
+        },
+        "authord.logging.showOnError": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show the Authord output channel when an error is logged."
+        },
+        "authord.confluence.mode": {
+          "type": "string",
+          "default": "single",
+          "enum": [
+            "single",
+            "tree"
+          ],
+          "description": "Confluence publish mode: single page or page tree."
+        },
+        "authord.confluence.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Confluence publishing features."
+        },
+        "authord.confluence.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Confluence base URL (or set CONF_BASE_URL env)."
+        },
+        "authord.confluence.basicAuth": {
+          "type": "string",
+          "default": "",
+          "description": "Confluence credentials as user:token (or set CONF_BASIC_AUTH env)."
+        },
+        "authord.confluence.pageId": {
+          "type": "string",
+          "default": "",
+          "description": "Target Confluence page ID."
+        },
+        "authord.confluence.rootDir": {
+          "type": "string",
+          "default": "",
+          "description": "Override project root directory for Confluence publishing."
+        },
+        "authord.confluence.cliPath": {
+          "type": "string",
+          "default": "authord",
+          "description": "Path to the Authord CLI binary."
+        },
+        "authord.confluence.useDeno": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use Deno to run a TypeScript CLI instead of a compiled binary."
+        },
+        "authord.confluence.denoPath": {
+          "type": "string",
+          "default": "deno",
+          "description": "Path to the Deno executable."
+        },
+        "authord.confluence.denoScriptPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Authord Deno CLI script (e.g., /path/to/authord/lib/cli.ts)."
+        },
+        "authord.confluence.cfgPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit writerside.cfg path (relative to rootDir)."
+        },
+        "authord.confluence.imagesDir": {
+          "type": "string",
+          "default": "",
+          "description": "Images directory (relative to rootDir)."
+        },
+        "authord.confluence.allowRemoteXsd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow remote XSD fetch during validation."
+        },
+        "authord.confluence.noToc": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable Confluence TOC macro insertion."
+        },
+        "authord.confluence.separators": {
+          "type": "boolean",
+          "default": false,
+          "description": "Insert <hr/> separators between sections."
+        },
+        "authord.confluence.headingLevel": {
+          "type": "number",
+          "default": 2,
+          "description": "Section heading level for each page (1-6)."
+        },
+        "authord.confluence.title": {
+          "type": "string",
+          "default": "",
+          "description": "Optional title override for single-page publishing."
+        },
+        "authord.vector.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable vector indexing for agentic documentation search."
+        },
+        "authord.vector.autoIndex": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically update the vector index on Markdown save."
+        },
+        "authord.vector.store": {
+          "type": "string",
+          "default": "local-hnsw",
+          "enum": [
+            "local-hnsw",
+            "local-json",
+            "qdrant"
+          ],
+          "description": "Vector store backend to use."
+        },
+        "authord.vector.topK": {
+          "type": "number",
+          "default": 6,
+          "description": "Default number of chunks to retrieve for agentic queries."
+        },
+        "authord.vector.chunk.maxChars": {
+          "type": "number",
+          "default": 2000,
+          "description": "Maximum characters per chunk."
+        },
+        "authord.vector.chunk.overlapChars": {
+          "type": "number",
+          "default": 200,
+          "description": "Character overlap between adjacent chunks."
+        },
+        "authord.vector.embedding.batchSize": {
+          "type": "number",
+          "default": 16,
+          "description": "Batch size for embedding requests."
+        },
+        "authord.vector.storagePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional override path for the vector index storage."
+        },
+        "authord.vector.qdrant.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Qdrant base URL for cloud or local server (e.g., https://<cluster>.qdrant.io)."
+        },
+        "authord.vector.qdrant.collection": {
+          "type": "string",
+          "default": "authord_docs",
+          "description": "Qdrant collection name to store embeddings."
+        },
+        "authord.vector.qdrant.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Qdrant API key."
         }
       }
     },
@@ -119,6 +368,42 @@
         "command": "extension.addDocumentation",
         "title": "New",
         "icon": "$(add)"
+      },
+      {
+        "command": "authordExtension.generateCommitDocs",
+        "title": "Generate Docs for Current Commit",
+        "category": "Authord",
+        "icon": "$(symbol-file)"
+      },
+      {
+        "command": "authordExtension.configureAI",
+        "title": "Configure AI Provider",
+        "category": "Authord",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "authordExtension.installCodexSkill",
+        "title": "Install Codex Skill",
+        "category": "Authord",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "authordExtension.publishDocs",
+        "title": "Publish Docs to Confluence + Index",
+        "category": "Authord",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "authordExtension.indexDocs",
+        "title": "Index Documentation",
+        "category": "Authord",
+        "icon": "$(database)"
+      },
+      {
+        "command": "authordExtension.clearIndex",
+        "title": "Clear Documentation Index",
+        "category": "Authord",
+        "icon": "$(trash)"
       },
       {
         "command": "extension.reloadConfiguration",
@@ -313,6 +598,21 @@
           "group": "navigation@1"
         },
         {
+          "command": "authordExtension.generateCommitDocs",
+          "when": "view == documentationsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "authordExtension.configureAI",
+          "when": "view == documentationsView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "authordExtension.installCodexSkill",
+          "when": "view == documentationsView",
+          "group": "navigation@4"
+        },
+        {
           "command": "extension.reloadConfiguration",
           "when": "view == documentationsView",
           "group": "navigation"
@@ -345,7 +645,7 @@
     "@types/jest": "^29.5.14",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.14",
-    "@types/vscode": "^1.70.0",
+    "@types/vscode": "^1.99.1",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
@@ -372,15 +672,10 @@
     "@jest/globals": "^29.7.0",
     "ajv": "^8.17.1",
     "fast-xml-parser": "^4.5.1",
+    "hnswlib-node": "^1.4.2",
     "markdown-it": "^13.0.1",
     "markdown-it-attrs": "^4.3.1",
-    "markdown-it-plantuml": "^1.4.1",
-    "rehype-raw": "^7.0.0",
-    "rehype-stringify": "^9.0.3",
-    "remark-gfm": "^3.0.1",
-    "remark-parse": "^10.0.1",
-    "remark-rehype": "^10.1.0",
-    "unified": "^10.1.2"
+    "markdown-it-plantuml": "^1.4.1"
   },
   "eslintConfig": {
     "root": true,

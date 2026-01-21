@@ -1,4 +1,4 @@
-import { scrollSyncPlugin } from './scrollSyncPlugin';
+import { scrollSyncPlugin } from '../plugins/scrollSyncPlugin';
 
 describe('scrollSyncPlugin', () => {
   it('adds code-line class and data-line to supported nodes', () => {

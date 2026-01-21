@@ -6,15 +6,17 @@ import { XMLParser } from 'fast-xml-parser';
 import type { TextDocument } from 'vscode';
 import {
   AuthordAstAssembler,
-  renderMarkdown,
-  renderTopicXml,
-  renderXast,
   type AuthordAst,
   type BuildDocsetOptions,
   type Fetcher,
   type Resource,
 } from '@authord/render-core';
 import type { DocumentationManager } from '../managers/DocumentationManager';
+import {
+  renderDocsetPageHtml,
+  renderMarkdownHtml,
+  renderTopicXmlHtml,
+} from '../utils/html_preview_renderer';
 
 export type PreviewRenderMode = 'simple' | 'docset';
 
@@ -46,7 +48,7 @@ export default class RenderService {
       }
     }
 
-    return await this.renderStandalone(doc, imageFolder);
+    return await this.renderStandaloneHtml(doc, imageFolder);
   }
 
   invalidateDocset(cfgPath?: string): void {
@@ -57,15 +59,12 @@ export default class RenderService {
     }
   }
 
-  private async renderStandalone(
-    doc: TextDocument,
-    imageFolder?: string
-  ): Promise<string> {
+  private async renderStandaloneHtml(doc: TextDocument, imageFolder?: string): Promise<string> {
     const text = doc.getText();
     if (isTopicFile(doc.uri.fsPath)) {
-      return await renderTopicXml(text, { imageFolder });
+      return await renderTopicXmlHtml(text, { imagesDir: imageFolder });
     }
-    return await renderMarkdown(text, { imageFolder });
+    return await renderMarkdownHtml(text, { imageFolder });
   }
 
   private async tryRenderFromDocset(
@@ -84,7 +83,10 @@ export default class RenderService {
       const docset = await this.getDocset(cfgPath);
       const page = findDocsetPage(docset, doc.uri.fsPath);
       if (!page) return null;
-      return await renderXast(page.ast, { imageFolder });
+      return await renderDocsetPageHtml(page, {
+        markdown: { imageFolder },
+        topic: { imagesDir: imageFolder },
+      });
     } catch (error) {
       console.warn(`[authord] docset render failed, falling back: ${String(error)}`);
       return null;

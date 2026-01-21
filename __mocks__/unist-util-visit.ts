@@ -1,4 +1,5 @@
 type Visitor = (node: any) => void;
+type Test = string | ((node: any) => boolean);
 
 function walk(node: any, visitor: Visitor): void {
   if (!node) return;
@@ -9,6 +10,10 @@ function walk(node: any, visitor: Visitor): void {
   }
 }
 
-export const visit = (tree: any, visitor: Visitor): void => {
-  walk(tree, visitor);
+export const visit = (tree: any, testOrVisitor: Test | Visitor, visitor?: Visitor): void => {
+  const resolvedVisitor = typeof testOrVisitor === "function" && !visitor
+    ? testOrVisitor
+    : visitor;
+  if (!resolvedVisitor) return;
+  walk(tree, resolvedVisitor);
 };

@@ -1,7 +1,6 @@
 /* eslint-disable import/no-unresolved */
 
 import * as vscode from 'vscode';
-import { describe, it, beforeEach, afterEach, expect, jest } from '@jest/globals';
 import { TocElement } from '../utils/types';
 import TopicsItem from './TopicsItem';
 import TopicsProvider from './TopicsProvider';

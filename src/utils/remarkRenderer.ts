@@ -7,6 +7,10 @@ export {
   renderTopicXast,
   renderDocset,
   renderDocsetFromCfg,
+  renderMermaidDefinitionToFile,
+  hashString,
+  isPngFileOK,
+  getRenderRuntime,
 } from "@authord/render-core";
 
 export type {

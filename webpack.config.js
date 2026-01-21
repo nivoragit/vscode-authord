@@ -26,6 +26,7 @@ module.exports = {
   },
   externals: {
     vscode: 'commonjs vscode', // VS Code API remains external
+    'hnswlib-node': 'commonjs hnswlib-node'
   },
   devtool: 'source-map',
 };

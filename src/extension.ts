@@ -5,10 +5,12 @@ import { setRenderRuntime } from '@authord/render-core';
 import { createNodeRuntime } from '@authord/runtime-node';
 import { createCustomHtmlRenderer, createCustomImageRenderer } from './utils/VsCodePreviewHelperFunctions';
 import Authord from './authordExtension';
+import { registerAuthordChatParticipant } from './chatParticipant';
 
 let extensionInitializer: Authord | undefined;
 
 export function activate(context: vscode.ExtensionContext): { extendMarkdownIt(md: any): any } {
+  registerAuthordChatParticipant(context, () => extensionInitializer?.getIndexService());
   if (!vscode.workspace.workspaceFolders) {
     return {
       extendMarkdownIt: (md: any) => md,
