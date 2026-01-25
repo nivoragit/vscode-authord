@@ -29,7 +29,10 @@ describe('Authord chat participant', () => {
   });
 
   it('reports when vector indexing is disabled', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: false });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: false,
+      includeConfluenceSnapshots: false,
+    });
 
     const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
     registerAuthordChatParticipant(context, () => undefined);
@@ -45,7 +48,10 @@ describe('Authord chat participant', () => {
   });
 
   it('reports when index service is missing', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: true });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      includeConfluenceSnapshots: false,
+    });
 
     const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
     registerAuthordChatParticipant(context, () => undefined);
@@ -61,7 +67,12 @@ describe('Authord chat participant', () => {
   });
 
   it('queries the index and forwards sources to the AI responder', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: true, autoIndex: true, topK: 2 });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      autoIndex: true,
+      topK: 2,
+      includeConfluenceSnapshots: false,
+    });
 
     const indexService = {
       hasIndex: jest.fn().mockReturnValue(false),

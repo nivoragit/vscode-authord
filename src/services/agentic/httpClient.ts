@@ -15,7 +15,14 @@ export interface JsonRequestOptions {
   maxBytes?: number;
 }
 
-export async function requestJson(options: JsonRequestOptions): Promise<any> {
+export interface JsonResponse<T = any> {
+  status: number;
+  statusMessage?: string;
+  body: T;
+  headers: http.IncomingHttpHeaders;
+}
+
+export async function requestJsonResponse(options: JsonRequestOptions): Promise<JsonResponse> {
   const {
     url,
     method = 'POST',
@@ -84,25 +91,13 @@ export async function requestJson(options: JsonRequestOptions): Promise<any> {
 
         res.on('end', () => {
           const status = res.statusCode ?? 0;
-          if (status < 200 || status >= 300) {
-            const statusMessage = res.statusMessage ? ` ${res.statusMessage}` : '';
-            const detail = data ? ` ${data.slice(0, 500)}` : '';
-            logger.error('HTTP request failed.', {
-              url,
-              method,
-              status,
-              statusMessage: res.statusMessage,
-              detail: data ? data.slice(0, 500) : undefined,
-            });
-            reject(new Error(`Request failed (${status}${statusMessage}).${detail}`));
-            return;
-          }
           if (!data.trim()) {
-            resolve({});
+            resolve({ status, statusMessage: res.statusMessage, body: {}, headers: res.headers });
             return;
           }
           try {
-            resolve(JSON.parse(data));
+            const body = JSON.parse(data);
+            resolve({ status, statusMessage: res.statusMessage, body, headers: res.headers });
           } catch {
             logger.error('HTTP response was not valid JSON.', { url, method, status });
             reject(new Error('Response was not valid JSON.'));
@@ -130,4 +125,22 @@ export async function requestJson(options: JsonRequestOptions): Promise<any> {
     }
     req.end();
   });
+}
+
+export async function requestJson(options: JsonRequestOptions): Promise<any> {
+  const response = await requestJsonResponse(options);
+  const status = response.status ?? 0;
+  if (status < 200 || status >= 300) {
+    const statusMessage = response.statusMessage ? ` ${response.statusMessage}` : '';
+    const detail = response.body ? ` ${JSON.stringify(response.body).slice(0, 500)}` : '';
+    logger.error('HTTP request failed.', {
+      url: options.url,
+      method: options.method ?? 'POST',
+      status,
+      statusMessage: response.statusMessage,
+      detail: response.body ? JSON.stringify(response.body).slice(0, 500) : undefined,
+    });
+    throw new Error(`Request failed (${status}${statusMessage}).${detail}`);
+  }
+  return response.body;
 }

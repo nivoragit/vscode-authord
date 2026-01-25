@@ -1,0 +1,6 @@
+schema_version: 1
+updated_at: "2026-01-25T00:00:00.000Z"
+rules:
+  - id: "doc-tone-active-voice"
+    description: "Use active voice and concise sentences."
+    severity: "warn"

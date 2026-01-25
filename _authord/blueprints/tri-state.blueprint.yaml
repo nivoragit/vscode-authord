@@ -1,0 +1,116 @@
+schema_version: 1
+name: "tri-state"
+capabilities:
+  - id: tri_state_registry
+    description: Deterministic, versioned registry that links code, local docs, and remote pages.
+    depends_on: []
+    signals:
+      files_exist:
+        - _authord/topics/index.yaml
+        - src/services/triState/RegistryService.ts
+      exports_exist:
+        - RegistryService
+        - loadRegistry
+        - saveRegistry
+      settings_exist: []
+      commands_exist: []
+      notes: Registry file and service must exist.
+    phase_hint: 1
+    priority: 1
+
+  - id: tri_state_bootstrap
+    description: Bootstrap command to seed registry entries from existing topics.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/triState/TriStateBootstrapService.ts
+      commands_exist:
+        - authordExtension.initTriStateRegistry
+      exports_exist:
+        - TriStateBootstrapService
+      settings_exist: []
+      notes: Requires registry service before bootstrap.
+    phase_hint: 1
+    priority: 2
+
+  - id: sentinel_drift_check
+    description: Quick drift detection and diagnostics for code changes.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/triState/SentinelService.ts
+      exports_exist:
+        - SentinelService
+      settings_exist:
+        - authord.sentinel.enabled
+      commands_exist: []
+      notes: Diagnostics should be added via VS Code APIs.
+    phase_hint: 2
+    priority: 3
+
+  - id: tri_state_badges
+    description: Visual status badges in the Topics tree and editor gutter.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/TopicsProvider.ts
+        - resources/tri-state-draft.svg
+        - resources/tri-state-drifted.svg
+      settings_exist:
+        - authord.ui.showTriStateBadges
+      commands_exist: []
+      exports_exist: []
+      notes: Gutter and tree should reflect registry state.
+    phase_hint: 2
+    priority: 3
+
+  - id: tri_state_diff_view
+    description: Three-pane diff view for code, local docs, and remote docs.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/triState/TriStateDiffView.ts
+      commands_exist:
+        - authordExtension.openTriStateDiff
+      exports_exist: []
+      settings_exist: []
+      notes: Requires a webview-based diff UI.
+    phase_hint: 2
+    priority: 4
+
+  - id: confluence_snapshot_sync
+    description: Sync Confluence snapshots for comparison and citation.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/triState/ConfluenceSyncService.ts
+      commands_exist:
+        - authordExtension.syncConfluenceSnapshots
+      exports_exist: []
+      settings_exist:
+        - authord.confluence.baseUrl
+      notes: REST fetcher with version tracking.
+    phase_hint: 3
+    priority: 4
+
+  - id: tri_state_knowledge_graph
+    description: Index registry + docs into a unified knowledge graph.
+    depends_on:
+      - tri_state_registry
+    signals:
+      files_exist:
+        - src/services/agentic/documentIndexService.ts
+      exports_exist:
+        - DocumentIndexService
+      commands_exist:
+        - authordExtension.indexDocs
+      settings_exist:
+        - authord.vector.enabled
+      notes: Should support hybrid retrieval and citations.
+    phase_hint: 3
+    priority: 5

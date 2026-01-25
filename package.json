@@ -48,11 +48,19 @@
     "onCommand:authordExtension.openMarkdownFile",
     "onCommand:authordExtension.generateCommitDocs",
     "onCommand:authordExtension.configureAI",
+    "onCommand:authordExtension.initTriStateRegistry",
     "onCommand:authordExtension.installCodexSkill",
     "onCommand:authordExtension.publishDocs",
     "onCommand:authordExtension.indexDocs",
     "onCommand:authordExtension.clearIndex",
-    "onCommand:authord.refreshPreview"
+    "onCommand:authord.refreshPreview",
+    "onCommand:authord.generateTriStateIntegrationPlan",
+    "onCommand:authord.initializeRegistry",
+    "onCommand:authord.showTopicStatus",
+    "onCommand:authord.harmonizeTopic",
+    "onCommand:authord.syncConfluenceSnapshots",
+    "onCommand:authord.openTriStateDiff",
+    "onCommand:authord.showLastRunReport"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -203,6 +211,25 @@
           "default": true,
           "description": "Automatically show the Authord output channel when an error is logged."
         },
+        "authord.sentinel.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable quick-mode documentation drift checks on save."
+        },
+        "authord.sentinel.mode": {
+          "type": "string",
+          "default": "quick",
+          "enum": [
+            "quick",
+            "off"
+          ],
+          "description": "Sentinel drift detection mode. \"quick\" uses signature heuristics; \"off\" disables drift checks."
+        },
+        "authord.sentinel.autoMarkRegistry": {
+          "type": "boolean",
+          "default": false,
+          "description": "Persist DRIFTED tri_state in the registry when drift is detected."
+        },
         "authord.confluence.mode": {
           "type": "string",
           "default": "single",
@@ -351,6 +378,21 @@
           "type": "string",
           "default": "",
           "description": "Optional Qdrant API key."
+        },
+        "authord.vector.includeConfluenceSnapshots": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include Confluence snapshot content in the vector index."
+        },
+        "authord.ui.showTriStateBadges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show tri-state status badges in the Topics tree."
+        },
+        "authord.ui.showTriStateEditorIndicator": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show tri-state status indicators in the editor (overview ruler or status bar)."
         }
       }
     },
@@ -380,6 +422,54 @@
         "title": "Configure AI Provider",
         "category": "Authord",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "authord.generateTriStateIntegrationPlan",
+        "title": "Authord: Generate Tri-State Integration Plan",
+        "category": "Authord",
+        "icon": "$(book)"
+      },
+      {
+        "command": "authord.initializeRegistry",
+        "title": "Authord: Initialize Tri-State Registry",
+        "category": "Authord",
+        "icon": "$(database)"
+      },
+      {
+        "command": "authord.showTopicStatus",
+        "title": "Authord: Show Topic Status",
+        "category": "Authord",
+        "icon": "$(info)"
+      },
+      {
+        "command": "authord.harmonizeTopic",
+        "title": "Authord: Harmonize Topic",
+        "category": "Authord",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "authord.syncConfluenceSnapshots",
+        "title": "Authord: Sync Confluence Snapshots",
+        "category": "Authord",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "authord.openTriStateDiff",
+        "title": "Authord: Open Tri-State Diff",
+        "category": "Authord",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "authord.showLastRunReport",
+        "title": "Authord: Show Last Run Report",
+        "category": "Authord",
+        "icon": "$(history)"
+      },
+      {
+        "command": "authordExtension.initTriStateRegistry",
+        "title": "Initialize Tri-State Registry",
+        "category": "Authord",
+        "icon": "$(database)"
       },
       {
         "command": "authordExtension.installCodexSkill",
@@ -571,6 +661,21 @@
           "group": "navigation@3"
         },
         {
+          "command": "authord.harmonizeTopic",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@4"
+        },
+        {
+          "command": "authord.syncConfluenceSnapshots",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@5"
+        },
+        {
+          "command": "authord.openTriStateDiff",
+          "when": "view == topicsView && viewItem == topic",
+          "group": "navigation@6"
+        },
+        {
           "command": "extension.renameContextMenuDoc",
           "when": "view == documentationsView && viewItem == documentation",
           "group": "navigation"
@@ -639,12 +744,15 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src --ext .ts",
     "test": "vscode-test",
-    "test:unit": "jest"
+    "test:unit": "jest",
+    "authord:ci:build": "tsc -p tools/ci/tsconfig.json",
+    "authord:ci": "npm run authord:ci:build && node tools/ci/dist/authord-ci.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.17.14",
+    "@types/js-yaml": "^4.0.9",
     "@types/vscode": "^1.99.1",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
@@ -664,18 +772,15 @@
   },
   "dependencies": {
     "@authord/render-core": "git+https://github.com/nivoragit/authord-render-core.git#main",
-
-
-"@authord/runtime-node": "git+https://github.com/nivoragit/authord-runtime-node.git#main",
-
-
+    "@authord/runtime-node": "git+https://github.com/nivoragit/authord-runtime-node.git#main",
     "@jest/globals": "^29.7.0",
     "ajv": "^8.17.1",
     "fast-xml-parser": "^4.5.1",
     "hnswlib-node": "^1.4.2",
     "markdown-it": "^13.0.1",
     "markdown-it-attrs": "^4.3.1",
-    "markdown-it-plantuml": "^1.4.1"
+    "markdown-it-plantuml": "^1.4.1",
+    "js-yaml": "^4.1.0"
   },
   "eslintConfig": {
     "root": true,

@@ -26,7 +26,7 @@ describe('TopicsProvider', () => {
       setAsStartPage: jest.fn()
     } as any;
 
-    provider = new TopicsProvider(mockTopicsService);
+    provider = new TopicsProvider(mockTopicsService, '/repo');
     mockEmitter = (provider as any).onDidChangeTreeDataEmitter;
   });
 

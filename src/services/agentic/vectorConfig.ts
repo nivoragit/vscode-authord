@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export interface VectorConfig {
   enabled: boolean;
   autoIndex: boolean;
+  includeConfluenceSnapshots: boolean;
   store: 'local-hnsw' | 'local-json' | 'qdrant';
   topK: number;
   maxChunkChars: number;
@@ -24,6 +25,7 @@ export function getVectorConfig(): VectorConfig {
   return {
     enabled: config.get<boolean>('vector.enabled', true),
     autoIndex: config.get<boolean>('vector.autoIndex', true),
+    includeConfluenceSnapshots: config.get<boolean>('vector.includeConfluenceSnapshots', false),
     store,
     topK: clampNumber(config.get<number>('vector.topK', 6), 1, 50),
     maxChunkChars: clampNumber(config.get<number>('vector.chunk.maxChars', 2000), 200, 20_000),

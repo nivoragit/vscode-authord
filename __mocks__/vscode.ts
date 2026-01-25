@@ -28,6 +28,77 @@ export const ViewColumn = {
   Two: 2,
 };
 
+export const StatusBarAlignment = {
+  Left: 1,
+  Right: 2,
+};
+
+export class Position {
+  line: number;
+
+  character: number;
+
+  constructor(line: number, character: number) {
+    this.line = line;
+    this.character = character;
+  }
+}
+
+export class Range {
+  start: Position;
+
+  end: Position;
+
+  constructor(start: Position, end: Position) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+export const DiagnosticSeverity = {
+  Error: 0,
+  Warning: 1,
+  Information: 2,
+  Hint: 3,
+};
+
+export class Diagnostic {
+  range: Range;
+
+  message: string;
+
+  severity?: number;
+
+  source?: string;
+
+  code?: string;
+
+  constructor(range: Range, message: string, severity?: number) {
+    this.range = range;
+    this.message = message;
+    this.severity = severity;
+  }
+}
+
+export class ThemeIcon {
+  id: string;
+
+  color?: ThemeColor;
+
+  constructor(id: string, color?: ThemeColor) {
+    this.id = id;
+    this.color = color;
+  }
+}
+
+export class ThemeColor {
+  id: string;
+
+  constructor(id: string) {
+    this.id = id;
+  }
+}
+
 export const ProgressLocation = {
   Notification: 1,
 };
@@ -49,6 +120,34 @@ export const window = {
   onDidChangeVisibleTextEditors: jest.fn(),
   onDidChangeActiveTextEditor: jest.fn(),
   onDidChangeTextEditorSelection: jest.fn(),
+  onDidChangeTextEditorVisibleRanges: jest.fn(),
+  createWebviewPanel: jest.fn(() => ({
+    title: '',
+    webview: {
+      html: '',
+      options: {},
+      cspSource: 'vscode-resource:',
+      postMessage: jest.fn(),
+      onDidReceiveMessage: jest.fn(),
+      asWebviewUri: (uri: any) => uri,
+    },
+    onDidDispose: jest.fn(),
+    reveal: jest.fn(),
+    dispose: jest.fn(),
+  })),
+  createTextEditorDecorationType: jest.fn(() => ({
+    dispose: jest.fn(),
+  })),
+  createStatusBarItem: jest.fn(() => ({
+    text: '',
+    tooltip: '',
+    color: undefined,
+    name: '',
+    command: undefined,
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  })),
   createOutputChannel: jest.fn(() => ({
     appendLine: jest.fn(),
     show: jest.fn(),
@@ -70,9 +169,11 @@ export const workspace = {
     delete: jest.fn(() => Promise.resolve(undefined)),
   },
   getConfiguration: jest.fn().mockReturnValue({
-    get: jest.fn(),
+    get: jest.fn((_key: string, fallback?: any) => fallback),
     update: jest.fn(),
   }),
+  workspaceFolders: [],
+  openTextDocument: jest.fn(),
   onDidSaveTextDocument: jest.fn(),
   onDidChangeTextDocument: jest.fn(),
 };
@@ -103,6 +204,15 @@ export const chat = {
   createChatParticipant: jest.fn(),
 };
 
+export const languages = {
+  createDiagnosticCollection: jest.fn(() => ({
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn(),
+    dispose: jest.fn(),
+  })),
+};
+
 export const ConfigurationTarget = {
   Global: 1,
   Workspace: 2,
@@ -111,6 +221,14 @@ export const ConfigurationTarget = {
 export const commands = {
   executeCommand: jest.fn(),
 };
+
+export class CancellationTokenSource {
+  token = {};
+
+  cancel = jest.fn();
+
+  dispose = jest.fn();
+}
 
 export class DataTransferItem {
   value: any;

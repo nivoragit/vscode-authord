@@ -6,6 +6,7 @@ import { promises as fs } from 'fs';
 import { InstanceProfile, TocElement } from "../utils/types";
 import TopicsItem from './TopicsItem';
 import { DocumentationManager } from '../managers/DocumentationManager';
+import type { TriStateStatus } from './triState/types';
 
 export default class TopicsService {
   readonly topicDir: string;
@@ -83,16 +84,18 @@ export default class TopicsService {
     return false; // Return false if no match is found in the tree
   }
 
-  public createTreeItem(item: TocElement): TopicsItem {
+  public createTreeItem(item: TocElement, status?: TriStateStatus): TopicsItem {
     const collapsibleState = item.children?.length
       ? vscode.TreeItemCollapsibleState.Collapsed
       : vscode.TreeItemCollapsibleState.None;
 
+    const icon = status ? mapStatusToIcon(status) : undefined;
     const treeItem = new TopicsItem(
       item.title,
       collapsibleState,
       item.topic,
-      item.children
+      item.children,
+      icon
     );
 
     treeItem.command = {
@@ -289,4 +292,19 @@ export default class TopicsService {
     return doc;
   }
 
+}
+
+function mapStatusToIcon(status: TriStateStatus): vscode.ThemeIcon | undefined {
+  switch (status) {
+    case 'SYNCED':
+      return new vscode.ThemeIcon('pass', new vscode.ThemeColor('charts.green'));
+    case 'DRIFTED':
+      return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'));
+    case 'DRAFT':
+      return new vscode.ThemeIcon('edit', new vscode.ThemeColor('charts.blue'));
+    case 'MISSING':
+      return new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
+    default:
+      return undefined;
+  }
 }

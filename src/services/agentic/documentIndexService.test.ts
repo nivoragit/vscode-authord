@@ -17,6 +17,7 @@ import {
 jest.mock('vscode');
 jest.mock('./chunker', () => ({
   chunkMarkdown: jest.fn(),
+  chunkConfluenceStorage: jest.fn(),
 }));
 jest.mock('./vectorStores', () => ({
   createVectorStore: jest.fn(),
@@ -54,6 +55,7 @@ describe('DocumentIndexService embedding provider switching', () => {
     (getVectorConfig as jest.Mock).mockReturnValue({
       enabled: true,
       autoIndex: false,
+      includeConfluenceSnapshots: false,
       store: 'local-hnsw',
       topK: 5,
       maxChunkChars: 2000,

@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: authord-indexer-db
+    environment:
+      POSTGRES_USER: authord
+      POSTGRES_PASSWORD: authord
+      POSTGRES_DB: authord
+    ports:
+      - "5432:5432"
+    volumes:
+      - authord_pgdata:/var/lib/postgresql/data
+
+volumes:
+  authord_pgdata:

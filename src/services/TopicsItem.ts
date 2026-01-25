@@ -11,11 +11,15 @@ export default class TopicsItem extends vscode.TreeItem {
       label: string,
       collapsibleState: vscode.TreeItemCollapsibleState,
       topic: string,
-      children: TocElement[] = []
+      children: TocElement[] = [],
+      icon?: vscode.ThemeIcon
     ) {
       super(label, collapsibleState);
       this.children = children;
       this.contextValue = 'topic';
       this.topic = topic;
+      if (icon) {
+        this.iconPath = icon;
+      }
     }
   }

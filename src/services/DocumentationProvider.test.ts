@@ -50,7 +50,7 @@ describe('DocumentationProvider', () => {
         mockConfigManager = new AuthordDocumentManager(mockConfigPath) as any;
         // Properly instantiate mock services with required constructor args
         mockDocService = new DocumentationService(mockConfigManager) as jest.Mocked<DocumentationService>;
-        mockTopicsProvider = new TopicsProvider(mockTopicsService) as jest.Mocked<TopicsProvider>;
+        mockTopicsProvider = new TopicsProvider(mockTopicsService, '/repo') as jest.Mocked<TopicsProvider>;
 
         // Create our DocumentationProvider instance
         documentationProvider = new DocumentationProvider(mockDocService, mockTopicsProvider);

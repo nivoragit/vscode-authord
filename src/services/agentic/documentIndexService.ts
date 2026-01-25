@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { DocumentationManager } from '../../managers/DocumentationManager';
 import TopicsService from '../TopicsService';
-import { chunkMarkdown } from './chunker';
+import { chunkConfluenceStorage, chunkMarkdown } from './chunker';
 import { createEmbeddingProvider, stableTextHash } from './embeddings';
 import { createVectorStore } from './vectorStores';
 import { VectorStore, VectorSearchResult } from './types';
@@ -12,10 +12,16 @@ import type { VectorConfig } from './vectorConfig';
 import LoggerService, { getLogger } from '../LoggerService';
 
 interface DocTarget {
-  docId: string;
-  docName: string;
-  topicFile: string;
+  key: string;
+  sourceType: 'local' | 'confluence';
+  docId?: string;
+  docName?: string;
+  topicFile?: string;
   filePath: string;
+  confluencePageId?: string;
+  confluenceVersion?: number;
+  title?: string;
+  spaceKey?: string;
 }
 
 interface IndexManifest {
@@ -158,14 +164,20 @@ export default class DocumentIndexService {
   private async indexTarget(target: DocTarget, force: boolean, content?: string): Promise<void> {
     if (!fs.existsSync(target.filePath)) return;
     const raw = content ?? await fs.promises.readFile(target.filePath, 'utf8');
-    const docHash = stableTextHash(raw);
     const key = this.docKey(target);
+
+    if (target.sourceType === 'confluence') {
+      await this.indexConfluenceTarget(target, raw, force);
+      return;
+    }
+
+    const docHash = stableTextHash(raw);
 
     if (!force && this.manifest.docHashes[key] === docHash) {
       return;
     }
 
-    const chunks = this.buildChunks(target, raw, docHash);
+    const chunks = this.buildLocalChunks(target, raw, docHash);
     this.logger.debug('Indexing document.', {
       docId: target.docId,
       topic: target.topicFile,
@@ -211,7 +223,7 @@ export default class DocumentIndexService {
     this.manifest.docChunks[key] = chunks.map((chunk) => chunk.id);
   }
 
-  private buildChunks(target: DocTarget, content: string, docHash: string) {
+  private buildLocalChunks(target: DocTarget, content: string, docHash: string) {
     const options = {
       maxChunkChars: this.vectorConfig.maxChunkChars,
       overlapChars: this.vectorConfig.overlapChars,
@@ -221,40 +233,171 @@ export default class DocumentIndexService {
 
     return chunks.map((chunk, index) => {
       const chunkHash = stableTextHash(`${docHash}:${index}:${chunk.text}`);
+      const metadata: Record<string, string | number | boolean | null> = {
+        sourceType: 'local',
+        path: relPath,
+        heading: chunk.headingPath,
+        chunkIndex: index + 1,
+      };
+      if (target.docId) metadata.docId = target.docId;
+      if (target.docName) metadata.docName = target.docName;
+      if (target.topicFile) metadata.topic = target.topicFile;
       return {
-        id: `${target.docId}:${target.topicFile}:${index}:${chunkHash}`,
+        id: `${target.key}:${index}:${chunkHash}`,
         text: chunk.text,
-        metadata: {
-          docId: target.docId,
-          docName: target.docName,
-          topic: target.topicFile,
-          path: relPath,
-          heading: chunk.headingPath,
-          chunkIndex: index + 1,
-        },
+        metadata,
       };
     });
   }
 
+  private async indexConfluenceTarget(target: DocTarget, raw: string, force: boolean): Promise<void> {
+    const key = this.docKey(target);
+    let snapshot: ConfluenceSnapshot | undefined;
+    try {
+      snapshot = parseConfluenceSnapshot(raw, target.confluencePageId);
+    } catch (error) {
+      this.logger.warn('Failed to parse Confluence snapshot for indexing.', {
+        filePath: target.filePath,
+        error: (error as Error)?.message ?? String(error),
+      });
+      return;
+    }
+    if (!snapshot.body) return;
+
+    const docHash = stableTextHash(`${snapshot.version}:${snapshot.body}`);
+    if (!force && this.manifest.docHashes[key] === docHash) {
+      return;
+    }
+
+    const chunks = this.buildConfluenceChunks(snapshot, target, docHash);
+    this.logger.debug('Indexing Confluence snapshot.', {
+      pageId: snapshot.pageId,
+      version: snapshot.version,
+      chunks: chunks.length,
+    });
+
+    const vectorStore = await this.ensureVectorStore();
+    if (!vectorStore) return;
+    const embedder = createEmbeddingProvider();
+
+    if (chunks.length === 0) {
+      const oldChunkIds = this.manifest.docChunks[key] || [];
+      if (oldChunkIds.length > 0) {
+        await vectorStore.delete(oldChunkIds);
+      }
+      this.manifest.docHashes[key] = docHash;
+      this.manifest.docChunks[key] = [];
+      return;
+    }
+
+    const batchSize = this.vectorConfig.embeddingBatchSize;
+    const vectors: number[][] = [];
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const slice = chunks.slice(i, i + batchSize);
+      const embeddings = await embedder.embed(slice.map((chunk) => chunk.text));
+      vectors.push(...embeddings);
+    }
+
+    const records = chunks.map((chunk, index) => ({
+      id: chunk.id,
+      vector: vectors[index],
+      metadata: chunk.metadata,
+      text: chunk.text,
+    }));
+
+    const oldChunkIds = this.manifest.docChunks[key] || [];
+    if (oldChunkIds.length > 0) {
+      await vectorStore.delete(oldChunkIds);
+    }
+
+    await vectorStore.upsert(records);
+
+    this.manifest.docHashes[key] = docHash;
+    this.manifest.docChunks[key] = chunks.map((chunk) => chunk.id);
+  }
+
   private buildDocTargets(): DocTarget[] {
     const instances = this.documentManager.getInstances();
-    if (!instances || instances.length === 0) return [];
     const topicsDir = this.documentManager.getTopicsDirectory();
     const targets: DocTarget[] = [];
 
-    instances.forEach((instance) => {
-      const topics = TopicsService.getAllTopicsFromTocElement(instance['toc-elements']);
-      topics.forEach((topic) => {
-        targets.push({
-          docId: instance.id,
-          docName: instance.name,
-          topicFile: topic,
-          filePath: path.join(topicsDir, topic),
+    if (instances && instances.length > 0) {
+      instances.forEach((instance) => {
+        const topics = TopicsService.getAllTopicsFromTocElement(instance['toc-elements']);
+        topics.forEach((topic) => {
+          targets.push({
+            key: `${instance.id}:${topic}`,
+            sourceType: 'local',
+            docId: instance.id,
+            docName: instance.name,
+            topicFile: topic,
+            filePath: path.join(topicsDir, topic),
+          });
         });
       });
-    });
+    }
+
+    if (this.vectorConfig.includeConfluenceSnapshots) {
+      targets.push(...this.buildConfluenceTargets());
+    }
 
     return targets;
+  }
+
+  private buildConfluenceTargets(): DocTarget[] {
+    const snapshotDir = path.join(this.workspaceRoot, '_authord_output', 'confluence_snapshots');
+    if (!fs.existsSync(snapshotDir)) return [];
+    let entries: string[] = [];
+    try {
+      entries = fs.readdirSync(snapshotDir);
+    } catch {
+      return [];
+    }
+    return entries
+      .filter((entry) => entry.endsWith('.latest.json'))
+      .map((entry) => {
+        const pageId = entry.replace(/\.latest\.json$/i, '');
+        return {
+          key: `confluence:${pageId}`,
+          sourceType: 'confluence',
+          confluencePageId: pageId,
+          filePath: path.join(snapshotDir, entry),
+        };
+      });
+  }
+
+  private buildConfluenceChunks(snapshot: ConfluenceSnapshot, target: DocTarget, docHash: string) {
+    const options = {
+      maxChunkChars: this.vectorConfig.maxChunkChars,
+      overlapChars: this.vectorConfig.overlapChars,
+    };
+    const chunks = chunkConfluenceStorage(snapshot.body, options);
+    const relPath = path.relative(this.workspaceRoot, target.filePath);
+
+    return chunks.map((chunk, index) => {
+      const chunkHash = stableTextHash(`${docHash}:${index}:${chunk.text}`);
+      const anchor = buildAnchor(chunk.headingPath);
+      const metadata: Record<string, string | number | boolean | null> = {
+        sourceType: 'confluence',
+        confluencePageId: snapshot.pageId,
+        confluenceVersion: snapshot.version,
+        title: snapshot.title || '',
+        path: relPath,
+        heading: chunk.headingPath,
+        chunkIndex: index + 1,
+      };
+      if (snapshot.spaceKey) {
+        metadata.spaceKey = snapshot.spaceKey;
+      }
+      if (anchor) {
+        metadata.anchor = anchor;
+      }
+      return {
+        id: `${target.key}:${index}:${chunkHash}`,
+        text: chunk.text,
+        metadata,
+      };
+    });
   }
 
   private async pruneMissingDocs(currentKeys: Set<string>): Promise<void> {
@@ -274,7 +417,7 @@ export default class DocumentIndexService {
   }
 
   private docKey(target: DocTarget): string {
-    return `${target.docId}:${target.topicFile}`;
+    return target.key;
   }
 
   private async enqueue(task: () => Promise<void>): Promise<void> {
@@ -282,4 +425,38 @@ export default class DocumentIndexService {
     this.indexQueue = run.then(() => undefined, () => undefined);
     await run;
   }
+}
+
+interface ConfluenceSnapshot {
+  pageId: string;
+  title: string;
+  version: number;
+  body: string;
+  spaceKey?: string;
+}
+
+function parseConfluenceSnapshot(raw: string, fallbackPageId?: string): ConfluenceSnapshot {
+  const parsed = JSON.parse(raw);
+  const pageId = String(parsed?.pageId ?? parsed?.id ?? fallbackPageId ?? '');
+  const title = String(parsed?.title ?? '');
+  const version = Number(parsed?.version ?? parsed?.confluence_version ?? parsed?.version?.number ?? 0);
+  const body = String(parsed?.body ?? parsed?.storageBody ?? parsed?.body?.storage?.value ?? '');
+  const spaceKey =
+    parsed?.spaceKey ?? parsed?.space?.key ?? parsed?.space?.spaceKey ?? parsed?.space?.space_key;
+
+  if (!pageId) {
+    throw new Error('Snapshot is missing pageId.');
+  }
+
+  return { pageId, title, version, body, spaceKey };
+}
+
+function buildAnchor(headingPath: string): string | undefined {
+  if (!headingPath || headingPath === 'root') return undefined;
+  const last = headingPath.split(' > ').pop() ?? headingPath;
+  const slug = last
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || undefined;
 }

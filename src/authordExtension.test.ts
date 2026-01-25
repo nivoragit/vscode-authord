@@ -22,7 +22,11 @@ describe('Authord AI configuration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: true, autoIndex: true });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      autoIndex: true,
+      includeConfluenceSnapshots: false,
+    });
   });
 
   it('configures Copilot as the AI provider', async () => {
@@ -266,7 +270,11 @@ describe('Authord AI configuration', () => {
   });
 
   it('warns when indexing is disabled', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: false, autoIndex: true });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: false,
+      autoIndex: true,
+      includeConfluenceSnapshots: false,
+    });
 
     const commands: Record<string, () => Promise<void>> = {};
     const commandExecutor = {
@@ -328,7 +336,11 @@ describe('Authord AI configuration', () => {
   });
 
   it('auto-indexes on markdown save when enabled', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: true, autoIndex: true });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      autoIndex: true,
+      includeConfluenceSnapshots: false,
+    });
 
     let saveHandler: ((doc: any) => Promise<void>) | undefined;
     (vscode.workspace.onDidSaveTextDocument as jest.Mock).mockImplementation((handler: any) => {
@@ -359,7 +371,11 @@ describe('Authord AI configuration', () => {
   });
 
   it('skips auto-index when disabled', async () => {
-    (getVectorConfig as jest.Mock).mockReturnValue({ enabled: true, autoIndex: false });
+    (getVectorConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      autoIndex: false,
+      includeConfluenceSnapshots: false,
+    });
 
     let saveHandler: ((doc: any) => Promise<void>) | undefined;
     (vscode.workspace.onDidSaveTextDocument as jest.Mock).mockImplementation((handler: any) => {

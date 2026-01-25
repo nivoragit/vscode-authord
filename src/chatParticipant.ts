@@ -84,14 +84,38 @@ export function registerAuthordChatParticipant(
 }
 
 function formatSources(results: Array<{ text?: string; metadata: Record<string, any> }>): string {
+  const config = vscode.workspace.getConfiguration('authord');
+  const confluenceBaseUrl = config.get<string>('confluence.baseUrl', '').trim();
   let totalChars = 0;
   const blocks: string[] = [];
   for (let i = 0; i < results.length; i += 1) {
     const result = results[i];
+    const sourceType = result.metadata.sourceType;
     const heading = result.metadata.heading || 'root';
-    const topic = result.metadata.topic || 'unknown';
-    const docName = result.metadata.docName || result.metadata.docId || 'doc';
-    const header = `[${i + 1}] ${docName} / ${topic} / ${heading}`;
+    let header = '';
+
+    if (sourceType === 'confluence') {
+      const title = result.metadata.title || 'Confluence';
+      const version = result.metadata.confluenceVersion ?? result.metadata.confluence_version ?? 'unknown';
+      header = `[${i + 1}] ${title} (v${version})`;
+      if (heading && heading !== 'root') {
+        header += ` / ${heading}`;
+      }
+      const url = buildConfluenceUrl(
+        confluenceBaseUrl,
+        String(result.metadata.confluencePageId || result.metadata.pageId || ''),
+        String(result.metadata.spaceKey || ''),
+        String(result.metadata.anchor || '')
+      );
+      if (url) {
+        header += `\nConfluence: ${url}`;
+      }
+    } else {
+      const topic = result.metadata.topic || 'unknown';
+      const docName = result.metadata.docName || result.metadata.docId || 'doc';
+      header = `[${i + 1}] ${docName} / ${topic} / ${heading}`;
+    }
+
     const snippet = clampText(result.text || '', MAX_SOURCE_CHARS);
     totalChars += header.length + snippet.length;
     if (totalChars > MAX_TOTAL_SOURCE_CHARS && blocks.length > 0) {
@@ -107,4 +131,16 @@ function clampText(text: string, maxChars: number): string {
   if (!text) return '';
   if (text.length <= maxChars) return text;
   return `${text.slice(0, maxChars)}...`;
+}
+
+function buildConfluenceUrl(baseUrl: string, pageId: string, spaceKey?: string, anchor?: string): string | undefined {
+  if (!baseUrl || !pageId) return undefined;
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  const wikiBase = trimmed.endsWith('/wiki') ? trimmed : `${trimmed}/wiki`;
+  const path =
+    spaceKey
+      ? `/spaces/${encodeURIComponent(spaceKey)}/pages/${encodeURIComponent(pageId)}`
+      : `/pages/${encodeURIComponent(pageId)}`;
+  const anchorSuffix = anchor ? `#${anchor}` : '';
+  return `${wikiBase}${path}${anchorSuffix}`;
 }

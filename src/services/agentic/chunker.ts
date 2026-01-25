@@ -26,6 +26,11 @@ export function chunkMarkdown(content: string, options: ChunkingOptions): Markdo
   return chunks;
 }
 
+export function chunkConfluenceStorage(content: string, options: ChunkingOptions): MarkdownChunk[] {
+  const markdownish = storageToMarkdownish(content);
+  return chunkMarkdown(markdownish, options);
+}
+
 interface HeadingSection {
   headingPath: string;
   text: string;
@@ -86,4 +91,36 @@ function splitWithOverlap(text: string, maxChars: number, overlap: number): stri
   }
 
   return chunks;
+}
+
+function storageToMarkdownish(content: string): string {
+  if (!content) return '';
+  let text = content;
+
+  text = text.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_match, level, inner) => {
+    const headingText = stripTags(inner).trim() || 'untitled';
+    const prefix = '#'.repeat(Number(level));
+    return `\n${prefix} ${headingText}\n`;
+  });
+
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/(p|div|li|tr|ul|ol|table|section|blockquote)>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
+
+  text = decodeEntities(text);
+  return text;
+}
+
+function stripTags(value: string): string {
+  return value.replace(/<[^>]+>/g, '');
+}
+
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
 }

@@ -3,8 +3,10 @@
 /* eslint-disable import/no-unresolved */
 import * as vscode from 'vscode';
 import { TocElement } from '../utils/types';
+import type { TriStateRegistry } from './triState/types';
 import TopicsItem from './TopicsItem';
 import TopicsService from './TopicsService';
+import RegistryService from './triState/RegistryService';
 
 export default class TopicsProvider implements vscode.TreeDataProvider<TopicsItem> {
   private onDidChangeTreeDataEmitter = new vscode.EventEmitter<TopicsItem | undefined | void>();
@@ -12,18 +14,22 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
   public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
   
   public readonly topicsService: TopicsService;
+  private readonly registryService: RegistryService;
+  private registryCache: TriStateRegistry | undefined;
   
   private tocTree: TocElement[] = [];
   
   public currentDocId: string | undefined;
 
-  constructor(topicsService: TopicsService) {
+  constructor(topicsService: TopicsService, workspaceRoot: string) {
     this.topicsService = topicsService;
+    this.registryService = new RegistryService(workspaceRoot);
   }
 
   public refresh(tocTree?: TocElement[], docId?: string): void {
     if (tocTree) this.tocTree = tocTree;
     if (docId) this.currentDocId = docId;
+    this.registryCache = undefined;
     this.onDidChangeTreeDataEmitter.fire();
   }
 
@@ -32,9 +38,25 @@ export default class TopicsProvider implements vscode.TreeDataProvider<TopicsIte
   }
 
   public async getChildren(element?: TopicsItem): Promise<TopicsItem[]> {
-    return element 
-      ? element.children.map(child => this.topicsService.createTreeItem(child))
-      : this.tocTree.map(item => this.topicsService.createTreeItem(item));
+    const config = vscode.workspace.getConfiguration('authord');
+    const showBadges = config.get<boolean>('ui.showTriStateBadges', true) ?? false;
+    let registry = this.registryCache;
+
+    if (showBadges && !registry) {
+      try {
+        registry = await this.registryService.loadRegistry();
+        this.registryCache = registry;
+      } catch {
+        registry = undefined;
+      }
+    }
+
+    const resolveStatus = (topic: TocElement) =>
+      registry ? this.registryService.getTopicStatusFromRegistry(topic.topic, registry) : undefined;
+
+    return element
+      ? element.children.map(child => this.topicsService.createTreeItem(child, resolveStatus(child)))
+      : this.tocTree.map(item => this.topicsService.createTreeItem(item, resolveStatus(item)));
   }
 
   public async moveTopic(sourceTopicId: string, targetTopicId: string): Promise<void> {

@@ -26,6 +26,17 @@ import { InstanceProfile } from './utils/types';
 import DocumentIndexService from './services/agentic/documentIndexService';
 import { getVectorConfig } from './services/agentic/vectorConfig';
 import ConfluencePublishService from './services/ConfluencePublishService';
+import TriStateBootstrapService from './services/triState/TriStateBootstrapService';
+import SentinelService from './services/triState/SentinelService';
+import RegistryService from './services/triState/RegistryService';
+import BlueprintDiffService from './services/triState/BlueprintDiffService';
+import IntegrationPlanWriter from './services/triState/IntegrationPlanWriter';
+import RegistryBootstrapService from './services/triState/RegistryBootstrapService';
+import HarmonizeService from './services/triState/HarmonizeService';
+import ConfluenceSyncService from './services/triState/ConfluenceSyncService';
+import TriStateDiffView from './services/triState/TriStateDiffView';
+import RunTrackerService from './services/triState/RunTrackerService';
+import type { TriStateStatus } from './services/triState/types';
 import LoggerService, { getLogger } from './services/LoggerService';
 
 export default class Authord {
@@ -49,6 +60,8 @@ export default class Authord {
   private renderService: RenderService;
   private previewRenderMode: PreviewRenderMode = 'simple';
   private indexService: DocumentIndexService | undefined;
+  private sentinelDiagnostics: vscode.DiagnosticCollection | undefined;
+  private triStateStatusItem: vscode.StatusBarItem | undefined;
   private logger: LoggerService;
   private editorScrollSyncThrottleTimer: ReturnType<typeof setTimeout> | undefined;
   private editorScrollSyncUnlockTimer: ReturnType<typeof setTimeout> | undefined;
@@ -100,7 +113,7 @@ export default class Authord {
       this.previewRenderMode = config.get<PreviewRenderMode>('previewRenderMode', 'simple');
 
       if (this.documentManager) {
-        this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager));
+        this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager), this.workspaceRoot);
         this.documentationProvider = new DocumentationProvider(
           new DocumentationService(this.documentManager),
           this.topicsProvider
@@ -161,7 +174,7 @@ export default class Authord {
         }
 
         if (!this.documentationProvider || !this.topicsProvider) {
-          this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!));
+          this.topicsProvider = new TopicsProvider(new TopicsService(this.documentManager!), this.workspaceRoot);
           this.documentationProvider = new DocumentationProvider(
             new DocumentationService(this.documentManager!),
             this.topicsProvider
@@ -343,6 +356,13 @@ export default class Authord {
             await this.indexService.indexDocument(doc.uri.fsPath, doc.getText());
           }
         }
+
+        await this.runSentinelCheck(doc);
+
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor?.document === doc) {
+          await this.updateTriStateEditorIndicator(activeEditor);
+        }
       }),
 
       // NEW: Auto-update custom preview when the active text editor changes
@@ -360,6 +380,10 @@ export default class Authord {
             });
           }
           this.preview.update(editor.document);
+        }
+        if (editor) {
+          void this.updateTriStateEditorIndicator(editor);
+          void this.runSentinelCheck(editor.document);
         }
       }),
 
@@ -420,6 +444,179 @@ export default class Authord {
         }, 120);
       })
     );
+  }
+
+  private ensureSentinelDiagnostics(): vscode.DiagnosticCollection {
+    if (!this.sentinelDiagnostics) {
+      this.sentinelDiagnostics = vscode.languages.createDiagnosticCollection('authord-sentinel');
+      this.context.subscriptions.push(this.sentinelDiagnostics);
+    }
+    return this.sentinelDiagnostics;
+  }
+
+  private async runSentinelCheck(doc: vscode.TextDocument): Promise<void> {
+    const config = vscode.workspace.getConfiguration('authord');
+    const enabled = config.get<boolean>('sentinel.enabled', true);
+    const mode = config.get<string>('sentinel.mode', 'quick');
+    if (!enabled || mode === 'off') {
+      this.sentinelDiagnostics?.delete(doc.uri);
+      return;
+    }
+    if (!this.documentManager) return;
+
+    try {
+      await this.fsModule.access(this.workspaceRoot);
+    } catch {
+      return;
+    }
+
+    try {
+      const registryService = new RegistryService(this.workspaceRoot);
+      const registry = await registryService.loadRegistry();
+      const sentinel = new SentinelService(this.workspaceRoot);
+      const refs = sentinel.findSymbolRefsForDocument(registry, doc.uri.fsPath);
+      if (refs.length === 0) {
+        this.sentinelDiagnostics?.delete(doc.uri);
+        return;
+      }
+
+      const autoMark = config.get<boolean>('sentinel.autoMarkRegistry', false);
+      let registryChanged = false;
+      const diagnostics: vscode.Diagnostic[] = [];
+
+      for (const ref of refs) {
+        const drift = sentinel.checkDrift(ref.topic, doc.getText(), ref.symbol);
+        if (drift !== 'Drifted') continue;
+
+        const range = this.findSentinelRange(doc, ref.symbolName);
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          `Authord: documentation drift detected for topic ${ref.topic.id}.`,
+          vscode.DiagnosticSeverity.Warning
+        );
+        diagnostic.source = 'authord.sentinel';
+        diagnostic.code = ref.topic.id;
+        diagnostics.push(diagnostic);
+
+        if (autoMark && ref.topic.tri_state !== 'DRIFTED') {
+          ref.topic.tri_state = 'DRIFTED';
+          registryChanged = true;
+        }
+      }
+
+      if (diagnostics.length === 0) {
+        this.sentinelDiagnostics?.delete(doc.uri);
+        return;
+      }
+
+      if (autoMark && registryChanged) {
+        await registryService.saveRegistry(registry);
+      }
+      this.ensureSentinelDiagnostics().set(doc.uri, diagnostics);
+    } catch (error: any) {
+      this.logger.warn('Sentinel drift check failed.', error);
+    }
+  }
+
+  private findSentinelRange(doc: vscode.TextDocument, symbolName?: string): vscode.Range {
+    if (!symbolName) return new vscode.Range(0, 0, 0, 0);
+    const text = doc.getText();
+    const index = this.findExportSignatureIndex(text, symbolName);
+    if (index === undefined) return new vscode.Range(0, 0, 0, 0);
+    const position = doc.positionAt(index);
+    return doc.lineAt(position.line).range;
+  }
+
+  private findExportSignatureIndex(text: string, symbolName: string): number | undefined {
+    const patterns = [
+      new RegExp(`export\\s+(?:declare\\s+)?function\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+default\\s+(?:async\\s+)?function\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+(?:abstract\\s+)?class\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+interface\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+enum\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+type\\s+${symbolName}\\b`),
+      new RegExp(`export\\s+(?:const|let|var)\\s+${symbolName}\\b`),
+    ];
+
+    for (const pattern of patterns) {
+      const match = pattern.exec(text);
+      if (match && match.index !== undefined) {
+        return match.index;
+      }
+    }
+    return undefined;
+  }
+
+  private ensureTriStateStatusItem(): vscode.StatusBarItem {
+    if (!this.triStateStatusItem) {
+      const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+      item.name = 'Authord Tri-State Status';
+      item.command = 'authord.showTopicStatus';
+      this.triStateStatusItem = item;
+      this.context.subscriptions.push(item);
+    }
+    return this.triStateStatusItem;
+  }
+
+  private hideTriStateStatusItem(): void {
+    if (this.triStateStatusItem) {
+      this.triStateStatusItem.hide();
+    }
+  }
+
+  private formatTriStateStatus(status: TriStateStatus): {
+    label: string;
+    icon: string;
+    color?: vscode.ThemeColor;
+  } {
+    switch (status) {
+      case 'SYNCED':
+        return { label: 'Synced', icon: '$(check)', color: new vscode.ThemeColor('charts.green') };
+      case 'DRIFTED':
+        return { label: 'Drifted', icon: '$(warning)', color: new vscode.ThemeColor('charts.yellow') };
+      case 'DRAFT':
+        return { label: 'Draft', icon: '$(edit)', color: new vscode.ThemeColor('charts.blue') };
+      case 'MISSING':
+        return { label: 'Missing', icon: '$(error)', color: new vscode.ThemeColor('charts.red') };
+      default:
+        return { label: 'Unknown', icon: '$(question)' };
+    }
+  }
+
+  private async updateTriStateEditorIndicator(editor?: vscode.TextEditor): Promise<void> {
+    if (!editor || !this.documentManager) {
+      this.hideTriStateStatusItem();
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('authord');
+    const showIndicator = config.get<boolean>('ui.showTriStateEditorIndicator', true) ?? false;
+    if (!showIndicator || editor.document.languageId !== 'markdown') {
+      this.hideTriStateStatusItem();
+      return;
+    }
+
+    const topicsDir = this.documentManager.getTopicsDirectory();
+    const relativePath = path.relative(topicsDir, editor.document.uri.fsPath);
+    if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      this.hideTriStateStatusItem();
+      return;
+    }
+
+    try {
+      const registryService = new RegistryService(this.workspaceRoot);
+      const registry = await registryService.loadRegistry();
+      const status = registryService.getTopicStatusFromRegistry(relativePath, registry);
+      const formatted = this.formatTriStateStatus(status);
+      const item = this.ensureTriStateStatusItem();
+      item.text = `${formatted.icon} Authord: ${formatted.label}`;
+      item.tooltip = `Authord topic ${relativePath} is ${formatted.label}.`;
+      item.color = formatted.color;
+      item.show();
+    } catch (error: any) {
+      this.logger.warn('Tri-state editor indicator update failed.', error);
+      this.hideTriStateStatusItem();
+    }
   }
 
   /**
@@ -551,6 +748,38 @@ export default class Authord {
         await this.configureAiProvider();
       }),
 
+      this.commandExecutor.registerCommand('authord.initializeRegistry', async () => {
+        await this.initializeTriStateRegistryFromTopics();
+      }),
+
+      this.commandExecutor.registerCommand('authord.generateTriStateIntegrationPlan', async () => {
+        await this.generateTriStateIntegrationPlan();
+      }),
+
+      this.commandExecutor.registerCommand('authord.showTopicStatus', async () => {
+        await this.showTopicStatusForActiveEditor();
+      }),
+
+      this.commandExecutor.registerCommand('authord.harmonizeTopic', async (item?: TopicsItem) => {
+        await this.harmonizeTopic(item);
+      }),
+
+      this.commandExecutor.registerCommand('authord.syncConfluenceSnapshots', async (item?: TopicsItem) => {
+        await this.syncConfluenceSnapshots(item);
+      }),
+
+      this.commandExecutor.registerCommand('authord.openTriStateDiff', async (item?: TopicsItem) => {
+        await this.openTriStateDiff(item);
+      }),
+
+      this.commandExecutor.registerCommand('authord.showLastRunReport', async () => {
+        await this.showLastRunReport();
+      }),
+
+      this.commandExecutor.registerCommand('authordExtension.initTriStateRegistry', async () => {
+        await this.initializeTriStateRegistry();
+      }),
+
       this.commandExecutor.registerCommand('authordExtension.installCodexSkill', async () => {
         await this.installCodexSkill();
       }),
@@ -664,6 +893,237 @@ export default class Authord {
       )
     );
     this.commandsRegistered = true;
+  }
+
+  private async initializeTriStateRegistry(): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showErrorMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    try {
+      const bootstrap = new TriStateBootstrapService(this.workspaceRoot, this.documentManager);
+      const result = await bootstrap.bootstrapRegistry();
+      if (result.addedTopics === 0) {
+        this.notifier.showInformationMessage('Tri-State registry is already initialized.');
+        return;
+      }
+      this.notifier.showInformationMessage(
+        `Tri-State registry initialized with ${result.addedTopics} topics.`
+      );
+    } catch (error: any) {
+      this.logger.error('Tri-State registry initialization failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Tri-State registry initialization failed.${message}`);
+    }
+  }
+
+  private async initializeTriStateRegistryFromTopics(): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showErrorMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    try {
+      const bootstrap = new RegistryBootstrapService(this.documentManager);
+      const result = await bootstrap.bootstrapFromTopics(this.workspaceRoot);
+      if (result.created) {
+        this.notifier.showInformationMessage(
+          `Tri-State registry created with ${result.topicsAdded} topics.`
+        );
+        return;
+      }
+      if (result.topicsAdded > 0) {
+        this.notifier.showInformationMessage(
+          `Tri-State registry updated with ${result.topicsAdded} new topics.`
+        );
+        return;
+      }
+      this.notifier.showInformationMessage('Tri-State registry already up to date.');
+    } catch (error: any) {
+      this.logger.error('Tri-State registry initialization failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Tri-State registry initialization failed.${message}`);
+    }
+  }
+
+  private async generateTriStateIntegrationPlan(): Promise<void> {
+    try {
+      const diffService = new BlueprintDiffService(this.workspaceRoot);
+      const blueprint = await diffService.loadBlueprint();
+      const repoSignals = await diffService.scanRepo();
+      const diffResult = diffService.diff(blueprint, repoSignals);
+      const ordered = diffService.computeDependencyOrder(blueprint);
+      const writer = new IntegrationPlanWriter(this.workspaceRoot, blueprint.name);
+      await writer.writePlan(diffResult, ordered);
+      this.notifier.showInformationMessage(
+        'Tri-State integration plan generated at docs/architecture/tri-state-integration.md.'
+      );
+    } catch (error: any) {
+      this.logger.error('Tri-State integration plan generation failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Tri-State integration plan generation failed.${message}`);
+    }
+  }
+
+  private async showTopicStatusForActiveEditor(): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showInformationMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    const relativePath = this.getActiveTopicRelativePath();
+    if (!relativePath) {
+      this.notifier.showInformationMessage('Active editor is not an Authord topic file.');
+      return;
+    }
+
+    try {
+      const registryService = new RegistryService(this.workspaceRoot);
+      const registry = await registryService.loadRegistry();
+      const status = registryService.getTopicStatusFromRegistry(relativePath, registry);
+      const formatted = this.formatTriStateStatus(status);
+      this.notifier.showInformationMessage(`Authord topic ${relativePath}: ${formatted.label}.`);
+    } catch (error: any) {
+      this.logger.error('Topic status lookup failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Failed to resolve topic status.${message}`);
+    }
+  }
+
+  private async harmonizeTopic(item?: TopicsItem): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showErrorMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    const topicId = item?.topic ?? this.getActiveTopicRelativePath();
+    if (!topicId) {
+      this.notifier.showInformationMessage('No topic selected to harmonize.');
+      return;
+    }
+
+    try {
+      const harmonizer = new HarmonizeService(this.workspaceRoot, this.documentManager);
+      await harmonizer.harmonizeTopic(topicId);
+    } catch (error: any) {
+      this.logger.error('Topic harmonize failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Topic harmonize failed.${message}`);
+    }
+  }
+
+  private async syncConfluenceSnapshots(item?: TopicsItem): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showErrorMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    const topicId = item?.topic ?? this.getActiveTopicRelativePath();
+    const syncService = new ConfluenceSyncService(this.workspaceRoot);
+
+    if (topicId) {
+      try {
+        const result = await syncService.syncTopic(topicId);
+        this.notifier.showInformationMessage(
+          `Confluence snapshot synced for ${topicId} (v${result.version}).`
+        );
+      } catch (error: any) {
+        this.logger.error('Confluence snapshot sync failed.', error);
+        const message = error?.message ? ` ${error.message}` : '';
+        this.notifier.showErrorMessage(`Confluence snapshot sync failed.${message}`);
+      }
+      return;
+    }
+
+    const pick = await vscode.window.showQuickPick(
+      [
+        { label: 'Sync all topics with Confluence IDs', value: 'all' },
+        { label: 'Cancel', value: 'cancel' },
+      ],
+      { placeHolder: 'No topic selected. Choose a sync option.' }
+    );
+    if (!pick || pick.value !== 'all') return;
+
+    try {
+      const result = await syncService.syncAllTopics();
+      if (result.synced === 0) {
+        this.notifier.showInformationMessage('No topics synced. Check for configured Confluence IDs.');
+        return;
+      }
+      this.notifier.showInformationMessage(
+        `Confluence snapshots synced for ${result.synced} topic(s).`
+      );
+    } catch (error: any) {
+      this.logger.error('Confluence snapshot sync failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Confluence snapshot sync failed.${message}`);
+    }
+  }
+
+  private async openTriStateDiff(item?: TopicsItem): Promise<void> {
+    if (!this.documentManager) {
+      this.notifier.showErrorMessage('Documentation manager is not initialized.');
+      return;
+    }
+
+    const topicId = item?.topic ?? this.getActiveTopicRelativePath();
+    if (!topicId) {
+      this.notifier.showInformationMessage('No topic selected to compare.');
+      return;
+    }
+
+    try {
+      const diffView = TriStateDiffView.createOrShow(this.context, this.workspaceRoot, this.documentManager);
+      await diffView.showTopic(topicId);
+    } catch (error: any) {
+      this.logger.error('Tri-State diff view failed.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Tri-State diff view failed.${message}`);
+    }
+  }
+
+  private async showLastRunReport(): Promise<void> {
+    const tracker = new RunTrackerService(this.workspaceRoot);
+    try {
+      const lastPath = await tracker.getLastRunPath();
+      if (!lastPath) {
+        this.notifier.showInformationMessage('No Authord runs recorded yet.');
+        return;
+      }
+      const run = await tracker.readRun(lastPath);
+      const stepsSummary = run.steps
+        .map((step) => {
+          const duration = step.finished_at
+            ? Math.max(0, Date.parse(step.finished_at) - Date.parse(step.started_at))
+            : 0;
+          const seconds = duration ? `${(duration / 1000).toFixed(1)}s` : 'pending';
+          return `${step.step_id}:${step.status}(${seconds})`;
+        })
+        .join(', ');
+      this.notifier.showInformationMessage(
+        `Last run ${run.workflow_id} (${run.status}). Steps: ${stepsSummary}`
+      );
+
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(lastPath));
+      await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+    } catch (error: any) {
+      this.logger.error('Failed to open last run report.', error);
+      const message = error?.message ? ` ${error.message}` : '';
+      this.notifier.showErrorMessage(`Failed to open last run report.${message}`);
+    }
+  }
+
+  private getActiveTopicRelativePath(): string | undefined {
+    if (!this.documentManager) return undefined;
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return undefined;
+    const topicsDir = this.documentManager.getTopicsDirectory();
+    const relativePath = path.relative(topicsDir, editor.document.uri.fsPath);
+    if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      return undefined;
+    }
+    return relativePath;
   }
 
   private async generateCommitDocs(): Promise<void> {
